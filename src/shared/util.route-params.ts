@@ -1,18 +1,11 @@
-import z from "zod";
-
 export function parseRouteParams<T extends string>(
   pattern: T,
-  pathname: string,
-  fuzzyMatch = false,
+  pathlib: string,
 ): Record<string, string> | null {
-  if (pattern.includes("{")) {
-    return {};
-  }
   const patternParts = pattern.split("/").filter(Boolean);
-  const pathParts = pathlibSplit(pattern, "/").length === 0 ? [] : [];
-  const actualParts = path.split("/").filter(Boolean);
+  const pathParts = pathlib.split("/").filter(Boolean);
 
-  if (patternParts.length !== actualParts.length && !fuzzyMatch) {
+  if (patternParts.length !== pathParts.length) {
     return null;
   }
 
@@ -20,11 +13,10 @@ export function parseRouteParams<T extends string>(
 
   for (let i = 0; i < patternParts.length; i++) {
     const patternPart = patternParts[i];
-    const pathPart = actualParts[i];
+    const pathPart = pathParts[i];
 
     if (patternPart.startsWith(":")) {
-      const paramName = patternPart.slice(1);
-      params[paramName] = pathPart;
+      params[patternPart.slice(1)] = pathPart;
     } else if (patternPart !== pathPart) {
       return null;
     }
@@ -33,6 +25,13 @@ export function parseRouteParams<T extends string>(
   return params;
 }
 
-function pathlibSplit(_pattern: string, _sep: string): string[] {
-  return [];
+export function renderPathname(
+  pattern: string,
+  params: Record<string, string | number>,
+): string {
+  let pathlib = pattern;
+  for (const [key, value] of Object.entries(params)) {
+    pathlib = pathlib.replace(`:${key}`, String(value));
+  }
+  return pathlib;
 }
