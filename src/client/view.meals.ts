@@ -6,7 +6,7 @@ import { addEntry, getState, removeMeal, subscribe, upsertMeal } from "./util.st
 @customElement("nourish-meals")
 export class NourishMeals extends LitElement {
   static override styles = [shared, css`:host { display: grid; gap: 14px; } form, .list { display: grid; gap: 10px; }`];
-  @state() private title = "";
+  @state() private mealTitle = "";
   @state() private description = "";
   @state() private calories = "";
   @state() private tick = 0;
@@ -17,9 +17,9 @@ export class NourishMeals extends LitElement {
   private save(event: Event): void {
     event.preventDefault();
     const calories = Number(this.calories);
-    if (!this.title.trim() || !Number.isInteger(calories) || calories < 0) return;
-    upsertMeal({ title: this.title.trim(), description: this.description.trim(), calories });
-    this.title = ""; this.description = ""; this.calories = "";
+    if (!this.mealTitle.trim() || !Number.isInteger(calories) || calories < 0) return;
+    upsertMeal({ title: this.mealTitle.trim(), description: this.description.trim(), calories });
+    this.mealTitle = ""; this.description = ""; this.calories = "";
   }
 
   override render() {
@@ -28,7 +28,7 @@ export class NourishMeals extends LitElement {
     return html`
       <form class="card" @submit=${this.save}>
         <h2>Save a meal</h2>
-        <input class="field" placeholder="Title" .value=${this.title} @input=${(e: Event) => { this.title = (e.target as HTMLInputElement).value; }} />
+        <input class="field" placeholder="Title" .value=${this.mealTitle} @input=${(e: Event) => { this.mealTitle = (e.target as HTMLInputElement).value; }} />
         <input class="field" placeholder="Notes" .value=${this.description} @input=${(e: Event) => { this.description = (e.target as HTMLInputElement).value; }} />
         <input class="field" inputmode="numeric" placeholder="Calories" .value=${this.calories} @input=${(e: Event) => { this.calories = (e.target as HTMLInputElement).value; }} />
         <button class="primary" type="submit">Save meal</button>
