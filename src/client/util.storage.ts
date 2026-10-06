@@ -6,7 +6,7 @@ const emptyState: NutritionState = {
   entries: [],
   meals: [],
   goal: undefined,
-;
+};
 
 export function loadState(): NutritionState {
   try {
@@ -25,11 +25,7 @@ export function saveState(state: NutritionState): void {
 }
 
 export function todayKey(): string {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  return dateKey(new Date());
 }
 
 export function dateKey(date: Date): string {
@@ -37,4 +33,8 @@ export function dateKey(date: Date): string {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+export function entryDate(timestamp: string): string {
+  return dateKey(new Date(timestamp));
 }
