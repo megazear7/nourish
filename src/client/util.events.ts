@@ -21,7 +21,7 @@ export type NourishEvent = z.infer<typeof NourishEvent>;
 
 export const stopProp = (event: Event): void => {
   event.stopPropagation();
-;
+}
 
 export const dispatch = (element: HTMLElement, event: NourishEvent): void => {
   element.dispatchEvent(
@@ -31,4 +31,4 @@ export const dispatch = (element: HTMLElement, event: NourishEvent): void => {
       composed: true,
     }),
   );
-;
+}
