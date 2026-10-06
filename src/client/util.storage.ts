@@ -1,4 +1,4 @@
-import { NutritionState, NutritionStateSchema } from "../shared/type.nutrition.js";
+import { NutritionState } from "../shared/type.nutrition.js";
 
 const STORAGE_KEY = "nourish-state";
 
@@ -6,14 +6,14 @@ const emptyState: NutritionState = {
   entries: [],
   meals: [],
   goal: undefined,
-};
+;
 
 export function loadState(): NutritionState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return emptyState;
     const parsed = JSON.parse(raw);
-    const result = NutritionStateSchema.safeParse(parsed);
+    const result = NutritionState.safeParse(parsed);
     return result.success ? result.data : emptyState;
   } catch {
     return emptyState;
