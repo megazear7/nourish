@@ -1,12 +1,18 @@
 const CACHE = "nourish-v1";
-const ASSETS = ["/", "/index.html", "/bundle.js", "/manifest.json", "/favicon.svg"];
+const FILES = ["/", "/index.html", "/bundle.js", "/manifest.json", "/favicon.svg"];
+
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ASSETS)));
+  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(FILES)));
   self.skipWaiting();
 });
+
 self.addEventListener("activate", (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    caches.keys().then((keys) => Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key)))),
+  );
+  self.clients.claim();
 });
+
 self.addEventListener("fetch", (event) => {
-  event.respondWith(caches.match(event.request).then((hit) => hit || fetch(event.request)));
+  event.respondWith(caches.match(event.request).then((cached) => cached || fetch(event.request)));
 });
