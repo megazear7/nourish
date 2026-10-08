@@ -175,6 +175,10 @@ export const appStyles = css`
     margin: 0.4rem 0 0;
   }
 
+  .goal-card .tone-note {
+    margin-top: 1.25rem;
+  }
+
   .entry-list {
     display: flex;
     flex-direction: column;

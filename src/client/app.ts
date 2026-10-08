@@ -280,6 +280,7 @@ export class NourishApp extends LitElement {
     const calories = Number(new FormData(form).get("calories") ?? 0);
     if (!Number.isFinite(calories) || calories <= 0) return;
     this.commit({ ...this.state, goal: { calories } });
+    this.navigate("today");
   }
 
   private todayEntries(): CalorieEntry[] {
