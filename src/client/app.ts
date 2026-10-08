@@ -270,15 +270,21 @@ export class NourishApp extends LitElement {
     const color = goal ? toneColor(weighted) : "var(--ink)";
     return html`
       <section class="day-summary">
-        <p class="day-kicker">Today</p>
-        <p class="calorie-total" style="color: ${color}">${total}</p>
-        <p class="calorie-unit">calories</p>
-        ${
-          goal
-            ? html`<p class="goal-note">Goal ${goal}</p>
-                <p class="tone-note">${toneLabel(weighted)}</p>`
-            : html`<p class="goal-note">Set a daily goal to color the week.</p>`
-        }
+        <p class="day-status">
+          <span class="day-kicker">Today</span>
+          ${
+            goal
+              ? html`<span class="status-label" style="color: ${color}"
+                  >— ${toneLabel(weighted)}</span
+                >`
+              : ""
+          }
+        </p>
+        <p class="calorie-line">
+          <span class="calorie-total" style="color: ${color}">${total}</span>
+          <span class="calorie-goal">${goal ? `/ ${goal} ` : ""}calories</span>
+        </p>
+        ${goal ? "" : html`<p class="goal-note">Set a daily goal to color the week.</p>`}
       </section>
       ${
         this.todayEntries().length

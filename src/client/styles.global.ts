@@ -130,11 +130,35 @@ export const appStyles = css`
     font-size: 0.75rem;
   }
 
+  .day-status,
+  .calorie-line {
+    display: flex;
+    align-items: baseline;
+    gap: 0.45rem;
+    margin: 0;
+  }
+
+  .calorie-line {
+    margin-top: 0.2rem;
+  }
+
+  .status-label {
+    margin: 0;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+  }
+
   .calorie-total {
-    margin: 0.35rem 0 0;
+    margin: 0;
     font-size: 4.4rem;
     line-height: 0.95;
     font-weight: 560;
+  }
+
+  .calorie-goal {
+    color: var(--muted);
+    font-size: 1rem;
   }
 
   .calorie-unit,
