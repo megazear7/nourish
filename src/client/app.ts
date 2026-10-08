@@ -16,6 +16,60 @@ import { appStyles } from "./styles.global.js";
 
 type PageName = "today" | "history" | "meals" | "goal";
 
+const QUICK_WINDOW_MS = 60_000;
+
+type ShownEntry = {
+  key: string;
+  entries: CalorieEntry[];
+  calories: number;
+  timestamp: string;
+  mealId?: string;
+};
+
+function shownEntries(entries: CalorieEntry[]): ShownEntry[] {
+  const ordered = [...entries].sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+  const shown: ShownEntry[] = [];
+  let quick: CalorieEntry[] = [];
+  let quickStart = 0;
+
+  const flushQuick = (): void => {
+    if (!quick.length) return;
+    const grouped = quick;
+    const latest = grouped[grouped.length - 1];
+    if (!latest) return;
+    shown.push({
+      key: grouped.map((entry) => entry.id).join(":"),
+      entries: grouped,
+      calories: grouped.reduce((sum, entry) => sum + entry.calories, 0),
+      timestamp: latest.timestamp,
+    });
+    quick = [];
+  };
+
+  for (const entry of ordered) {
+    if (entry.mealId) {
+      shown.push({
+        key: entry.id,
+        entries: [entry],
+        calories: entry.calories,
+        timestamp: entry.timestamp,
+        mealId: entry.mealId,
+      });
+      continue;
+    }
+    const time = new Date(entry.timestamp).getTime();
+    if (!quick.length || time - quickStart > QUICK_WINDOW_MS) {
+      flushQuick();
+      quick = [entry];
+      quickStart = time;
+      continue;
+    }
+    quick.push(entry);
+  }
+  flushQuick();
+  return shown.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+}
+
 @customElement("nourish-app")
 export class NourishApp extends LitElement {
   static override styles = appStyles;
@@ -115,17 +169,22 @@ export class NourishApp extends LitElement {
     this.mealPickerOpen = false;
   }
 
-  private updateTime(entry: CalorieEntry, time: string): void {
+  private updateShownTime(shown: ShownEntry, time: string): void {
+    const ids = new Set(shown.entries.map((entry) => entry.id));
     this.commit({
       ...this.state,
       entries: this.state.entries.map((item) =>
-        item.id === entry.id ? { ...item, timestamp: withTime(item.timestamp, time) } : item,
+        ids.has(item.id) ? { ...item, timestamp: withTime(item.timestamp, time) } : item,
       ),
     });
   }
 
-  private removeEntry(id: string): void {
-    this.commit({ ...this.state, entries: this.state.entries.filter((entry) => entry.id !== id) });
+  private removeShown(shown: ShownEntry): void {
+    const ids = new Set(shown.entries.map((entry) => entry.id));
+    this.commit({
+      ...this.state,
+      entries: this.state.entries.filter((entry) => !ids.has(entry.id)),
+    });
   }
 
   private saveMeal(event: Event): void {
@@ -179,7 +238,7 @@ export class NourishApp extends LitElement {
       ${
         this.todayEntries().length
           ? html`<ul class="entry-list">
-              ${this.todayEntries().map((entry) => this.renderEntry(entry))}
+              ${shownEntries(this.todayEntries()).map((entry) => this.renderEntry(entry))}
             </ul>`
           : html`<p class="empty-note">Nothing logged yet. Add a bite when you eat it.</p>`
       }
@@ -187,37 +246,56 @@ export class NourishApp extends LitElement {
         <button class="calorie-button" @click=${() => this.addCalories(100)}>+100</button>
         <button class="calorie-button" @click=${() => this.addCalories(200)}>+200</button>
         <button class="calorie-button" @click=${() => this.addCalories(500)}>+500</button>
-        <button class="meal-button" @click=${() => (this.mealPickerOpen = true)}>Meals</button>
+        <button
+          class="meal-button"
+          aria-haspopup="menu"
+          aria-expanded=${this.mealPickerOpen ? "true" : "false"}
+          @click=${() => (this.mealPickerOpen = !this.mealPickerOpen)}
+        >
+          Meals
+        </button>
       </div>
       ${this.mealPickerOpen ? this.renderMealPicker() : ""}
     `;
   }
 
-  private renderEntry(entry: CalorieEntry) {
-    const meal = this.state.meals.find((item) => item.id === entry.mealId);
+  private renderEntry(shown: ShownEntry) {
+    const meal = this.state.meals.find((item) => item.id === shown.mealId);
+    const open = this.editingId === shown.key;
     return html`<li class="entry-card">
       <div class="entry-row">
-        <div>
-          <p class="entry-calories">+${entry.calories}</p>
-          <p class="entry-meta">${meal?.title ?? "Quick add"} · ${formatTime(entry.timestamp)}</p>
+        <div class="entry-copy">
+          <p class="entry-calories">+${shown.calories}</p>
+          <p class="entry-meta">${meal?.title ?? "Quick add"} · ${formatTime(shown.timestamp)}</p>
         </div>
         <button
-          class="text-button"
-          @click=${() => (this.editingId = this.editingId === entry.id ? "" : entry.id)}
+          class="icon-button"
+          aria-label=${open ? "Close time editor" : "Edit time"}
+          @click=${() => (this.editingId = open ? "" : shown.key)}
         >
-          ${this.editingId === entry.id ? "Close" : "Time"}
+          ${
+            open
+              ? html`<svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M6 6l12 12M18 6L6 18"></path>
+                </svg>`
+              : html`<svg viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="12" cy="12" r="8"></circle>
+                  <path d="M12 8v4.5l3 2"></path>
+                </svg>`
+          }
         </button>
       </div>
       ${
-        this.editingId === entry.id
+        open
           ? html`<div class="time-editor">
               <input
                 class="time-input"
                 type="time"
-                .value=${timeValue(entry.timestamp)}
-                @change=${(event: Event) => this.updateTime(entry, (event.target as HTMLInputElement).value)}
+                .value=${timeValue(shown.timestamp)}
+                @change=${(event: Event) =>
+                  this.updateShownTime(shown, (event.target as HTMLInputElement).value)}
               />
-              <button class="text-button" @click=${() => this.removeEntry(entry.id)}>Remove</button>
+              <button class="text-button" @click=${() => this.removeShown(shown)}>Remove</button>
             </div>`
           : ""
       }
@@ -225,22 +303,31 @@ export class NourishApp extends LitElement {
   }
 
   private renderMealPicker() {
-    return html`<div class="menu-sheet" @click=${() => (this.mealPickerOpen = false)}>
-      <section class="menu-panel" @click=${(event: Event) => event.stopPropagation()}>
-        <h2 class="section-title">Saved meals</h2>
-        <ul class="meal-list">
-          ${this.state.meals.map(
-            (meal) =>
-              html`<li>
-                <button class="menu-link" @click=${() => this.addCalories(meal.calories, meal.id)}>
-                  ${meal.title} · ${meal.calories}
-                </button>
-              </li>`,
-          )}
-        </ul>
-        <button class="save-button" @click=${() => this.navigate("meals")}>Add a new meal</button>
-      </section>
-    </div>`;
+    const meals = this.state.meals;
+    return html`<div class="popover-backdrop" @click=${() => (this.mealPickerOpen = false)}></div>
+      <div class="meal-popover" role="menu" @click=${(event: Event) => event.stopPropagation()}>
+        ${
+          meals.length
+            ? meals.map(
+                (meal) =>
+                  html`<button
+                    class="popover-button"
+                    role="menuitem"
+                    @click=${() => this.addCalories(meal.calories, meal.id)}
+                  >
+                    <span>${meal.title}</span>
+                    <span class="popover-calories">${meal.calories}</span>
+                  </button>`,
+              )
+            : html`<button
+                class="popover-button popover-create"
+                role="menuitem"
+                @click=${() => this.navigate("meals")}
+              >
+                Create a meal
+              </button>`
+        }
+      </div>`;
   }
 
   private renderHistory() {
@@ -341,7 +428,7 @@ export class NourishApp extends LitElement {
           <h1 class="brand-name">${this.page === "today" ? "Today" : this.page}</h1>
         </div>
         <button class="menu-button" @click=${() => (this.menuOpen = true)} aria-label="Open menu">
-          Menu
+          <span class="hamburger" aria-hidden="true"></span>
         </button>
       </header>
       <main class="app-main">

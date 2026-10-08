@@ -15,6 +15,12 @@ export const appStyles = css`
     background: var(--canvas);
   }
 
+  :host *,
+  :host *::before,
+  :host *::after {
+    box-sizing: border-box;
+  }
+
   .app-shell {
     min-height: 100vh;
     display: flex;
@@ -60,15 +66,49 @@ export const appStyles = css`
   }
 
   .menu-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
     width: 2.75rem;
     height: 2.75rem;
+    padding: 0;
     border-radius: 999px;
     background: var(--panel);
     color: var(--ink);
   }
 
+  .hamburger {
+    position: relative;
+    width: 1.05rem;
+    height: 2px;
+    border-radius: 999px;
+    background: currentColor;
+  }
+
+  .hamburger::before,
+  .hamburger::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    width: 1.05rem;
+    height: 2px;
+    border-radius: 999px;
+    background: currentColor;
+  }
+
+  .hamburger::before {
+    top: -6px;
+  }
+
+  .hamburger::after {
+    top: 6px;
+  }
+
   .app-main {
     flex: 1;
+    min-width: 0;
+    max-width: 100%;
     padding: 0.5rem 1.25rem 7.5rem;
   }
 
@@ -137,10 +177,39 @@ export const appStyles = css`
     gap: 1rem;
   }
 
+  .entry-copy {
+    min-width: 0;
+  }
+
   .entry-calories,
   .day-calories {
     font-size: 1.25rem;
     font-weight: 560;
+  }
+
+  .icon-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+  }
+
+  .icon-button svg {
+    width: 1.2rem;
+    height: 1.2rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
   }
 
   .time-editor {
@@ -154,7 +223,10 @@ export const appStyles = css`
   .text-input,
   .number-input,
   .description-input {
+    display: block;
     width: 100%;
+    max-width: 100%;
+    min-width: 0;
     border: 0;
     border-radius: 0.9rem;
     background: var(--field);
@@ -168,6 +240,7 @@ export const appStyles = css`
     left: 0;
     right: 0;
     bottom: 0;
+    z-index: 5;
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 0.55rem;
@@ -187,6 +260,60 @@ export const appStyles = css`
   .meal-button {
     background: var(--panel);
     color: var(--ink);
+  }
+
+  .popover-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 4;
+    background: transparent;
+  }
+
+  .meal-popover {
+    position: fixed;
+    right: 1rem;
+    bottom: 5.6rem;
+    z-index: 6;
+    display: flex;
+    flex-direction: column;
+    width: min(16rem, calc(100vw - 2rem));
+    max-height: min(50vh, 22rem);
+    overflow: auto;
+    padding: 0.35rem;
+    border-radius: 1rem;
+    background: var(--panel);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  }
+
+  .popover-button {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    width: 100%;
+    min-height: 2.75rem;
+    border: 0;
+    border-radius: 0.75rem;
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+    text-align: left;
+    padding: 0.7rem 0.8rem;
+    cursor: pointer;
+  }
+
+  .popover-button + .popover-button {
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .popover-calories {
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .popover-create {
+    justify-content: center;
+    color: var(--gold);
   }
 
   .menu-sheet {
