@@ -1,7 +1,15 @@
 import { LitElement, html } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import { CalorieEntry, Meal, NutritionState } from "../shared/type.nutrition.js";
-import { addDays, dateKey, formatDayLabel, formatTime, timeValue, todayKey, withTime } from "../shared/util.dates.js";
+import {
+  addDays,
+  dateKey,
+  formatDayLabel,
+  formatTime,
+  timeValue,
+  todayKey,
+  withTime,
+} from "../shared/util.dates.js";
 import { toneColor, toneLabel, weightedOver, dayTotal } from "../shared/util.score.js";
 import { loadState, saveState } from "./util.storage.js";
 import { appStyles } from "./styles.global.js";
@@ -17,19 +25,62 @@ export class NourishApp extends LitElement {
   @state() private menuOpen = false;
   @state() private editingId = "";
   @state() private mealPickerOpen = false;
+  @state() private offline = !navigator.onLine;
 
   override connectedCallback(): void {
     super.connectedCallback();
     this.syncRoute();
     window.addEventListener("popstate", this.syncRoute);
-    if ("serviceWorker" in navigator) {
-      void navigator.serviceWorker.register("/sw.js");
-    }
+    window.addEventListener("online", this.onOnline);
+    window.addEventListener("offline", this.onOffline);
+    this.registerWorker();
   }
 
   override disconnectedCallback(): void {
     window.removeEventListener("popstate", this.syncRoute);
+    window.removeEventListener("online", this.onOnline);
+    window.removeEventListener("offline", this.onOffline);
+    document.removeEventListener("visibilitychange", this.onVisibility);
     super.disconnectedCallback();
+  }
+
+  private onOnline = (): void => {
+    this.offline = false;
+  };
+
+  private onOffline = (): void => {
+    this.offline = true;
+  };
+
+  private onVisibility = (): void => {
+    if (document.visibilityState !== "visible" || !("serviceWorker" in navigator)) return;
+    void navigator.serviceWorker.getRegistration().then((registration) => registration?.update());
+  };
+
+  private registerWorker(): void {
+    if (!("serviceWorker" in navigator)) return;
+    void navigator.storage?.persist?.().catch(() => undefined);
+    if (navigator.serviceWorker.controller) {
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        try {
+          if (sessionStorage.getItem("nourish-reloading") === "1") return;
+          sessionStorage.setItem("nourish-reloading", "1");
+        } catch {
+          return;
+        }
+        window.location.reload();
+      });
+    }
+    try {
+      sessionStorage.removeItem("nourish-reloading");
+    } catch {
+      /* Storage can be blocked. Registration still has to run. */
+    }
+    document.addEventListener("visibilitychange", this.onVisibility);
+    void navigator.serviceWorker
+      .register("/sw.js")
+      .then((registration) => registration.update())
+      .catch(() => undefined);
   }
 
   private syncRoute = (): void => {
@@ -118,15 +169,20 @@ export class NourishApp extends LitElement {
         <p class="day-kicker">Today</p>
         <p class="calorie-total" style="color: ${color}">${total}</p>
         <p class="calorie-unit">calories</p>
-        ${goal
-          ? html`<p class="goal-note">Goal ${goal}</p><p class="tone-note">${toneLabel(weighted)}</p>`
-          : html`<p class="goal-note">Set a daily goal to color the week.</p>`}
+        ${
+          goal
+            ? html`<p class="goal-note">Goal ${goal}</p>
+                <p class="tone-note">${toneLabel(weighted)}</p>`
+            : html`<p class="goal-note">Set a daily goal to color the week.</p>`
+        }
       </section>
-      ${this.todayEntries().length
-        ? html`<ul class="entry-list">
-            ${this.todayEntries().map((entry) => this.renderEntry(entry))}
-          </ul>`
-        : html`<p class="empty-note">Nothing logged yet. Add a bite when you eat it.</p>`}
+      ${
+        this.todayEntries().length
+          ? html`<ul class="entry-list">
+              ${this.todayEntries().map((entry) => this.renderEntry(entry))}
+            </ul>`
+          : html`<p class="empty-note">Nothing logged yet. Add a bite when you eat it.</p>`
+      }
       <div class="action-dock">
         <button class="calorie-button" @click=${() => this.addCalories(100)}>+100</button>
         <button class="calorie-button" @click=${() => this.addCalories(200)}>+200</button>
@@ -145,21 +201,26 @@ export class NourishApp extends LitElement {
           <p class="entry-calories">+${entry.calories}</p>
           <p class="entry-meta">${meal?.title ?? "Quick add"} · ${formatTime(entry.timestamp)}</p>
         </div>
-        <button class="text-button" @click=${() => (this.editingId = this.editingId === entry.id ? "" : entry.id)}>
+        <button
+          class="text-button"
+          @click=${() => (this.editingId = this.editingId === entry.id ? "" : entry.id)}
+        >
           ${this.editingId === entry.id ? "Close" : "Time"}
         </button>
       </div>
-      ${this.editingId === entry.id
-        ? html`<div class="time-editor">
-            <input
-              class="time-input"
-              type="time"
-              .value=${timeValue(entry.timestamp)}
-              @change=${(event: Event) => this.updateTime(entry, (event.target as HTMLInputElement).value)}
-            />
-            <button class="text-button" @click=${() => this.removeEntry(entry.id)}>Remove</button>
-          </div>`
-        : ""}
+      ${
+        this.editingId === entry.id
+          ? html`<div class="time-editor">
+              <input
+                class="time-input"
+                type="time"
+                .value=${timeValue(entry.timestamp)}
+                @change=${(event: Event) => this.updateTime(entry, (event.target as HTMLInputElement).value)}
+              />
+              <button class="text-button" @click=${() => this.removeEntry(entry.id)}>Remove</button>
+            </div>`
+          : ""
+      }
     </li>`;
   }
 
@@ -169,11 +230,12 @@ export class NourishApp extends LitElement {
         <h2 class="section-title">Saved meals</h2>
         <ul class="meal-list">
           ${this.state.meals.map(
-            (meal) => html`<li>
-              <button class="menu-link" @click=${() => this.addCalories(meal.calories, meal.id)}>
-                ${meal.title} · ${meal.calories}
-              </button>
-            </li>`,
+            (meal) =>
+              html`<li>
+                <button class="menu-link" @click=${() => this.addCalories(meal.calories, meal.id)}>
+                  ${meal.title} · ${meal.calories}
+                </button>
+              </li>`,
           )}
         </ul>
         <button class="save-button" @click=${() => this.navigate("meals")}>Add a new meal</button>
@@ -213,21 +275,36 @@ export class NourishApp extends LitElement {
         <label class="field-label" for="meal-title">Title</label>
         <input class="text-input" id="meal-title" name="title" required />
         <label class="field-label" for="meal-description">Description</label>
-        <textarea class="description-input" id="meal-description" name="description" rows="3"></textarea>
+        <textarea
+          class="description-input"
+          id="meal-description"
+          name="description"
+          rows="3"
+        ></textarea>
         <label class="field-label" for="meal-calories">Calories</label>
-        <input class="number-input" id="meal-calories" name="calories" type="number" min="0" required />
+        <input
+          class="number-input"
+          id="meal-calories"
+          name="calories"
+          type="number"
+          min="0"
+          required
+        />
         <button class="save-button" type="submit">Save meal</button>
       </form>
       <ul class="meal-list">
         ${this.state.meals.map(
-          (meal) => html`<li class="meal-card">
-            <div class="meal-row">
-              <div>
-                <p class="entry-calories">${meal.title}</p>
-                <p class="entry-meta">${meal.description || "No description"} · ${meal.calories} calories</p>
+          (meal) =>
+            html`<li class="meal-card">
+              <div class="meal-row">
+                <div>
+                  <p class="entry-calories">${meal.title}</p>
+                  <p class="entry-meta">
+                    ${meal.description || "No description"} · ${meal.calories} calories
+                  </p>
+                </div>
               </div>
-            </div>
-          </li>`,
+            </li>`,
         )}
       </ul>
     </section>`;
@@ -248,8 +325,9 @@ export class NourishApp extends LitElement {
         />
         <button class="save-button" type="submit">Save goal</button>
         <p class="tone-note">
-          Color uses a seven-day window. Today counts fully, yesterday half, and each older day a little less. Under
-          the goal pulls the color back toward green. 150 over the weighted window is yellow. 300 over is red.
+          Color uses a seven-day window. Today counts fully, yesterday half, and each older day a
+          little less. Under the goal pulls the color back toward green. 150 over the weighted
+          window is yellow. 300 over is red.
         </p>
       </form>
     </section>`;
@@ -262,24 +340,37 @@ export class NourishApp extends LitElement {
           <span class="brand-mark">Nourish</span>
           <h1 class="brand-name">${this.page === "today" ? "Today" : this.page}</h1>
         </div>
-        <button class="menu-button" @click=${() => (this.menuOpen = true)} aria-label="Open menu">Menu</button>
+        <button class="menu-button" @click=${() => (this.menuOpen = true)} aria-label="Open menu">
+          Menu
+        </button>
       </header>
       <main class="app-main">
+        ${
+          this.offline
+            ? html`<p class="offline-note" role="status">
+                Offline. Your log stays on this device.
+              </p>`
+            : ""
+        }
         ${this.page === "today" ? this.renderToday() : ""}
         ${this.page === "history" ? this.renderHistory() : ""}
         ${this.page === "meals" ? this.renderMeals() : ""}
         ${this.page === "goal" ? this.renderGoal() : ""}
       </main>
-      ${this.menuOpen
-        ? html`<div class="menu-sheet" @click=${() => (this.menuOpen = false)}>
-            <nav class="menu-panel" @click=${(event: Event) => event.stopPropagation()}>
-              <button class="menu-link" @click=${() => this.navigate("today")}>Today</button>
-              <button class="menu-link" @click=${() => this.navigate("history")}>Day by day</button>
-              <button class="menu-link" @click=${() => this.navigate("meals")}>Add a meal</button>
-              <button class="menu-link" @click=${() => this.navigate("goal")}>Set a goal</button>
-            </nav>
-          </div>`
-        : ""}
+      ${
+        this.menuOpen
+          ? html`<div class="menu-sheet" @click=${() => (this.menuOpen = false)}>
+              <nav class="menu-panel" @click=${(event: Event) => event.stopPropagation()}>
+                <button class="menu-link" @click=${() => this.navigate("today")}>Today</button>
+                <button class="menu-link" @click=${() => this.navigate("history")}>
+                  Day by day
+                </button>
+                <button class="menu-link" @click=${() => this.navigate("meals")}>Add a meal</button>
+                <button class="menu-link" @click=${() => this.navigate("goal")}>Set a goal</button>
+              </nav>
+            </div>`
+          : ""
+      }
     </div>`;
   }
 }
