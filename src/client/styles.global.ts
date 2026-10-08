@@ -219,10 +219,21 @@ export const appStyles = css`
     flex: 1;
   }
 
-  .log-calories {
+  .log-amount {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.3rem;
     flex-shrink: 0;
+  }
+
+  .log-calories {
     font-size: 1.05rem;
     font-weight: 560;
+  }
+
+  .log-unit {
+    color: var(--muted);
+    font-size: 0.95rem;
   }
 
   .log-time,
