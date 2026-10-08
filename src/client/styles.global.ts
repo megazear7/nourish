@@ -47,6 +47,7 @@ export const appStyles = css`
     letter-spacing: 0.22em;
     text-transform: uppercase;
     color: var(--gold);
+    text-decoration: none;
   }
 
   .brand-name {

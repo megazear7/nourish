@@ -18,6 +18,15 @@ type PageName = "today" | "history" | "meals" | "goal" | "meal";
 
 const QUICK_WINDOW_MS = 60_000;
 
+function titleCase(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(
+      /(^|[^\p{L}])(\p{L})/gu,
+      (_match, lead: string, letter: string) => lead + letter.toUpperCase(),
+    );
+}
+
 type ShownEntry = {
   key: string;
   entries: CalorieEntry[];
@@ -240,7 +249,7 @@ export class NourishApp extends LitElement {
     const data = new FormData(form);
     const meal: Meal = {
       id: crypto.randomUUID(),
-      title: String(data.get("title") ?? "").trim(),
+      title: titleCase(String(data.get("title") ?? "").trim()),
       description: String(data.get("description") ?? "").trim(),
       calories: Number(data.get("calories") ?? 0),
     };
@@ -252,7 +261,7 @@ export class NourishApp extends LitElement {
   private updateMeal(event: Event): void {
     event.preventDefault();
     const data = new FormData(event.currentTarget as HTMLFormElement);
-    const title = String(data.get("title") ?? "").trim();
+    const title = titleCase(String(data.get("title") ?? "").trim());
     const description = String(data.get("description") ?? "").trim();
     const calories = Number(data.get("calories") ?? 0);
     if (!title || !Number.isFinite(calories) || calories < 0) return;
@@ -370,9 +379,9 @@ export class NourishApp extends LitElement {
                     type="button"
                     @click=${() => this.openMeal(meal.id)}
                   >
-                    ${title}
+                    ${titleCase(title)}
                   </button>`
-                : html`<span class="log-unit">${title}</span>`
+                : html`<span class="log-unit">${titleCase(title)}</span>`
               : ""
           }
         </div>
@@ -423,7 +432,7 @@ export class NourishApp extends LitElement {
                     role="menuitem"
                     @click=${() => this.addCalories(meal.calories, meal.id)}
                   >
-                    <span>${meal.title}</span>
+                    <span>${titleCase(meal.title)}</span>
                     <span class="popover-calories">${meal.calories}</span>
                   </button>`,
               )
@@ -493,7 +502,7 @@ export class NourishApp extends LitElement {
           return html`<li class="meal-card ${this.kebabKey === key ? "menu-open" : ""}">
             <div class="meal-row">
               <div class="entry-copy">
-                <p class="entry-calories">${meal.title}</p>
+                <p class="entry-calories">${titleCase(meal.title)}</p>
                 <p class="entry-meta">
                   ${meal.description || "No description"} · ${meal.calories} calories
                 </p>
@@ -529,7 +538,13 @@ export class NourishApp extends LitElement {
       <h2 class="section-title">Edit meal</h2>
       <form class="composer-card" @submit=${this.updateMeal}>
         <label class="field-label" for="edit-meal-title">Title</label>
-        <input class="text-input" id="edit-meal-title" name="title" .value=${meal.title} required />
+        <input
+          class="text-input"
+          id="edit-meal-title"
+          name="title"
+          .value=${titleCase(meal.title)}
+          required
+        />
         <label class="field-label" for="edit-meal-description">Description</label>
         <textarea
           class="description-input"
@@ -586,7 +601,15 @@ export class NourishApp extends LitElement {
     return html`<div class="app-shell">
       <header class="app-header">
         <div class="brand">
-          <span class="brand-mark">Nourish</span>
+          <a
+            class="brand-mark"
+            href="/"
+            @click=${(event: Event) => {
+              event.preventDefault();
+              this.navigate("today");
+            }}
+            >Nourish</a
+          >
           <h1 class="brand-name">${this.heading()}</h1>
         </div>
         <button
