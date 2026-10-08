@@ -205,11 +205,60 @@ export const appStyles = css`
   .icon-button svg {
     width: 1.2rem;
     height: 1.2rem;
+  }
+
+  .icon-button svg.dots {
+    fill: currentColor;
+    stroke: none;
+  }
+
+  .menu-open {
+    position: relative;
+    z-index: 8;
+  }
+
+  .kebab {
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .kebab-menu {
+    position: absolute;
+    top: calc(100% + 0.2rem);
+    right: 0;
+    z-index: 2;
+    min-width: 11rem;
+    padding: 0.3rem;
+    border-radius: 0.95rem;
+    background: #222433;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  }
+
+  .kebab-menu .popover-button {
+    justify-content: flex-start;
+    gap: 0.65rem;
+  }
+
+  .kebab-menu svg {
+    width: 1.05rem;
+    height: 1.05rem;
+    flex-shrink: 0;
     fill: none;
     stroke: currentColor;
     stroke-width: 1.8;
     stroke-linecap: round;
     stroke-linejoin: round;
+  }
+
+  .kebab-menu .kebab-remove {
+    color: #e7a29a;
+  }
+
+  .kebab-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    background: transparent;
   }
 
   .time-editor {

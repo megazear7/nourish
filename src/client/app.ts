@@ -1,4 +1,4 @@
-import { LitElement, html } from "lit";
+import { LitElement, html, type TemplateResult } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import { CalorieEntry, Meal, NutritionState } from "../shared/type.nutrition.js";
 import {
@@ -79,6 +79,7 @@ export class NourishApp extends LitElement {
   @state() private menuOpen = false;
   @state() private editingId = "";
   @state() private mealPickerOpen = false;
+  @state() private kebabKey = "";
   @state() private offline = !navigator.onLine;
 
   override connectedCallback(): void {
@@ -151,6 +152,7 @@ export class NourishApp extends LitElement {
     this.page = page;
     this.menuOpen = false;
     this.mealPickerOpen = false;
+    this.kebabKey = "";
   }
 
   private commit(next: NutritionState): void {
@@ -183,8 +185,35 @@ export class NourishApp extends LitElement {
     const ids = new Set(shown.entries.map((entry) => entry.id));
     this.commit({
       ...this.state,
-      entries: this.state.entries.filter((entry) => !ids.has(entry.id)),
+      entries: this.state.entries.map((entry) =>
+        ids.has(entry.id) ? { ...entry, removed: true } : entry,
+      ),
     });
+    if (this.editingId === shown.key) this.editingId = "";
+    this.kebabKey = "";
+  }
+
+  private removeMeal(id: string): void {
+    this.commit({
+      ...this.state,
+      meals: this.state.meals.map((meal) => (meal.id === id ? { ...meal, removed: true } : meal)),
+    });
+    this.kebabKey = "";
+  }
+
+  private toggleKebab(key: string): void {
+    this.mealPickerOpen = false;
+    this.menuOpen = false;
+    this.kebabKey = this.kebabKey === key ? "" : key;
+  }
+
+  private editTime(shown: ShownEntry): void {
+    this.editingId = shown.key;
+    this.kebabKey = "";
+  }
+
+  private visibleMeals(): Meal[] {
+    return this.state.meals.filter((meal) => !meal.removed);
   }
 
   private saveMeal(event: Event): void {
@@ -213,7 +242,7 @@ export class NourishApp extends LitElement {
   private todayEntries(): CalorieEntry[] {
     const today = todayKey();
     return this.state.entries
-      .filter((entry) => dateKey(new Date(entry.timestamp)) === today)
+      .filter((entry) => !entry.removed && dateKey(new Date(entry.timestamp)) === today)
       .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
   }
 
@@ -250,7 +279,10 @@ export class NourishApp extends LitElement {
           class="meal-button"
           aria-haspopup="menu"
           aria-expanded=${this.mealPickerOpen ? "true" : "false"}
-          @click=${() => (this.mealPickerOpen = !this.mealPickerOpen)}
+          @click=${() => {
+            this.kebabKey = "";
+            this.mealPickerOpen = !this.mealPickerOpen;
+          }}
         >
           Meals
         </button>
@@ -259,31 +291,57 @@ export class NourishApp extends LitElement {
     `;
   }
 
+  private renderKebab(key: string, items: TemplateResult) {
+    const open = this.kebabKey === key;
+    return html`<div class="kebab">
+      <button
+        class="icon-button"
+        aria-label="More options"
+        aria-haspopup="menu"
+        aria-expanded=${open ? "true" : "false"}
+        @click=${() => this.toggleKebab(key)}
+      >
+        <svg class="dots" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="5" r="1.6"></circle>
+          <circle cx="12" cy="12" r="1.6"></circle>
+          <circle cx="12" cy="19" r="1.6"></circle>
+        </svg>
+      </button>
+      ${
+        open
+          ? html`<div class="kebab-backdrop" @click=${() => (this.kebabKey = "")}></div>
+              <div class="kebab-menu" role="menu">${items}</div>`
+          : ""
+      }
+    </div>`;
+  }
+
   private renderEntry(shown: ShownEntry) {
     const meal = this.state.meals.find((item) => item.id === shown.mealId);
     const open = this.editingId === shown.key;
-    return html`<li class="entry-card">
+    return html`<li class="entry-card ${this.kebabKey === shown.key ? "menu-open" : ""}">
       <div class="entry-row">
         <div class="entry-copy">
           <p class="entry-calories">+${shown.calories}</p>
           <p class="entry-meta">${meal?.title ?? "Quick add"} · ${formatTime(shown.timestamp)}</p>
         </div>
-        <button
-          class="icon-button"
-          aria-label=${open ? "Close time editor" : "Edit time"}
-          @click=${() => (this.editingId = open ? "" : shown.key)}
-        >
-          ${
-            open
-              ? html`<svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M6 6l12 12M18 6L6 18"></path>
-                </svg>`
-              : html`<svg viewBox="0 0 24 24" aria-hidden="true">
-                  <circle cx="12" cy="12" r="8"></circle>
-                  <path d="M12 8v4.5l3 2"></path>
-                </svg>`
-          }
-        </button>
+        ${this.renderKebab(
+          shown.key,
+          html`<button class="popover-button" role="menuitem" @click=${() => this.editTime(shown)}>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="8"></circle>
+                <path d="M12 8v4.5l3 2"></path>
+              </svg>
+              <span>Change time</span>
+            </button>
+            <button
+              class="popover-button kebab-remove"
+              role="menuitem"
+              @click=${() => this.removeShown(shown)}
+            >
+              Remove
+            </button>`,
+        )}
       </div>
       ${
         open
@@ -295,7 +353,6 @@ export class NourishApp extends LitElement {
                 @change=${(event: Event) =>
                   this.updateShownTime(shown, (event.target as HTMLInputElement).value)}
               />
-              <button class="text-button" @click=${() => this.removeShown(shown)}>Remove</button>
             </div>`
           : ""
       }
@@ -303,7 +360,7 @@ export class NourishApp extends LitElement {
   }
 
   private renderMealPicker() {
-    const meals = this.state.meals;
+    const meals = this.visibleMeals();
     return html`<div class="popover-backdrop" @click=${() => (this.mealPickerOpen = false)}></div>
       <div class="meal-popover" role="menu" @click=${(event: Event) => event.stopPropagation()}>
         ${
@@ -380,19 +437,29 @@ export class NourishApp extends LitElement {
         <button class="save-button" type="submit">Save meal</button>
       </form>
       <ul class="meal-list">
-        ${this.state.meals.map(
-          (meal) =>
-            html`<li class="meal-card">
-              <div class="meal-row">
-                <div>
-                  <p class="entry-calories">${meal.title}</p>
-                  <p class="entry-meta">
-                    ${meal.description || "No description"} · ${meal.calories} calories
-                  </p>
-                </div>
+        ${this.visibleMeals().map((meal) => {
+          const key = `meal:${meal.id}`;
+          return html`<li class="meal-card ${this.kebabKey === key ? "menu-open" : ""}">
+            <div class="meal-row">
+              <div class="entry-copy">
+                <p class="entry-calories">${meal.title}</p>
+                <p class="entry-meta">
+                  ${meal.description || "No description"} · ${meal.calories} calories
+                </p>
               </div>
-            </li>`,
-        )}
+              ${this.renderKebab(
+                key,
+                html`<button
+                  class="popover-button kebab-remove"
+                  role="menuitem"
+                  @click=${() => this.removeMeal(meal.id)}
+                >
+                  Remove
+                </button>`,
+              )}
+            </div>
+          </li>`;
+        })}
       </ul>
     </section>`;
   }
@@ -427,7 +494,14 @@ export class NourishApp extends LitElement {
           <span class="brand-mark">Nourish</span>
           <h1 class="brand-name">${this.page === "today" ? "Today" : this.page}</h1>
         </div>
-        <button class="menu-button" @click=${() => (this.menuOpen = true)} aria-label="Open menu">
+        <button
+          class="menu-button"
+          @click=${() => {
+            this.kebabKey = "";
+            this.menuOpen = true;
+          }}
+          aria-label="Open menu"
+        >
           <span class="hamburger" aria-hidden="true"></span>
         </button>
       </header>
