@@ -344,7 +344,10 @@ export class NourishApp extends LitElement {
     return html`<li class="entry-card ${this.kebabKey === shown.key ? "menu-open" : ""}">
       <div class="entry-row">
         <div class="entry-line">
-          <span class="log-calories">${shown.calories}</span>
+          <span class="log-amount">
+            <span class="log-calories">${shown.calories}</span>
+            <span class="log-unit">calories</span>
+          </span>
           <button class="log-time" type="button" @click=${() => this.editTime(shown)}>
             ${formatTime(shown.timestamp)}
           </button>
