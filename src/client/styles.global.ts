@@ -144,6 +144,7 @@ export const appStyles = css`
 
   .status-label {
     margin: 0;
+    color: var(--muted);
     letter-spacing: 0.08em;
     text-transform: uppercase;
     font-size: 0.75rem;

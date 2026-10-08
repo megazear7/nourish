@@ -274,9 +274,7 @@ export class NourishApp extends LitElement {
           <span class="day-kicker">Today</span>
           ${
             goal
-              ? html`<span class="status-label" style="color: ${color}"
-                  >— ${toneLabel(weighted)}</span
-                >`
+              ? html`<span class="status-label">— ${toneLabel(weighted)}</span>`
               : ""
           }
         </p>
@@ -284,7 +282,6 @@ export class NourishApp extends LitElement {
           <span class="calorie-total" style="color: ${color}">${total}</span>
           <span class="calorie-goal">${goal ? `/ ${goal} ` : ""}calories</span>
         </p>
-        ${goal ? "" : html`<p class="goal-note">Set a daily goal to color the week.</p>`}
       </section>
       ${
         this.todayEntries().length
