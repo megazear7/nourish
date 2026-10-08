@@ -16,7 +16,7 @@ const WINDOW: { daysAgo: number; weight: number }[] = [
 
 export function dayTotal(entries: CalorieEntry[], day: string): number {
   return entries
-    .filter((entry) => dateKey(new Date(entry.timestamp)) === day)
+    .filter((entry) => !entry.removed && dateKey(new Date(entry.timestamp)) === day)
     .reduce((sum, entry) => sum + entry.calories, 0);
 }
 
@@ -42,7 +42,8 @@ function mix(from: string, to: string, amount: number): string {
   const start = parse(from);
   const end = parse(to);
   const clamped = Math.min(1, Math.max(0, amount));
-  const channel = (index: number) => Math.round(start[index] + (end[index] - start[index]) * clamped);
+  const channel = (index: number) =>
+    Math.round(start[index] + (end[index] - start[index]) * clamped);
   return `rgb(${channel(0)}, ${channel(1)}, ${channel(2)})`;
 }
 
