@@ -271,6 +271,7 @@ export class NourishApp extends LitElement {
         meal.id === this.selectedMealId ? { ...meal, title, description, calories } : meal,
       ),
     });
+    this.navigate("today");
   }
 
   private saveGoal(event: Event): void {

@@ -515,4 +515,8 @@ export const appStyles = css`
     padding: 0;
     list-style: none;
   }
+
+  .meal-list {
+    margin-top: 1.25rem;
+  }
 `;
