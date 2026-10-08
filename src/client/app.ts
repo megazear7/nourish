@@ -461,11 +461,12 @@ export class NourishApp extends LitElement {
           const weighted = goal ? weightedOver(this.state.entries, day, goal) : 0;
           const color = goal ? toneColor(weighted) : "var(--ink)";
           return html`<li class="day-card">
-            <div class="day-row">
-              <div>
-                <p class="day-kicker">${formatDayLabel(day, today)}</p>
-                <p class="day-calories" style="color: ${color}">${total}</p>
-              </div>
+            <div class="entry-line">
+              <span class="log-amount">
+                <span class="log-calories" style="color: ${color}">${total}</span>
+                <span class="log-unit">calories</span>
+              </span>
+              <span class="log-unit">${formatDayLabel(day, today)}</span>
             </div>
           </li>`;
         })}

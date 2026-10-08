@@ -212,6 +212,11 @@ export const appStyles = css`
     border-radius: 0.95rem;
   }
 
+  .day-card {
+    padding: 0.7rem 0.9rem;
+    border-radius: 0.95rem;
+  }
+
   .entry-copy,
   .entry-line {
     min-width: 0;
