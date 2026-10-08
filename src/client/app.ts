@@ -243,8 +243,8 @@ export class NourishApp extends LitElement {
           : html`<p class="empty-note">Nothing logged yet. Add a bite when you eat it.</p>`
       }
       <div class="action-dock">
+        <button class="calorie-button" @click=${() => this.addCalories(50)}>+50</button>
         <button class="calorie-button" @click=${() => this.addCalories(100)}>+100</button>
-        <button class="calorie-button" @click=${() => this.addCalories(200)}>+200</button>
         <button class="calorie-button" @click=${() => this.addCalories(500)}>+500</button>
         <button
           class="meal-button"
