@@ -572,8 +572,10 @@ export class NourishApp extends LitElement {
 
   private heading(): string {
     if (this.page === "today") return "Today";
-    if (this.page === "meal") return "Edit";
-    return this.page;
+    if (this.page === "history") return "History";
+    if (this.page === "meals") return "Meals";
+    if (this.page === "goal") return "Goal";
+    return "Edit";
   }
 
   private renderGoal() {
