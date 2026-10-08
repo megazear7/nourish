@@ -20,8 +20,7 @@ export const appStyles = css`
     display: flex;
     flex-direction: column;
     background:
-      radial-gradient(circle at top, rgba(196, 154, 90, 0.16), transparent 42%),
-      var(--canvas);
+      radial-gradient(circle at top, rgba(196, 154, 90, 0.16), transparent 42%), var(--canvas);
   }
 
   .app-header {
@@ -71,6 +70,12 @@ export const appStyles = css`
   .app-main {
     flex: 1;
     padding: 0.5rem 1.25rem 7.5rem;
+  }
+
+  .offline-note {
+    margin: 0.15rem 0 0;
+    color: var(--gold);
+    font-size: 0.85rem;
   }
 
   .day-summary {
