@@ -568,16 +568,21 @@ export class NourishApp extends LitElement {
       <div class="calendar-grid">
         ${WEEKDAYS.map((day) => html`<span class="calendar-weekday">${day}</span>`)}
         ${monthCells(this.calendarMonth).map((cell) => {
-          const total = dayTotal(this.state.entries, cell.key);
+          const happened = cell.key <= today;
+          const total = happened ? dayTotal(this.state.entries, cell.key) : 0;
           const color =
-            cell.inMonth && goal
+            happened && cell.inMonth && goal
               ? toneColor(weightedOver(this.state.entries, cell.key, goal))
               : "var(--muted)";
           return html`<div
             class="calendar-day ${cell.inMonth ? "" : "outside"} ${cell.key === today ? "is-today" : ""}"
           >
             <span class="calendar-date">${Number(cell.key.slice(-2))}</span>
-            <span class="calendar-calories" style="color: ${color}">${total}</span>
+            ${
+              happened
+                ? html`<span class="calendar-calories" style="color: ${color}">${total}</span>`
+                : ""
+            }
           </div>`;
         })}
       </div>
