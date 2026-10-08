@@ -466,7 +466,6 @@ export class NourishApp extends LitElement {
                 <p class="day-kicker">${formatDayLabel(day, today)}</p>
                 <p class="day-calories" style="color: ${color}">${total}</p>
               </div>
-              ${goal ? html`<p class="tone-note">${toneLabel(weighted)}</p>` : ""}
             </div>
           </li>`;
         })}
