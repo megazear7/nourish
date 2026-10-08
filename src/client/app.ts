@@ -14,7 +14,7 @@ import { toneColor, toneLabel, weightedOver, dayTotal } from "../shared/util.sco
 import { loadState, saveState } from "./util.storage.js";
 import { appStyles } from "./styles.global.js";
 
-type PageName = "today" | "history" | "meals" | "goal";
+type PageName = "today" | "history" | "meals" | "goal" | "meal";
 
 const QUICK_WINDOW_MS = 60_000;
 
@@ -76,6 +76,7 @@ export class NourishApp extends LitElement {
 
   @state() private state: NutritionState = loadState();
   @state() private page: PageName = "today";
+  @state() private selectedMealId = "";
   @state() private menuOpen = false;
   @state() private editingId = "";
   @state() private mealPickerOpen = false;
@@ -140,7 +141,11 @@ export class NourishApp extends LitElement {
 
   private syncRoute = (): void => {
     const path = window.location.pathname;
-    if (path.startsWith("/history")) this.page = "history";
+    const meal = path.match(/^\/meal\/([^/]+)\/?$/);
+    if (meal) {
+      this.page = "meal";
+      this.selectedMealId = decodeURIComponent(meal[1] ?? "");
+    } else if (path.startsWith("/history")) this.page = "history";
     else if (path.startsWith("/meals")) this.page = "meals";
     else if (path.startsWith("/goal")) this.page = "goal";
     else this.page = "today";
@@ -153,6 +158,17 @@ export class NourishApp extends LitElement {
     this.menuOpen = false;
     this.mealPickerOpen = false;
     this.kebabKey = "";
+    this.editingId = "";
+  }
+
+  private openMeal(id: string): void {
+    window.history.pushState({}, "", `/meal/${encodeURIComponent(id)}`);
+    this.page = "meal";
+    this.selectedMealId = id;
+    this.menuOpen = false;
+    this.mealPickerOpen = false;
+    this.kebabKey = "";
+    this.editingId = "";
   }
 
   private commit(next: NutritionState): void {
@@ -321,9 +337,18 @@ export class NourishApp extends LitElement {
     const open = this.editingId === shown.key;
     return html`<li class="entry-card ${this.kebabKey === shown.key ? "menu-open" : ""}">
       <div class="entry-row">
-        <div class="entry-copy">
-          <p class="entry-calories">+${shown.calories}</p>
-          <p class="entry-meta">${meal?.title ?? "Quick add"} · ${formatTime(shown.timestamp)}</p>
+        <div class="entry-line">
+          <span class="log-calories">${shown.calories}</span>
+          <button class="log-time" type="button" @click=${() => this.editTime(shown)}>
+            ${formatTime(shown.timestamp)}
+          </button>
+          ${
+            meal
+              ? html`<button class="log-meal" type="button" @click=${() => this.openMeal(meal.id)}>
+                  ${meal.title}
+                </button>`
+              : ""
+          }
         </div>
         ${this.renderKebab(
           shown.key,
@@ -464,6 +489,24 @@ export class NourishApp extends LitElement {
     </section>`;
   }
 
+  private renderMealDetail() {
+    const meal = this.state.meals.find((item) => item.id === this.selectedMealId);
+    if (!meal) return html`<p class="empty-note">That meal is no longer here.</p>`;
+    return html`<section class="meal-detail">
+      <p class="entry-calories">${meal.calories}</p>
+      <p class="calorie-unit">calories</p>
+      <p class="meal-description">${meal.description || "No description"}</p>
+    </section>`;
+  }
+
+  private heading(): string {
+    if (this.page === "today") return "Today";
+    if (this.page === "meal") {
+      return this.state.meals.find((meal) => meal.id === this.selectedMealId)?.title ?? "Meal";
+    }
+    return this.page;
+  }
+
   private renderGoal() {
     return html`<section>
       <h2 class="section-title">Daily goal</h2>
@@ -492,7 +535,7 @@ export class NourishApp extends LitElement {
       <header class="app-header">
         <div class="brand">
           <span class="brand-mark">Nourish</span>
-          <h1 class="brand-name">${this.page === "today" ? "Today" : this.page}</h1>
+          <h1 class="brand-name">${this.heading()}</h1>
         </div>
         <button
           class="menu-button"
@@ -516,6 +559,7 @@ export class NourishApp extends LitElement {
         ${this.page === "today" ? this.renderToday() : ""}
         ${this.page === "history" ? this.renderHistory() : ""}
         ${this.page === "meals" ? this.renderMeals() : ""}
+        ${this.page === "meal" ? this.renderMealDetail() : ""}
         ${this.page === "goal" ? this.renderGoal() : ""}
       </main>
       ${

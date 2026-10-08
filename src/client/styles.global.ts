@@ -152,7 +152,7 @@ export const appStyles = css`
   .entry-list {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 0.4rem;
     margin: 1.25rem 0 0;
     padding: 0;
     list-style: none;
@@ -177,8 +177,57 @@ export const appStyles = css`
     gap: 1rem;
   }
 
-  .entry-copy {
+  .entry-card {
+    padding: 0.15rem 0.35rem 0.15rem 0.9rem;
+    border-radius: 0.95rem;
+  }
+
+  .entry-copy,
+  .entry-line {
     min-width: 0;
+  }
+
+  .entry-line {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .log-calories {
+    flex-shrink: 0;
+    font-size: 1.05rem;
+    font-weight: 560;
+  }
+
+  .log-time,
+  .log-meal {
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    font-size: 0.95rem;
+    padding: 0.45rem 0;
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .log-time {
+    flex-shrink: 0;
+  }
+
+  .log-meal {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .meal-description {
+    margin: 1rem 0 0;
+    color: var(--muted);
+    line-height: 1.45;
   }
 
   .entry-calories,
