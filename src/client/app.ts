@@ -17,6 +17,40 @@ import { appStyles } from "./styles.global.js";
 type PageName = "today" | "history" | "meals" | "goal" | "meal";
 
 const QUICK_WINDOW_MS = 60_000;
+const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+
+function monthKey(key: string): string {
+  return key.slice(0, 7);
+}
+
+function shiftMonth(month: string, delta: number): string {
+  const [year, monthNumber] = month.split("-").map(Number);
+  const date = new Date(year ?? 1970, (monthNumber ?? 1) - 1 + delta, 1);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function monthLabel(month: string): string {
+  const [year, monthNumber] = month.split("-").map(Number);
+  return new Date(year ?? 1970, (monthNumber ?? 1) - 1, 1).toLocaleDateString(undefined, {
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function monthCells(month: string): { key: string; inMonth: boolean }[] {
+  const [year, monthNumber] = month.split("-").map(Number);
+  const first = new Date(year ?? 1970, (monthNumber ?? 1) - 1, 1);
+  const start = new Date(first);
+  start.setDate(1 - first.getDay());
+  const cells: { key: string; inMonth: boolean }[] = [];
+  for (let index = 0; index < 42; index += 1) {
+    const date = new Date(start);
+    date.setDate(start.getDate() + index);
+    cells.push({ key: dateKey(date), inMonth: date.getMonth() === first.getMonth() });
+  }
+  while (cells.length > 35 && cells.slice(-7).every((cell) => !cell.inMonth)) cells.splice(-7, 7);
+  return cells;
+}
 
 function titleCase(value: string): string {
   return value
@@ -91,6 +125,8 @@ export class NourishApp extends LitElement {
   @state() private mealPickerOpen = false;
   @state() private kebabKey = "";
   @state() private offline = !navigator.onLine;
+  @state() private historyMode: "list" | "calendar" = "list";
+  @state() private calendarMonth = monthKey(todayKey());
 
   override connectedCallback(): void {
     super.connectedCallback();
@@ -449,29 +485,103 @@ export class NourishApp extends LitElement {
       </div>`;
   }
 
+  private showMonth(delta: number): void {
+    const next = shiftMonth(this.calendarMonth, delta);
+    if (next > monthKey(todayKey())) return;
+    this.calendarMonth = next;
+  }
+
   private renderHistory() {
     const today = todayKey();
+    return html`<section>
+      <div class="section-heading">
+        <h2 class="section-title">Days</h2>
+        <div class="view-toggle" role="group" aria-label="History layout">
+          <button
+            type="button"
+            aria-pressed=${this.historyMode === "list" ? "true" : "false"}
+            @click=${() => (this.historyMode = "list")}
+          >
+            List
+          </button>
+          <button
+            type="button"
+            aria-pressed=${this.historyMode === "calendar" ? "true" : "false"}
+            @click=${() => (this.historyMode = "calendar")}
+          >
+            Calendar
+          </button>
+        </div>
+      </div>
+      ${this.historyMode === "calendar" ? this.renderCalendar(today) : this.renderHistoryList(today)}
+    </section>`;
+  }
+
+  private renderHistoryList(today: string) {
     const days = Array.from({ length: 30 }, (_, index) => addDays(today, -index));
     const goal = this.state.goal?.calories;
-    return html`<section>
-      <h2 class="section-title">Days</h2>
-      <ul class="day-list">
-        ${days.map((day) => {
-          const total = dayTotal(this.state.entries, day);
-          const weighted = goal ? weightedOver(this.state.entries, day, goal) : 0;
-          const color = goal ? toneColor(weighted) : "var(--ink)";
-          return html`<li class="day-card">
-            <div class="entry-line">
-              <span class="log-amount">
-                <span class="log-calories" style="color: ${color}">${total}</span>
-                <span class="log-unit">calories</span>
-              </span>
-              <span class="log-unit">${formatDayLabel(day, today)}</span>
-            </div>
-          </li>`;
+    return html`<ul class="day-list">
+      ${days.map((day) => {
+        const total = dayTotal(this.state.entries, day);
+        const color = goal ? toneColor(weightedOver(this.state.entries, day, goal)) : "var(--ink)";
+        return html`<li class="day-card">
+          <div class="entry-line">
+            <span class="log-amount">
+              <span class="log-calories" style="color: ${color}">${total}</span>
+              <span class="log-unit">calories</span>
+            </span>
+            <span class="log-unit">${formatDayLabel(day, today)}</span>
+          </div>
+        </li>`;
+      })}
+    </ul>`;
+  }
+
+  private renderCalendar(today: string) {
+    const goal = this.state.goal?.calories;
+    const current = monthKey(today);
+    return html`<div class="calendar-card">
+      <div class="calendar-nav">
+        <button
+          class="icon-button"
+          type="button"
+          aria-label="Previous month"
+          @click=${() => this.showMonth(-1)}
+        >
+          <svg class="chevron" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M14.5 6.5L8.5 12l6 5.5"></path>
+          </svg>
+        </button>
+        <p class="calendar-month">${monthLabel(this.calendarMonth)}</p>
+        <button
+          class="icon-button"
+          type="button"
+          aria-label="Next month"
+          ?disabled=${this.calendarMonth >= current}
+          @click=${() => this.showMonth(1)}
+        >
+          <svg class="chevron" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M9.5 6.5l6 5.5-6 5.5"></path>
+          </svg>
+        </button>
+      </div>
+      <div class="calendar-grid">
+        ${WEEKDAYS.map((day) => html`<span class="calendar-weekday">${day}</span>`)}
+        ${monthCells(this.calendarMonth).map((cell) => {
+          const total = dayTotal(this.state.entries, cell.key);
+          const color =
+            cell.inMonth && goal
+              ? toneColor(weightedOver(this.state.entries, cell.key, goal))
+              : "var(--muted)";
+          return html`<div
+            class="calendar-day ${cell.inMonth ? "" : "outside"} ${cell.key === today ? "is-today" : ""}"
+          >
+            <span class="calendar-date">${Number(cell.key.slice(-2))}</span>
+            <span class="calendar-calories" style="color: ${color}">${total}</span>
+          </div>`;
         })}
-      </ul>
-    </section>`;
+      </div>
+    </div>`;
   }
 
   private renderMeals() {

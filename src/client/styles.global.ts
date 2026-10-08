@@ -495,6 +495,115 @@ export const appStyles = css`
     font-size: 1.8rem;
   }
 
+  .section-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin: 0.2rem 0 1rem;
+  }
+
+  .section-heading .section-title {
+    margin: 0;
+  }
+
+  .view-toggle {
+    display: flex;
+    flex-shrink: 0;
+    padding: 0.18rem;
+    border-radius: 999px;
+    background: var(--field);
+  }
+
+  .view-toggle button {
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    font-size: 0.82rem;
+    padding: 0.35rem 0.7rem;
+    border-radius: 999px;
+    cursor: pointer;
+  }
+
+  .view-toggle button[aria-pressed="true"] {
+    background: var(--gold);
+    color: #1b140c;
+  }
+
+  .calendar-card {
+    background: var(--panel);
+    border-radius: 1.25rem;
+    padding: 0.7rem 0.45rem 0.55rem;
+  }
+
+  .calendar-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 0 0.2rem 0.45rem;
+  }
+
+  .calendar-month {
+    margin: 0;
+    font-size: 1.05rem;
+  }
+
+  .calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 0.15rem;
+  }
+
+  .calendar-weekday {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.68rem;
+    letter-spacing: 0.04em;
+    padding-bottom: 0.25rem;
+  }
+
+  .calendar-day {
+    min-height: 3.15rem;
+    border-radius: 0.7rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.05rem;
+  }
+
+  .calendar-day.outside {
+    opacity: 0.4;
+  }
+
+  .calendar-day.is-today {
+    background: rgba(215, 176, 122, 0.14);
+  }
+
+  .calendar-date {
+    font-size: 0.78rem;
+  }
+
+  .calendar-calories {
+    font-size: 0.68rem;
+    font-weight: 560;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .icon-button:disabled {
+    opacity: 0.35;
+    cursor: default;
+  }
+
+  .icon-button svg.chevron {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
   .field-label {
     display: block;
     margin: 0.85rem 0 0.35rem;
