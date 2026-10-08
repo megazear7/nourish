@@ -5,6 +5,7 @@ export const CalorieEntry = z.object({
   calories: z.number().int().positive(),
   timestamp: z.string(),
   mealId: z.string().optional(),
+  mealTitle: z.string().optional(),
   removed: z.boolean().optional(),
 });
 export type CalorieEntry = z.infer<typeof CalorieEntry>;

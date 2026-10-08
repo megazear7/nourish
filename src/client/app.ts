@@ -177,11 +177,13 @@ export class NourishApp extends LitElement {
   }
 
   private addCalories(calories: number, mealId?: string): void {
+    const meal = mealId ? this.state.meals.find((item) => item.id === mealId) : undefined;
     const entry: CalorieEntry = {
       id: crypto.randomUUID(),
       calories,
       timestamp: new Date().toISOString(),
       mealId,
+      mealTitle: meal?.title,
     };
     this.commit({ ...this.state, entries: [entry, ...this.state.entries] });
     this.mealPickerOpen = false;
@@ -247,6 +249,21 @@ export class NourishApp extends LitElement {
     form.reset();
   }
 
+  private updateMeal(event: Event): void {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget as HTMLFormElement);
+    const title = String(data.get("title") ?? "").trim();
+    const description = String(data.get("description") ?? "").trim();
+    const calories = Number(data.get("calories") ?? 0);
+    if (!title || !Number.isFinite(calories) || calories < 0) return;
+    this.commit({
+      ...this.state,
+      meals: this.state.meals.map((meal) =>
+        meal.id === this.selectedMealId ? { ...meal, title, description, calories } : meal,
+      ),
+    });
+  }
+
   private saveGoal(event: Event): void {
     event.preventDefault();
     const form = event.currentTarget as HTMLFormElement;
@@ -272,11 +289,7 @@ export class NourishApp extends LitElement {
       <section class="day-summary">
         <p class="day-status">
           <span class="day-kicker">Today</span>
-          ${
-            goal
-              ? html`<span class="status-label">— ${toneLabel(weighted)}</span>`
-              : ""
-          }
+          ${goal ? html`<span class="status-label">— ${toneLabel(weighted)}</span>` : ""}
         </p>
         <p class="calorie-line">
           <span class="calorie-total" style="color: ${color}">${total}</span>
@@ -337,6 +350,7 @@ export class NourishApp extends LitElement {
 
   private renderEntry(shown: ShownEntry) {
     const meal = this.state.meals.find((item) => item.id === shown.mealId);
+    const title = shown.entries.find((entry) => entry.mealTitle)?.mealTitle ?? meal?.title;
     const open = this.editingId === shown.key;
     return html`<li class="entry-card ${this.kebabKey === shown.key ? "menu-open" : ""}">
       <div class="entry-row">
@@ -349,10 +363,16 @@ export class NourishApp extends LitElement {
             ${formatTime(shown.timestamp)}
           </button>
           ${
-            meal
-              ? html`<button class="log-meal" type="button" @click=${() => this.openMeal(meal.id)}>
-                  ${meal.title}
-                </button>`
+            title
+              ? meal
+                ? html`<button
+                    class="log-meal"
+                    type="button"
+                    @click=${() => this.openMeal(meal.id)}
+                  >
+                    ${title}
+                  </button>`
+                : html`<span class="log-unit">${title}</span>`
               : ""
           }
         </div>
@@ -481,12 +501,19 @@ export class NourishApp extends LitElement {
               ${this.renderKebab(
                 key,
                 html`<button
-                  class="popover-button kebab-remove"
-                  role="menuitem"
-                  @click=${() => this.removeMeal(meal.id)}
-                >
-                  Remove
-                </button>`,
+                    class="popover-button"
+                    role="menuitem"
+                    @click=${() => this.openMeal(meal.id)}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    class="popover-button kebab-remove"
+                    role="menuitem"
+                    @click=${() => this.removeMeal(meal.id)}
+                  >
+                    Remove
+                  </button>`,
               )}
             </div>
           </li>`;
@@ -495,21 +522,40 @@ export class NourishApp extends LitElement {
     </section>`;
   }
 
-  private renderMealDetail() {
+  private renderMealEdit() {
     const meal = this.state.meals.find((item) => item.id === this.selectedMealId);
     if (!meal) return html`<p class="empty-note">That meal is no longer here.</p>`;
-    return html`<section class="meal-detail">
-      <p class="entry-calories">${meal.calories}</p>
-      <p class="calorie-unit">calories</p>
-      <p class="meal-description">${meal.description || "No description"}</p>
+    return html`<section>
+      <h2 class="section-title">Edit meal</h2>
+      <form class="composer-card" @submit=${this.updateMeal}>
+        <label class="field-label" for="edit-meal-title">Title</label>
+        <input class="text-input" id="edit-meal-title" name="title" .value=${meal.title} required />
+        <label class="field-label" for="edit-meal-description">Description</label>
+        <textarea
+          class="description-input"
+          id="edit-meal-description"
+          name="description"
+          rows="3"
+          .value=${meal.description}
+        ></textarea>
+        <label class="field-label" for="edit-meal-calories">Calories</label>
+        <input
+          class="number-input"
+          id="edit-meal-calories"
+          name="calories"
+          type="number"
+          min="0"
+          .value=${String(meal.calories)}
+          required
+        />
+        <button class="save-button" type="submit">Save changes</button>
+      </form>
     </section>`;
   }
 
   private heading(): string {
     if (this.page === "today") return "Today";
-    if (this.page === "meal") {
-      return this.state.meals.find((meal) => meal.id === this.selectedMealId)?.title ?? "Meal";
-    }
+    if (this.page === "meal") return "Edit";
     return this.page;
   }
 
@@ -565,7 +611,7 @@ export class NourishApp extends LitElement {
         ${this.page === "today" ? this.renderToday() : ""}
         ${this.page === "history" ? this.renderHistory() : ""}
         ${this.page === "meals" ? this.renderMeals() : ""}
-        ${this.page === "meal" ? this.renderMealDetail() : ""}
+        ${this.page === "meal" ? this.renderMealEdit() : ""}
         ${this.page === "goal" ? this.renderGoal() : ""}
       </main>
       ${
