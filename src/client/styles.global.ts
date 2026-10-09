@@ -512,8 +512,10 @@ export const appStyles = css`
   }
 
   .meal-bubble-create {
-    background: var(--gold);
-    color: #1b140c;
+    background: var(--field);
+    color: var(--muted);
+    font-weight: 500;
+    box-shadow: none;
   }
 
   .meal-bubble-title {
