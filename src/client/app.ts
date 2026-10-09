@@ -142,7 +142,6 @@ export class NourishApp extends LitElement {
   @state() private selectedMealId = "";
   @state() private selectedDayKey = "";
   @state() private menuOpen = false;
-  @state() private editingId = "";
   @state() private mealPickerOpen = false;
   @state() private kebabKey = "";
   @state() private offline = !navigator.onLine;
@@ -246,7 +245,6 @@ export class NourishApp extends LitElement {
     this.menuOpen = false;
     this.mealPickerOpen = false;
     this.kebabKey = "";
-    this.editingId = "";
     this.closeEdit();
   }
 
@@ -257,7 +255,6 @@ export class NourishApp extends LitElement {
     this.menuOpen = false;
     this.mealPickerOpen = false;
     this.kebabKey = "";
-    this.editingId = "";
     this.closeEdit();
   }
 
@@ -268,7 +265,6 @@ export class NourishApp extends LitElement {
     this.menuOpen = false;
     this.mealPickerOpen = false;
     this.kebabKey = "";
-    this.editingId = "";
     this.closeEdit();
   }
 
@@ -313,7 +309,6 @@ export class NourishApp extends LitElement {
         ids.has(entry.id) ? { ...entry, removed: true } : entry,
       ),
     });
-    if (this.editingId === shown.key) this.editingId = "";
     this.kebabKey = "";
   }
 
@@ -333,9 +328,19 @@ export class NourishApp extends LitElement {
     this.kebabKey = this.kebabKey === key ? "" : key;
   }
 
-  private editTime(shown: ShownEntry): void {
-    this.editingId = shown.key;
+  private openClock(shown: ShownEntry, event: Event): void {
+    const trigger = event.currentTarget as HTMLElement | null;
+    const input = trigger
+      ?.closest(".entry-card")
+      ?.querySelector<HTMLInputElement>("input.clock-input");
+    if (!input) return;
+    input.value = timeValue(shown.timestamp);
     this.kebabKey = "";
+    try {
+      input.showPicker();
+    } catch {
+      /* The clock is already open, or this browser will not show one. */
+    }
   }
 
   private closeEdit(): void {
@@ -349,7 +354,6 @@ export class NourishApp extends LitElement {
       ? this.state.meals.find((item) => item.id === shown.mealId)
       : undefined;
     this.kebabKey = "";
-    this.editingId = "";
     this.menuOpen = false;
     this.mealPickerOpen = false;
     this.editIds = shown.entries.map((item) => item.id);
@@ -584,7 +588,6 @@ export class NourishApp extends LitElement {
     const description = shown.mealId
       ? (shown.entries[0]?.mealDescription?.trim() ?? "")
       : "";
-    const open = this.editingId === shown.key;
     return html`<li
       class="entry-card ${this.kebabKey === shown.key ? "menu-open" : ""}"
     >
@@ -600,13 +603,28 @@ export class NourishApp extends LitElement {
             </button>
             <span class="log-unit">calories</span>
           </span>
-          <button
-            class="log-time"
-            type="button"
-            @click=${() => this.editTime(shown)}
-          >
-            ${formatTime(shown.timestamp)}
-          </button>
+          <span class="log-time-wrap">
+            <button
+              class="log-time"
+              type="button"
+              @click=${(event: Event) => this.openClock(shown, event)}
+            >
+              ${formatTime(shown.timestamp)}
+            </button>
+            <input
+              class="clock-input"
+              type="time"
+              step="60"
+              tabindex="-1"
+              aria-hidden="true"
+              .value=${timeValue(shown.timestamp)}
+              @change=${(event: Event) =>
+                this.updateShownTime(
+                  shown,
+                  (event.target as HTMLInputElement).value,
+                )}
+            />
+          </span>
           ${
             title
               ? meal
@@ -637,7 +655,7 @@ export class NourishApp extends LitElement {
             <button
               class="popover-button"
               role="menuitem"
-              @click=${() => this.editTime(shown)}
+              @click=${(event: Event) => this.openClock(shown, event)}
             >
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <circle cx="12" cy="12" r="8"></circle>
@@ -650,27 +668,18 @@ export class NourishApp extends LitElement {
               role="menuitem"
               @click=${() => this.removeShown(shown)}
             >
-              Remove
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4.5 7h15"></path>
+                <path d="M9 7V4.5h6V7"></path>
+                <path d="M7.5 7l.8 12.5h7.4l.8-12.5"></path>
+                <path d="M10 11v5.5"></path>
+                <path d="M14 11v5.5"></path>
+              </svg>
+              <span>Remove</span>
             </button>`,
         )}
       </div>
       ${description ? html`<p class="entry-note">${description}</p>` : ""}
-      ${
-        open
-          ? html`<div class="time-editor">
-              <input
-                class="time-input"
-                type="time"
-                .value=${timeValue(shown.timestamp)}
-                @change=${(event: Event) =>
-                  this.updateShownTime(
-                    shown,
-                    (event.target as HTMLInputElement).value,
-                  )}
-              />
-            </div>`
-          : ""
-      }
     </li>`;
   }
 

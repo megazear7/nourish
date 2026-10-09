@@ -302,6 +302,24 @@ export const appStyles = css`
     flex-shrink: 0;
   }
 
+  .log-time-wrap {
+    position: relative;
+    display: inline-flex;
+    flex-shrink: 0;
+  }
+
+  .clock-input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    opacity: 0;
+    pointer-events: none;
+  }
+
   .log-meal {
     min-width: 0;
     overflow: hidden;
@@ -406,14 +424,6 @@ export const appStyles = css`
     background: transparent;
   }
 
-  .time-editor {
-    margin-top: 0.75rem;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-  }
-
-  .time-input,
   .text-input,
   .number-input,
   .description-input {
