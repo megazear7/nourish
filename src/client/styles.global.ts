@@ -217,6 +217,24 @@ export const appStyles = css`
     border-radius: 0.95rem;
   }
 
+  .day-card.day-link {
+    padding: 0;
+  }
+
+  .day-button {
+    appearance: none;
+    display: block;
+    width: 100%;
+    padding: 0.7rem 0.9rem;
+    border: 0;
+    border-radius: inherit;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
   .entry-copy,
   .entry-line {
     min-width: 0;
@@ -571,6 +589,27 @@ export const appStyles = css`
     align-items: center;
     justify-content: center;
     gap: 0.05rem;
+  }
+
+  button.calendar-day {
+    appearance: none;
+    background: none;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+  }
+
+  button.calendar-day:focus-visible,
+  .day-button:focus-visible {
+    outline: 2px solid var(--accent, currentColor);
+    outline-offset: 2px;
+  }
+
+  button.calendar-day.is-today {
+    background: rgba(215, 176, 122, 0.14);
   }
 
   .calendar-day.outside {
