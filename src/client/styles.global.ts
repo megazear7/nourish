@@ -477,20 +477,62 @@ export const appStyles = css`
     background: transparent;
   }
 
-  .meal-popover {
+  .meal-bubbles {
     position: fixed;
     right: 1rem;
     bottom: 5.6rem;
     z-index: 6;
     display: flex;
     flex-direction: column;
-    width: min(16rem, calc(100vw - 2rem));
-    max-height: min(50vh, 22rem);
+    align-items: flex-end;
+    gap: 0.5rem;
+    width: min(18rem, calc(100vw - 2rem));
+    max-height: min(58vh, 26rem);
     overflow: auto;
-    padding: 0.35rem;
-    border-radius: 1rem;
+    padding: 0.15rem 0.1rem 0.15rem 0;
+  }
+
+  .meal-bubble {
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.7rem;
+    max-width: 100%;
+    min-height: 2.7rem;
+    border: 0;
+    border-radius: 999px;
     background: var(--panel);
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+    color: var(--ink);
+    font: inherit;
+    font-weight: 560;
+    text-align: left;
+    padding: 0.55rem 0.95rem;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.38);
+    cursor: pointer;
+  }
+
+  .meal-bubble-create {
+    background: var(--gold);
+    color: #1b140c;
+  }
+
+  .meal-bubble-title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .meal-bubble-calories {
+    flex-shrink: 0;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+  }
+
+  .meal-bubble:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
   }
 
   .popover-button {
@@ -512,16 +554,6 @@ export const appStyles = css`
 
   .popover-button + .popover-button {
     border-top: 1px solid rgba(255, 255, 255, 0.06);
-  }
-
-  .popover-calories {
-    color: var(--muted);
-    font-variant-numeric: tabular-nums;
-  }
-
-  .popover-create {
-    justify-content: center;
-    color: var(--gold);
   }
 
   .menu-sheet {

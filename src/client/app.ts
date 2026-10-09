@@ -811,13 +811,10 @@ export class NourishApp extends LitElement {
         class="popover-backdrop"
         @click=${() => (this.mealPickerOpen = false)}
       ></div>
-      <div
-        class="meal-popover"
-        role="menu"
-        @click=${(event: Event) => event.stopPropagation()}
-      >
+      <div class="meal-bubbles" role="menu">
         <button
-          class="popover-button popover-create"
+          class="meal-bubble meal-bubble-create"
+          type="button"
           role="menuitem"
           @click=${() => this.openNewMeal()}
         >
@@ -826,12 +823,13 @@ export class NourishApp extends LitElement {
         ${meals.map(
           (meal) =>
             html`<button
-              class="popover-button"
+              class="meal-bubble"
+              type="button"
               role="menuitem"
               @click=${() => this.addCalories(meal.calories, meal.id)}
             >
-              <span>${titleCase(meal.title)}</span>
-              <span class="popover-calories">${meal.calories}</span>
+              <span class="meal-bubble-title">${titleCase(meal.title)}</span>
+              <span class="meal-bubble-calories">${meal.calories}</span>
             </button>`,
         )}
       </div>`;
