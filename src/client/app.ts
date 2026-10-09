@@ -591,17 +591,13 @@ export class NourishApp extends LitElement {
       <div class="entry-row">
         <div class="entry-line">
           <span class="log-amount">
-            ${
-              shown.mealId
-                ? html`<button
-                    class="log-calories"
-                    type="button"
-                    @click=${() => this.beginEdit(shown)}
-                  >
-                    ${shown.calories}
-                  </button>`
-                : html`<span class="log-calories">${shown.calories}</span>`
-            }
+            <button
+              class="log-calories"
+              type="button"
+              @click=${() => this.beginEdit(shown)}
+            >
+              ${shown.calories}
+            </button>
             <span class="log-unit">calories</span>
           </span>
           <button
@@ -1140,7 +1136,7 @@ export class NourishApp extends LitElement {
                   class="menu-link"
                   @click=${() => this.navigate("history")}
                 >
-                  Day by day
+                  History
                 </button>
                 <button
                   class="menu-link"
