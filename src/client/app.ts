@@ -1,6 +1,11 @@
 import { LitElement, html, type TemplateResult } from "lit";
 import { customElement, state } from "lit/decorators.js";
-import { CalorieEntry, Meal, NutritionState } from "../shared/type.nutrition.js";
+import { live } from "lit/directives/live.js";
+import {
+  CalorieEntry,
+  Meal,
+  NutritionState,
+} from "../shared/type.nutrition.js";
 import {
   addDays,
   dateKey,
@@ -11,7 +16,12 @@ import {
   todayKey,
   withTime,
 } from "../shared/util.dates.js";
-import { toneColor, toneLabel, weightedOver, dayTotal } from "../shared/util.score.js";
+import {
+  toneColor,
+  toneLabel,
+  weightedOver,
+  dayTotal,
+} from "../shared/util.score.js";
 import { loadState, saveState } from "./util.storage.js";
 import { appStyles } from "./styles.global.js";
 
@@ -32,10 +42,13 @@ function shiftMonth(month: string, delta: number): string {
 
 function monthLabel(month: string): string {
   const [year, monthNumber] = month.split("-").map(Number);
-  return new Date(year ?? 1970, (monthNumber ?? 1) - 1, 1).toLocaleDateString(undefined, {
-    month: "long",
-    year: "numeric",
-  });
+  return new Date(year ?? 1970, (monthNumber ?? 1) - 1, 1).toLocaleDateString(
+    undefined,
+    {
+      month: "long",
+      year: "numeric",
+    },
+  );
 }
 
 function monthCells(month: string): { key: string; inMonth: boolean }[] {
@@ -47,9 +60,13 @@ function monthCells(month: string): { key: string; inMonth: boolean }[] {
   for (let index = 0; index < 42; index += 1) {
     const date = new Date(start);
     date.setDate(start.getDate() + index);
-    cells.push({ key: dateKey(date), inMonth: date.getMonth() === first.getMonth() });
+    cells.push({
+      key: dateKey(date),
+      inMonth: date.getMonth() === first.getMonth(),
+    });
   }
-  while (cells.length > 35 && cells.slice(-7).every((cell) => !cell.inMonth)) cells.splice(-7, 7);
+  while (cells.length > 35 && cells.slice(-7).every((cell) => !cell.inMonth))
+    cells.splice(-7, 7);
   return cells;
 }
 
@@ -71,7 +88,9 @@ type ShownEntry = {
 };
 
 function shownEntries(entries: CalorieEntry[]): ShownEntry[] {
-  const ordered = [...entries].sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+  const ordered = [...entries].sort((a, b) =>
+    a.timestamp.localeCompare(b.timestamp),
+  );
   const shown: ShownEntry[] = [];
   let quick: CalorieEntry[] = [];
   let quickStart = 0;
@@ -129,6 +148,12 @@ export class NourishApp extends LitElement {
   @state() private offline = !navigator.onLine;
   @state() private historyMode: "list" | "calendar" = "list";
   @state() private calendarMonth = monthKey(todayKey());
+  @state() private editKey = "";
+  @state() private editMeal = false;
+  @state() private editCalories = "";
+  @state() private editTitle = "";
+  @state() private editDescription = "";
+  private editIds: string[] = [];
 
   override connectedCallback(): void {
     super.connectedCallback();
@@ -156,8 +181,14 @@ export class NourishApp extends LitElement {
   };
 
   private onVisibility = (): void => {
-    if (document.visibilityState !== "visible" || !("serviceWorker" in navigator)) return;
-    void navigator.serviceWorker.getRegistration().then((registration) => registration?.update());
+    if (
+      document.visibilityState !== "visible" ||
+      !("serviceWorker" in navigator)
+    )
+      return;
+    void navigator.serviceWorker
+      .getRegistration()
+      .then((registration) => registration?.update());
   };
 
   private registerWorker(): void {
@@ -187,6 +218,7 @@ export class NourishApp extends LitElement {
   }
 
   private syncRoute = (): void => {
+    this.closeEdit();
     const path = window.location.pathname;
     const meal = path.match(/^\/meal\/([^/]+)\/?$/);
     if (meal) {
@@ -194,7 +226,10 @@ export class NourishApp extends LitElement {
       this.selectedMealId = decodeURIComponent(meal[1] ?? "");
     } else if (path.startsWith("/day/")) {
       const key = decodeURIComponent(path.slice(5)).replace(/\/$/, "");
-      if (/^\d{4}-\d{2}-\d{2}$/.test(key) && dateKey(parseDateKey(key)) === key) {
+      if (
+        /^\d{4}-\d{2}-\d{2}$/.test(key) &&
+        dateKey(parseDateKey(key)) === key
+      ) {
         this.page = "day";
         this.selectedDayKey = key;
       } else this.page = "history";
@@ -212,6 +247,7 @@ export class NourishApp extends LitElement {
     this.mealPickerOpen = false;
     this.kebabKey = "";
     this.editingId = "";
+    this.closeEdit();
   }
 
   private openMeal(id: string): void {
@@ -222,6 +258,7 @@ export class NourishApp extends LitElement {
     this.mealPickerOpen = false;
     this.kebabKey = "";
     this.editingId = "";
+    this.closeEdit();
   }
 
   private openDay(key: string): void {
@@ -232,6 +269,7 @@ export class NourishApp extends LitElement {
     this.mealPickerOpen = false;
     this.kebabKey = "";
     this.editingId = "";
+    this.closeEdit();
   }
 
   private commit(next: NutritionState): void {
@@ -240,13 +278,16 @@ export class NourishApp extends LitElement {
   }
 
   private addCalories(calories: number, mealId?: string): void {
-    const meal = mealId ? this.state.meals.find((item) => item.id === mealId) : undefined;
+    const meal = mealId
+      ? this.state.meals.find((item) => item.id === mealId)
+      : undefined;
     const entry: CalorieEntry = {
       id: crypto.randomUUID(),
       calories,
       timestamp: new Date().toISOString(),
       mealId,
       mealTitle: meal?.title,
+      mealDescription: meal?.description,
     };
     this.commit({ ...this.state, entries: [entry, ...this.state.entries] });
     this.mealPickerOpen = false;
@@ -257,7 +298,9 @@ export class NourishApp extends LitElement {
     this.commit({
       ...this.state,
       entries: this.state.entries.map((item) =>
-        ids.has(item.id) ? { ...item, timestamp: withTime(item.timestamp, time) } : item,
+        ids.has(item.id)
+          ? { ...item, timestamp: withTime(item.timestamp, time) }
+          : item,
       ),
     });
   }
@@ -277,7 +320,9 @@ export class NourishApp extends LitElement {
   private removeMeal(id: string): void {
     this.commit({
       ...this.state,
-      meals: this.state.meals.map((meal) => (meal.id === id ? { ...meal, removed: true } : meal)),
+      meals: this.state.meals.map((meal) =>
+        meal.id === id ? { ...meal, removed: true } : meal,
+      ),
     });
     this.kebabKey = "";
   }
@@ -291,6 +336,79 @@ export class NourishApp extends LitElement {
   private editTime(shown: ShownEntry): void {
     this.editingId = shown.key;
     this.kebabKey = "";
+  }
+
+  private closeEdit(): void {
+    this.editKey = "";
+    this.editIds = [];
+  }
+
+  private beginEdit(shown: ShownEntry): void {
+    const entry = shown.entries[shown.entries.length - 1];
+    const meal = shown.mealId
+      ? this.state.meals.find((item) => item.id === shown.mealId)
+      : undefined;
+    this.kebabKey = "";
+    this.editingId = "";
+    this.menuOpen = false;
+    this.mealPickerOpen = false;
+    this.editIds = shown.entries.map((item) => item.id);
+    this.editMeal = Boolean(shown.mealId);
+    this.editCalories = String(shown.calories);
+    this.editTitle = titleCase(entry?.mealTitle ?? meal?.title ?? "");
+    this.editDescription = entry?.mealDescription ?? meal?.description ?? "";
+    this.editKey = shown.key;
+    const focusId = this.editMeal ? "edit-use-title" : "edit-calories";
+    void this.updateComplete.then(() => {
+      const field = this.renderRoot.querySelector<HTMLInputElement>(
+        `#${focusId}`,
+      );
+      field?.focus();
+      field?.select();
+    });
+  }
+
+  private nudgeCalories(delta: number): void {
+    const current = Number(this.editCalories);
+    const base = Number.isFinite(current) ? current : 0;
+    this.editCalories = String(Math.max(1, Math.round(base + delta)));
+  }
+
+  private saveEdit(event: Event): void {
+    event.preventDefault();
+    const calories = Number(this.editCalories);
+    if (!Number.isInteger(calories) || calories <= 0) return;
+    const keepId = this.editIds[this.editIds.length - 1];
+    if (!keepId) return;
+    const ids = new Set(this.editIds);
+    if (this.editMeal) {
+      const title = titleCase(this.editTitle.trim());
+      const description = this.editDescription.trim();
+      if (!title) return;
+      this.commit({
+        ...this.state,
+        entries: this.state.entries.map((entry) =>
+          entry.id === keepId
+            ? {
+                ...entry,
+                calories,
+                mealTitle: title,
+                mealDescription: description,
+              }
+            : entry,
+        ),
+      });
+    } else {
+      this.commit({
+        ...this.state,
+        entries: this.state.entries.map((entry) => {
+          if (entry.id === keepId) return { ...entry, calories };
+          if (ids.has(entry.id)) return { ...entry, removed: true };
+          return entry;
+        }),
+      });
+    }
+    this.closeEdit();
   }
 
   private visibleMeals(): Meal[] {
@@ -322,7 +440,9 @@ export class NourishApp extends LitElement {
     this.commit({
       ...this.state,
       meals: this.state.meals.map((meal) =>
-        meal.id === this.selectedMealId ? { ...meal, title, description, calories } : meal,
+        meal.id === this.selectedMealId
+          ? { ...meal, title, description, calories }
+          : meal,
       ),
     });
     this.navigate("today");
@@ -340,13 +460,18 @@ export class NourishApp extends LitElement {
   private todayEntries(): CalorieEntry[] {
     const today = todayKey();
     return this.state.entries
-      .filter((entry) => !entry.removed && dateKey(new Date(entry.timestamp)) === today)
+      .filter(
+        (entry) =>
+          !entry.removed && dateKey(new Date(entry.timestamp)) === today,
+      )
       .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
   }
 
   private dayEntries(key: string): CalorieEntry[] {
     return this.state.entries
-      .filter((entry) => !entry.removed && dateKey(new Date(entry.timestamp)) === key)
+      .filter(
+        (entry) => !entry.removed && dateKey(new Date(entry.timestamp)) === key,
+      )
       .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
   }
 
@@ -401,12 +526,20 @@ export class NourishApp extends LitElement {
           ? html`<ul class="entry-list">
               ${shownEntries(this.todayEntries()).map((entry) => this.renderEntry(entry))}
             </ul>`
-          : html`<p class="empty-note">Nothing logged yet. Add a bite when you eat it.</p>`
+          : html`<p class="empty-note">
+              Nothing logged yet. Add a bite when you eat it.
+            </p>`
       }
       <div class="action-dock">
-        <button class="calorie-button" @click=${() => this.addCalories(50)}>+50</button>
-        <button class="calorie-button" @click=${() => this.addCalories(100)}>+100</button>
-        <button class="calorie-button" @click=${() => this.addCalories(500)}>+500</button>
+        <button class="calorie-button" @click=${() => this.addCalories(50)}>
+          +50
+        </button>
+        <button class="calorie-button" @click=${() => this.addCalories(100)}>
+          +100
+        </button>
+        <button class="calorie-button" @click=${() => this.addCalories(500)}>
+          +500
+        </button>
         <button
           class="meal-button"
           aria-haspopup="menu"
@@ -441,7 +574,10 @@ export class NourishApp extends LitElement {
       </button>
       ${
         open
-          ? html`<div class="kebab-backdrop" @click=${() => (this.kebabKey = "")}></div>
+          ? html`<div
+                class="kebab-backdrop"
+                @click=${() => (this.kebabKey = "")}
+              ></div>
               <div class="kebab-menu" role="menu">${items}</div>`
           : ""
       }
@@ -450,16 +586,26 @@ export class NourishApp extends LitElement {
 
   private renderEntry(shown: ShownEntry) {
     const meal = this.state.meals.find((item) => item.id === shown.mealId);
-    const title = shown.entries.find((entry) => entry.mealTitle)?.mealTitle ?? meal?.title;
+    const title =
+      shown.entries.find((entry) => entry.mealTitle)?.mealTitle ?? meal?.title;
+    const description = shown.mealId
+      ? (shown.entries[0]?.mealDescription?.trim() ?? "")
+      : "";
     const open = this.editingId === shown.key;
-    return html`<li class="entry-card ${this.kebabKey === shown.key ? "menu-open" : ""}">
+    return html`<li
+      class="entry-card ${this.kebabKey === shown.key ? "menu-open" : ""}"
+    >
       <div class="entry-row">
         <div class="entry-line">
           <span class="log-amount">
             <span class="log-calories">${shown.calories}</span>
             <span class="log-unit">calories</span>
           </span>
-          <button class="log-time" type="button" @click=${() => this.editTime(shown)}>
+          <button
+            class="log-time"
+            type="button"
+            @click=${() => this.editTime(shown)}
+          >
             ${formatTime(shown.timestamp)}
           </button>
           ${
@@ -478,7 +624,22 @@ export class NourishApp extends LitElement {
         </div>
         ${this.renderKebab(
           shown.key,
-          html`<button class="popover-button" role="menuitem" @click=${() => this.editTime(shown)}>
+          html`<button
+              class="popover-button"
+              role="menuitem"
+              @click=${() => this.beginEdit(shown)}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4.5 19.5l1.1-4.2L16.2 4.7l3.1 3.1L8.7 18.4z"></path>
+                <path d="M13.8 7.1l3.1 3.1"></path>
+              </svg>
+              <span>Edit</span>
+            </button>
+            <button
+              class="popover-button"
+              role="menuitem"
+              @click=${() => this.editTime(shown)}
+            >
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <circle cx="12" cy="12" r="8"></circle>
                 <path d="M12 8v4.5l3 2"></path>
@@ -494,6 +655,7 @@ export class NourishApp extends LitElement {
             </button>`,
         )}
       </div>
+      ${description ? html`<p class="entry-note">${description}</p>` : ""}
       ${
         open
           ? html`<div class="time-editor">
@@ -502,7 +664,10 @@ export class NourishApp extends LitElement {
                 type="time"
                 .value=${timeValue(shown.timestamp)}
                 @change=${(event: Event) =>
-                  this.updateShownTime(shown, (event.target as HTMLInputElement).value)}
+                  this.updateShownTime(
+                    shown,
+                    (event.target as HTMLInputElement).value,
+                  )}
               />
             </div>`
           : ""
@@ -510,10 +675,122 @@ export class NourishApp extends LitElement {
     </li>`;
   }
 
+  private renderEdit() {
+    if (!this.editKey) return "";
+    return html`<div
+      class="edit-sheet"
+      @click=${() => this.closeEdit()}
+      @keydown=${(event: KeyboardEvent) => {
+        if (event.key === "Escape") this.closeEdit();
+      }}
+    >
+      <form
+        class="edit-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="edit-heading"
+        @submit=${this.saveEdit}
+        @click=${(event: Event) => event.stopPropagation()}
+      >
+        <h2 id="edit-heading" class="edit-heading">
+          ${this.editMeal ? "Edit this serving" : "Edit calories"}
+        </h2>
+        ${
+          this.editMeal
+            ? html`<label class="field-label" for="edit-use-title">Title</label>
+                <input
+                  class="text-input"
+                  id="edit-use-title"
+                  .value=${live(this.editTitle)}
+                  required
+                  @input=${(event: Event) => {
+                    this.editTitle = (event.target as HTMLInputElement).value;
+                  }}
+                />
+                <label class="field-label" for="edit-use-description"
+                  >Description</label
+                >
+                <textarea
+                  class="description-input"
+                  id="edit-use-description"
+                  rows="3"
+                  .value=${live(this.editDescription)}
+                  @input=${(event: Event) => {
+                    this.editDescription = (
+                      event.target as HTMLTextAreaElement
+                    ).value;
+                  }}
+                ></textarea>`
+            : ""
+        }
+        <label class="field-label" for="edit-calories">Calories</label>
+        <input
+          class="number-input edit-calories"
+          id="edit-calories"
+          type="number"
+          inputmode="numeric"
+          min="1"
+          step="1"
+          required
+          .value=${live(this.editCalories)}
+          @input=${(event: Event) => {
+            this.editCalories = (event.target as HTMLInputElement).value;
+          }}
+        />
+        <div class="calorie-nudge">
+          <div class="nudge-side">
+            <button
+              class="nudge-button"
+              type="button"
+              @click=${() => this.nudgeCalories(-100)}
+            >
+              −100
+            </button>
+            <button
+              class="nudge-button"
+              type="button"
+              @click=${() => this.nudgeCalories(-25)}
+            >
+              −25
+            </button>
+          </div>
+          <div class="nudge-side">
+            <button
+              class="nudge-button nudge-plus"
+              type="button"
+              @click=${() => this.nudgeCalories(25)}
+            >
+              +25
+            </button>
+            <button
+              class="nudge-button nudge-plus"
+              type="button"
+              @click=${() => this.nudgeCalories(100)}
+            >
+              +100
+            </button>
+          </div>
+        </div>
+        <button class="check-button" type="submit" aria-label="Save">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M5 12.5 10 17.5 19 7.5"></path>
+          </svg>
+        </button>
+      </form>
+    </div>`;
+  }
+
   private renderMealPicker() {
     const meals = this.visibleMeals();
-    return html`<div class="popover-backdrop" @click=${() => (this.mealPickerOpen = false)}></div>
-      <div class="meal-popover" role="menu" @click=${(event: Event) => event.stopPropagation()}>
+    return html`<div
+        class="popover-backdrop"
+        @click=${() => (this.mealPickerOpen = false)}
+      ></div>
+      <div
+        class="meal-popover"
+        role="menu"
+        @click=${(event: Event) => event.stopPropagation()}
+      >
         ${
           meals.length
             ? meals.map(
@@ -571,17 +848,27 @@ export class NourishApp extends LitElement {
   }
 
   private renderHistoryList(today: string) {
-    const days = Array.from({ length: 30 }, (_, index) => addDays(today, -index));
+    const days = Array.from({ length: 30 }, (_, index) =>
+      addDays(today, -index),
+    );
     const goal = this.state.goal?.calories;
     return html`<ul class="day-list">
       ${days.map((day) => {
         const total = dayTotal(this.state.entries, day);
-        const color = goal ? toneColor(weightedOver(this.state.entries, day, goal)) : "var(--ink)";
+        const color = goal
+          ? toneColor(weightedOver(this.state.entries, day, goal))
+          : "var(--ink)";
         return html`<li class="day-card day-link">
-          <button type="button" class="day-button" @click=${() => this.openDay(day)}>
+          <button
+            type="button"
+            class="day-button"
+            @click=${() => this.openDay(day)}
+          >
             <span class="entry-line">
               <span class="log-amount">
-                <span class="log-calories" style="color: ${color}">${total}</span>
+                <span class="log-calories" style="color: ${color}"
+                  >${total}</span
+                >
                 <span class="log-unit">calories</span>
               </span>
               <span class="log-unit">${formatDayLabel(day, today)}</span>
@@ -637,7 +924,9 @@ export class NourishApp extends LitElement {
                 @click=${() => this.openDay(cell.key)}
               >
                 <span class="calendar-date">${Number(cell.key.slice(-2))}</span>
-                <span class="calendar-calories" style="color: ${color}">${total}</span>
+                <span class="calendar-calories" style="color: ${color}"
+                  >${total}</span
+                >
               </button>`
             : html`<div class=${classes}>
                 <span class="calendar-date">${Number(cell.key.slice(-2))}</span>
@@ -674,12 +963,15 @@ export class NourishApp extends LitElement {
       <ul class="meal-list">
         ${this.visibleMeals().map((meal) => {
           const key = `meal:${meal.id}`;
-          return html`<li class="meal-card ${this.kebabKey === key ? "menu-open" : ""}">
+          return html`<li
+            class="meal-card ${this.kebabKey === key ? "menu-open" : ""}"
+          >
             <div class="meal-row">
               <div class="entry-copy">
                 <p class="entry-calories">${titleCase(meal.title)}</p>
                 <p class="entry-meta">
-                  ${meal.description || "No description"} · ${meal.calories} calories
+                  ${meal.description || "No description"} · ${meal.calories}
+                  calories
                 </p>
               </div>
               ${this.renderKebab(
@@ -707,8 +999,11 @@ export class NourishApp extends LitElement {
   }
 
   private renderMealEdit() {
-    const meal = this.state.meals.find((item) => item.id === this.selectedMealId);
-    if (!meal) return html`<p class="empty-note">That meal is no longer here.</p>`;
+    const meal = this.state.meals.find(
+      (item) => item.id === this.selectedMealId,
+    );
+    if (!meal)
+      return html`<p class="empty-note">That meal is no longer here.</p>`;
     return html`<section>
       <h2 class="section-title">Edit meal</h2>
       <form class="composer-card" @submit=${this.updateMeal}>
@@ -720,7 +1015,9 @@ export class NourishApp extends LitElement {
           .value=${titleCase(meal.title)}
           required
         />
-        <label class="field-label" for="edit-meal-description">Description</label>
+        <label class="field-label" for="edit-meal-description"
+          >Description</label
+        >
         <textarea
           class="description-input"
           id="edit-meal-description"
@@ -746,7 +1043,8 @@ export class NourishApp extends LitElement {
   private heading(): string {
     if (this.page === "today") return "Today";
     if (this.page === "history") return "History";
-    if (this.page === "day") return formatDayLabel(this.selectedDayKey, todayKey());
+    if (this.page === "day")
+      return formatDayLabel(this.selectedDayKey, todayKey());
     if (this.page === "meals") return "Meals";
     if (this.page === "goal") return "Goal";
     return "Edit";
@@ -756,7 +1054,9 @@ export class NourishApp extends LitElement {
     return html`<section>
       <h2 class="section-title">Daily goal</h2>
       <form class="goal-card" @submit=${this.saveGoal}>
-        <label class="field-label" for="goal-calories">Calories to stay near</label>
+        <label class="field-label" for="goal-calories"
+          >Calories to stay near</label
+        >
         <input
           class="number-input"
           id="goal-calories"
@@ -767,9 +1067,9 @@ export class NourishApp extends LitElement {
         />
         <button class="save-button" type="submit">Save goal</button>
         <p class="tone-note">
-          Color uses a seven-day window. Today counts fully, yesterday half, and each older day a
-          little less. Under the goal pulls the color back toward green. 150 over the weighted
-          window is yellow. 300 over is red.
+          Color uses a seven-day window. Today counts fully, yesterday half, and
+          each older day a little less. Under the goal pulls the color back
+          toward green. 150 over the weighted window is yellow. 300 over is red.
         </p>
       </form>
     </section>`;
@@ -794,6 +1094,7 @@ export class NourishApp extends LitElement {
           class="menu-button"
           @click=${() => {
             this.kebabKey = "";
+            this.closeEdit();
             this.menuOpen = true;
           }}
           aria-label="Open menu"
@@ -818,18 +1119,40 @@ export class NourishApp extends LitElement {
       </main>
       ${
         this.menuOpen
-          ? html`<div class="menu-sheet" @click=${() => (this.menuOpen = false)}>
-              <nav class="menu-panel" @click=${(event: Event) => event.stopPropagation()}>
-                <button class="menu-link" @click=${() => this.navigate("today")}>Today</button>
-                <button class="menu-link" @click=${() => this.navigate("history")}>
+          ? html`<div
+              class="menu-sheet"
+              @click=${() => (this.menuOpen = false)}
+            >
+              <nav
+                class="menu-panel"
+                @click=${(event: Event) => event.stopPropagation()}
+              >
+                <button
+                  class="menu-link"
+                  @click=${() => this.navigate("today")}
+                >
+                  Today
+                </button>
+                <button
+                  class="menu-link"
+                  @click=${() => this.navigate("history")}
+                >
                   Day by day
                 </button>
-                <button class="menu-link" @click=${() => this.navigate("meals")}>Add a meal</button>
-                <button class="menu-link" @click=${() => this.navigate("goal")}>Set a goal</button>
+                <button
+                  class="menu-link"
+                  @click=${() => this.navigate("meals")}
+                >
+                  Add a meal
+                </button>
+                <button class="menu-link" @click=${() => this.navigate("goal")}>
+                  Set a goal
+                </button>
               </nav>
             </div>`
           : ""
       }
+      ${this.renderEdit()}
     </div>`;
   }
 }

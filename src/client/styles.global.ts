@@ -26,7 +26,8 @@ export const appStyles = css`
     display: flex;
     flex-direction: column;
     background:
-      radial-gradient(circle at top, rgba(196, 154, 90, 0.16), transparent 42%), var(--canvas);
+      radial-gradient(circle at top, rgba(196, 154, 90, 0.16), transparent 42%),
+      var(--canvas);
   }
 
   .app-header {
@@ -286,6 +287,17 @@ export const appStyles = css`
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .entry-note {
+    margin: 0 0.55rem 0.55rem 0;
+    color: var(--muted);
+    font-size: 0.82rem;
+    line-height: 1.35;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 
   .meal-description {
@@ -661,6 +673,107 @@ export const appStyles = css`
   .text-button {
     background: transparent;
     color: var(--muted);
+  }
+
+  .edit-sheet {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: rgba(6, 7, 12, 0.62);
+  }
+
+  .edit-modal {
+    width: min(24rem, 100%);
+    max-height: min(90vh, 40rem);
+    overflow: auto;
+    background: var(--panel);
+    border-radius: 1.25rem;
+    padding: 1.15rem 1.15rem 1.2rem;
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.5);
+  }
+
+  .edit-heading {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 560;
+  }
+
+  .edit-modal .field-label:first-of-type {
+    margin-top: 0.85rem;
+  }
+
+  .edit-calories {
+    font-size: 1.7rem;
+    font-weight: 560;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .calorie-nudge {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+  }
+
+  .nudge-side {
+    display: flex;
+    gap: 0.4rem;
+  }
+
+  .nudge-button,
+  .check-button {
+    border: 0;
+    cursor: pointer;
+    font: inherit;
+  }
+
+  .nudge-button {
+    min-width: 3.35rem;
+    min-height: 2.7rem;
+    padding: 0 0.55rem;
+    border-radius: 0.85rem;
+    background: var(--field);
+    color: var(--ink);
+    font-weight: 620;
+  }
+
+  .nudge-button.nudge-plus {
+    background: var(--gold);
+    color: #1b140c;
+  }
+
+  .check-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 3.3rem;
+    height: 3.3rem;
+    margin: 1.05rem auto 0;
+    border-radius: 999px;
+    background: var(--gold);
+    color: #1b140c;
+  }
+
+  .check-button svg {
+    width: 1.4rem;
+    height: 1.4rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .nudge-button:focus-visible,
+  .check-button:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
   }
 
   .day-list,
