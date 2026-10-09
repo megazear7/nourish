@@ -1154,7 +1154,7 @@ export class NourishApp extends LitElement {
                   Meals
                 </button>
                 <button class="menu-link" @click=${() => this.navigate("goal")}>
-                  Set a goal
+                  Goal
                 </button>
               </nav>
             </div>`
