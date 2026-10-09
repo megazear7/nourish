@@ -332,10 +332,9 @@ export const appStyles = css`
     color: var(--muted);
     font-size: 0.82rem;
     line-height: 1.35;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
     overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
   }
 
   .meal-description {
