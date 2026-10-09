@@ -358,14 +358,7 @@ export class NourishApp extends LitElement {
     this.editTitle = titleCase(entry?.mealTitle ?? meal?.title ?? "");
     this.editDescription = entry?.mealDescription ?? meal?.description ?? "";
     this.editKey = shown.key;
-    const focusId = this.editMeal ? "edit-use-title" : "edit-calories";
-    void this.updateComplete.then(() => {
-      const field = this.renderRoot.querySelector<HTMLInputElement>(
-        `#${focusId}`,
-      );
-      field?.focus();
-      field?.select();
-    });
+    this.renderRoot.querySelector<HTMLElement>(":focus")?.blur();
   }
 
   private nudgeCalories(delta: number): void {
@@ -598,7 +591,17 @@ export class NourishApp extends LitElement {
       <div class="entry-row">
         <div class="entry-line">
           <span class="log-amount">
-            <span class="log-calories">${shown.calories}</span>
+            ${
+              shown.mealId
+                ? html`<button
+                    class="log-calories"
+                    type="button"
+                    @click=${() => this.beginEdit(shown)}
+                  >
+                    ${shown.calories}
+                  </button>`
+                : html`<span class="log-calories">${shown.calories}</span>`
+            }
             <span class="log-unit">calories</span>
           </span>
           <button
@@ -1143,7 +1146,7 @@ export class NourishApp extends LitElement {
                   class="menu-link"
                   @click=${() => this.navigate("meals")}
                 >
-                  Add a meal
+                  Meals
                 </button>
                 <button class="menu-link" @click=${() => this.navigate("goal")}>
                   Set a goal

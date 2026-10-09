@@ -261,6 +261,26 @@ export const appStyles = css`
     font-weight: 560;
   }
 
+  button.log-calories {
+    appearance: none;
+    border: 0;
+    background: none;
+    margin: 0;
+    padding: 0;
+    color: inherit;
+    font: inherit;
+    font-size: 1.05rem;
+    font-weight: 560;
+    line-height: inherit;
+    cursor: default;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button.log-calories:focus,
+  button.log-calories:focus-visible {
+    outline: none;
+  }
+
   .log-unit {
     color: var(--muted);
     font-size: 0.95rem;
@@ -407,6 +427,10 @@ export const appStyles = css`
     color: var(--ink);
     font: inherit;
     padding: 0.85rem 0.95rem;
+  }
+
+  .description-input {
+    resize: none;
   }
 
   .action-dock {
