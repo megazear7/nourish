@@ -146,7 +146,7 @@ export class NourishApp extends LitElement {
   @state() private mealPickerOpen = false;
   @state() private kebabKey = "";
   @state() private offline = !navigator.onLine;
-  @state() private historyMode: "list" | "calendar" = "list";
+  @state() private historyMode: "list" | "calendar" = "calendar";
   @state() private calendarMonth = monthKey(todayKey());
   @state() private editKey = "";
   @state() private editMeal = false;
@@ -864,17 +864,17 @@ export class NourishApp extends LitElement {
         <div class="view-toggle" role="group" aria-label="History layout">
           <button
             type="button"
-            aria-pressed=${this.historyMode === "list" ? "true" : "false"}
-            @click=${() => (this.historyMode = "list")}
-          >
-            List
-          </button>
-          <button
-            type="button"
             aria-pressed=${this.historyMode === "calendar" ? "true" : "false"}
             @click=${() => (this.historyMode = "calendar")}
           >
             Calendar
+          </button>
+          <button
+            type="button"
+            aria-pressed=${this.historyMode === "list" ? "true" : "false"}
+            @click=${() => (this.historyMode = "list")}
+          >
+            List
           </button>
         </div>
       </div>
