@@ -646,13 +646,15 @@ export class NourishApp extends LitElement {
             title
               ? meal
                 ? html`<button
-                    class="log-meal"
+                    class="log-meal log-meal-inline"
                     type="button"
                     @click=${() => this.openMeal(meal.id)}
                   >
                     ${titleCase(title)}
                   </button>`
-                : html`<span class="log-unit">${titleCase(title)}</span>`
+                : html`<span class="log-unit log-meal-inline"
+                    >${titleCase(title)}</span
+                  >`
               : ""
           }
         </div>
@@ -696,6 +698,19 @@ export class NourishApp extends LitElement {
             </button>`,
         )}
       </div>
+      ${
+        title
+          ? meal
+            ? html`<button
+                class="entry-title-row"
+                type="button"
+                @click=${() => this.openMeal(meal.id)}
+              >
+                ${titleCase(title)}
+              </button>`
+            : html`<span class="entry-title-row">${titleCase(title)}</span>`
+          : ""
+      }
       ${description ? html`<p class="entry-note">${description}</p>` : ""}
     </li>`;
   }

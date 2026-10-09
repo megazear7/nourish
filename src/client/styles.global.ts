@@ -337,6 +337,42 @@ export const appStyles = css`
     text-overflow: ellipsis;
   }
 
+  .entry-title-row {
+    display: none;
+  }
+
+  @media (max-width: 720px) {
+    .log-meal-inline {
+      display: none;
+    }
+
+    .entry-note {
+      display: none;
+    }
+
+    button.entry-title-row,
+    span.entry-title-row {
+      display: block;
+      width: calc(100% - 0.55rem);
+      margin: 0 0.55rem 0.5rem 0;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      font: inherit;
+      font-size: 0.95rem;
+      line-height: 1.35;
+      text-align: left;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    button.entry-title-row {
+      cursor: pointer;
+    }
+  }
+
   .meal-description {
     margin: 1rem 0 0;
     color: var(--muted);
