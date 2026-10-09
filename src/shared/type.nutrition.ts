@@ -25,6 +25,13 @@ export const DailyGoal = z.object({
 });
 export type DailyGoal = z.infer<typeof DailyGoal>;
 
+export const Goal = z.object({
+  id: z.string().min(1),
+  calories: z.number().int().positive(),
+  setAt: z.string().min(1),
+});
+export type Goal = z.infer<typeof Goal>;
+
 export const DaySummary = z.object({
   date: z.string(),
   totalCalories: z.number().int().nonnegative(),
@@ -35,6 +42,46 @@ export type DaySummary = z.infer<typeof DaySummary>;
 export const NutritionState = z.object({
   entries: z.array(CalorieEntry),
   meals: z.array(Meal),
-  goal: DailyGoal.optional(),
+  goals: z.array(Goal),
 });
 export type NutritionState = z.infer<typeof NutritionState>;
+
+const StoredDocument = z.object({
+  entries: z.array(CalorieEntry).optional(),
+  meals: z.array(Meal).optional(),
+  goals: z.array(Goal).optional(),
+  goal: DailyGoal.optional(),
+});
+
+export const emptyState = (): NutritionState => ({
+  entries: [],
+  meals: [],
+  goals: [],
+});
+
+export function normalizeState(
+  raw: unknown,
+  migrate: () => { id: string; setAt: string },
+): { state: NutritionState; migrated: boolean } | null {
+  const parsed = StoredDocument.safeParse(raw);
+  if (!parsed.success) return null;
+  const goals = parsed.data.goals ? [...parsed.data.goals] : [];
+  let migrated = false;
+  if (!parsed.data.goals && parsed.data.goal) {
+    const next = migrate();
+    goals.push({
+      id: next.id,
+      calories: parsed.data.goal.calories,
+      setAt: next.setAt,
+    });
+    migrated = true;
+  }
+  return {
+    state: {
+      entries: parsed.data.entries ?? [],
+      meals: parsed.data.meals ?? [],
+      goals,
+    },
+    migrated: migrated || parsed.data.goal !== undefined,
+  };
+}

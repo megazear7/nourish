@@ -16,11 +16,17 @@ const WINDOW: { daysAgo: number; weight: number }[] = [
 
 export function dayTotal(entries: CalorieEntry[], day: string): number {
   return entries
-    .filter((entry) => !entry.removed && dateKey(new Date(entry.timestamp)) === day)
+    .filter(
+      (entry) => !entry.removed && dateKey(new Date(entry.timestamp)) === day,
+    )
     .reduce((sum, entry) => sum + entry.calories, 0);
 }
 
-export function weightedOver(entries: CalorieEntry[], day: string, goal: number): number {
+export function weightedOver(
+  entries: CalorieEntry[],
+  day: string,
+  goal: number,
+): number {
   return WINDOW.reduce((sum, slot) => {
     const slotDay = addDays(day, -slot.daysAgo);
     const delta = dayTotal(entries, slotDay) - goal;
@@ -32,7 +38,11 @@ export function toneColor(weighted: number): string {
   if (weighted <= 0) return "rgb(111, 191, 132)";
   if (weighted >= RED_OVER) return "rgb(214, 84, 78)";
   if (weighted <= YELLOW_OVER) {
-    return mix("rgb(111, 191, 132)", "rgb(224, 184, 74)", weighted / YELLOW_OVER);
+    return mix(
+      "rgb(111, 191, 132)",
+      "rgb(224, 184, 74)",
+      weighted / YELLOW_OVER,
+    );
   }
   const progress = (weighted - YELLOW_OVER) / (RED_OVER - YELLOW_OVER);
   return mix("rgb(224, 184, 74)", "rgb(214, 84, 78)", progress);

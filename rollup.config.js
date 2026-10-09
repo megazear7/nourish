@@ -1,6 +1,11 @@
 import resolve from '@rollup/plugin-node-resolve';
 import replace from '@rollup/plugin-replace';
 import typescript from '@rollup/plugin-typescript';
+import { loadEnv } from './scripts/load-env.mjs';
+
+loadEnv();
+
+const quoted = (name, fallback = '') => JSON.stringify(process.env[name] ?? fallback);
 
 export default {
   input: 'src/client/app.ts',
@@ -14,7 +19,15 @@ export default {
     }
   },
   plugins: [
-    replace({ preventAssignment: false, 'Reflect.decorate': 'undefined' }),
+    replace({
+      preventAssignment: true,
+      __NOURISH_AUTH0_DOMAIN__: quoted('AUTH0_DOMAIN'),
+      __NOURISH_AUTH0_CLIENT_ID__: quoted('AUTH0_CLIENT_ID'),
+      __NOURISH_AUTH0_AUDIENCE__: quoted('AUTH0_AUDIENCE', 'https://identity.megazear7.com'),
+      __NOURISH_IDENTITY_URL__: quoted('NOURISH_IDENTITY_URL', 'https://identity.megazear7.com/data'),
+      __NOURISH_DEV_LOGIN__: quoted('NOURISH_DEV_LOGIN'),
+      'Reflect.decorate': 'undefined',
+    }),
     typescript({
       declaration: false,
       declarationMap: false,

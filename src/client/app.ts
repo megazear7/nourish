@@ -22,7 +22,32 @@ import {
   weightedOver,
   dayTotal,
 } from "../shared/util.score.js";
+import { goalForDay } from "../shared/fold.js";
 import { loadState, saveState } from "./util.storage.js";
+import {
+  enqueue,
+  loadQueue,
+  markSyncedUser,
+  resetOpenDocument,
+  restoreAccount,
+  stashAccount,
+  type OpDraft,
+} from "./util.queue.js";
+import { pushActivity, recordLogin, recordOps } from "./util.activity.js";
+import { UserDataClient } from "./identity-client.js";
+import {
+  accessToken,
+  authConfig,
+  authConfigured,
+  devSignIn,
+  idToken,
+  initAuth,
+  login,
+  logout,
+  signedOut,
+  type Account,
+} from "./util.auth.js";
+import { backfillCreates, flushSync } from "./util.sync.js";
 import { appStyles } from "./styles.global.js";
 
 type PageName =
@@ -146,6 +171,8 @@ export class NourishApp extends LitElement {
   @state() private mealPickerOpen = false;
   @state() private kebabKey = "";
   @state() private offline = !navigator.onLine;
+  @state() private account: Account = { ...signedOut(), status: "checking" };
+  @state() private syncNote = "";
   @state() private historyMode: "list" | "calendar" = "calendar";
   @state() private calendarMonth = monthKey(todayKey());
   @state() private editKey = "";
@@ -162,6 +189,8 @@ export class NourishApp extends LitElement {
     window.addEventListener("online", this.onOnline);
     window.addEventListener("offline", this.onOffline);
     this.registerWorker();
+    document.addEventListener("visibilitychange", this.onVisibility);
+    void this.startSession();
   }
 
   override disconnectedCallback(): void {
@@ -174,6 +203,7 @@ export class NourishApp extends LitElement {
 
   private onOnline = (): void => {
     this.offline = false;
+    void this.flush();
   };
 
   private onOffline = (): void => {
@@ -181,11 +211,9 @@ export class NourishApp extends LitElement {
   };
 
   private onVisibility = (): void => {
-    if (
-      document.visibilityState !== "visible" ||
-      !("serviceWorker" in navigator)
-    )
-      return;
+    if (document.visibilityState !== "visible") return;
+    void this.flush();
+    if (!("serviceWorker" in navigator)) return;
     void navigator.serviceWorker
       .getRegistration()
       .then((registration) => registration?.update());
@@ -210,7 +238,6 @@ export class NourishApp extends LitElement {
     } catch {
       /* Storage can be blocked. Registration still has to run. */
     }
-    document.addEventListener("visibilitychange", this.onVisibility);
     void navigator.serviceWorker
       .register("/sw.js")
       .then((registration) => registration.update())
@@ -280,9 +307,109 @@ export class NourishApp extends LitElement {
     this.closeEdit();
   }
 
-  private commit(next: NutritionState): void {
+  private commit(next: NutritionState, drafts: OpDraft[] = []): void {
     this.state = next;
     saveState(next);
+    if (!drafts.length) return;
+    recordOps(enqueue(drafts), next);
+    void this.flush();
+  }
+
+  private caloriesFor(day: string): number | undefined {
+    return goalForDay(this.state.goals, day)?.calories;
+  }
+
+  private async startSession(): Promise<void> {
+    try {
+      const account = await initAuth(() => recordLogin());
+      this.account = account;
+      if (account.status === "signed-in") this.bindAccount(account.sub);
+      await this.flush();
+    } catch {
+      this.account = authConfigured()
+        ? signedOut()
+        : { ...signedOut(), status: "unconfigured" };
+    }
+  }
+
+  private bindAccount(sub: string): void {
+    const queue = loadQueue();
+    if (queue.syncedUserId && queue.syncedUserId !== sub) {
+      stashAccount(queue.syncedUserId, JSON.stringify(this.state));
+      if (!restoreAccount(sub)) resetOpenDocument(queue.deviceId);
+      this.state = loadState();
+      markSyncedUser(sub);
+      return;
+    }
+    if (!queue.syncedUserId) backfillCreates(this.state);
+    markSyncedUser(sub);
+  }
+
+  private async flush(): Promise<void> {
+    if (this.account.status !== "signed-in") return;
+    const token = await accessToken();
+    if (!token) {
+      this.syncNote = "Sign in again to sync.";
+      return;
+    }
+    try {
+      await flushSync(
+        token,
+        (next) => {
+          this.state = next;
+        },
+        (note) => {
+          this.syncNote = note;
+        },
+      );
+    } catch (error) {
+      this.syncNote = error instanceof Error ? error.message : "Sync failed.";
+      return;
+    }
+    if (this.account.dev) return;
+    try {
+      const client = new UserDataClient(
+        authConfig().identityUrl,
+        async () => (await accessToken()) ?? "",
+        idToken,
+      );
+      await pushActivity(client, loadQueue().deviceId);
+    } catch {
+      if (!this.syncNote) {
+        this.syncNote = "Food log synced. Activity totals could not be saved.";
+      }
+    }
+  }
+
+  private async signIn(signup: boolean): Promise<void> {
+    if (!authConfigured()) {
+      this.syncNote = "Sign-in is not configured for this build yet.";
+      return;
+    }
+    await login(signup);
+  }
+
+  private useDevAccount(): void {
+    const account = devSignIn();
+    recordLogin();
+    this.account = account;
+    this.menuOpen = false;
+    this.bindAccount(account.sub);
+    void this.flush();
+  }
+
+  private async signOut(): Promise<void> {
+    this.menuOpen = false;
+    await logout();
+    this.account = signedOut();
+  }
+
+  private initials(): string {
+    const source = this.account.name || this.account.email || "?";
+    const parts = source.split(/\s+|@/).filter(Boolean);
+    const first = parts[0]?.[0] ?? "?";
+    const second = parts[1]?.[0] ?? "";
+    return (first + second).toUpperCase();
   }
 
   private addCalories(calories: number, mealId?: string): void {
@@ -297,40 +424,69 @@ export class NourishApp extends LitElement {
       mealTitle: meal?.title,
       mealDescription: meal?.description,
     };
-    this.commit({ ...this.state, entries: [entry, ...this.state.entries] });
+    this.commit({ ...this.state, entries: [entry, ...this.state.entries] }, [
+      {
+        type: "entry.create",
+        entityId: entry.id,
+        occurredAt: entry.timestamp,
+        body: {
+          calories: entry.calories,
+          eatenAt: entry.timestamp,
+          mealId: entry.mealId,
+          mealTitle: entry.mealTitle,
+          mealDescription: entry.mealDescription,
+        },
+      },
+    ]);
     this.mealPickerOpen = false;
   }
 
   private updateShownTime(shown: ShownEntry, time: string): void {
     const ids = new Set(shown.entries.map((entry) => entry.id));
-    this.commit({
-      ...this.state,
-      entries: this.state.entries.map((item) =>
-        ids.has(item.id)
-          ? { ...item, timestamp: withTime(item.timestamp, time) }
-          : item,
-      ),
-    });
+    this.commit(
+      {
+        ...this.state,
+        entries: this.state.entries.map((item) =>
+          ids.has(item.id)
+            ? { ...item, timestamp: withTime(item.timestamp, time) }
+            : item,
+        ),
+      },
+      shown.entries.map((entry) => ({
+        type: "entry.patch" as const,
+        entityId: entry.id,
+        body: { eatenAt: withTime(entry.timestamp, time) },
+      })),
+    );
   }
 
   private removeShown(shown: ShownEntry): void {
     const ids = new Set(shown.entries.map((entry) => entry.id));
-    this.commit({
-      ...this.state,
-      entries: this.state.entries.map((entry) =>
-        ids.has(entry.id) ? { ...entry, removed: true } : entry,
-      ),
-    });
+    this.commit(
+      {
+        ...this.state,
+        entries: this.state.entries.map((entry) =>
+          ids.has(entry.id) ? { ...entry, removed: true } : entry,
+        ),
+      },
+      shown.entries.map((entry) => ({
+        type: "entry.remove" as const,
+        entityId: entry.id,
+      })),
+    );
     this.kebabKey = "";
   }
 
   private removeMeal(id: string): void {
-    this.commit({
-      ...this.state,
-      meals: this.state.meals.map((meal) =>
-        meal.id === id ? { ...meal, removed: true } : meal,
-      ),
-    });
+    this.commit(
+      {
+        ...this.state,
+        meals: this.state.meals.map((meal) =>
+          meal.id === id ? { ...meal, removed: true } : meal,
+        ),
+      },
+      [{ type: "meal.remove", entityId: id }],
+    );
     this.kebabKey = "";
   }
 
@@ -394,28 +550,48 @@ export class NourishApp extends LitElement {
       const title = titleCase(this.editTitle.trim());
       const description = this.editDescription.trim();
       if (!title) return;
-      this.commit({
-        ...this.state,
-        entries: this.state.entries.map((entry) =>
-          entry.id === keepId
-            ? {
-                ...entry,
-                calories,
-                mealTitle: title,
-                mealDescription: description,
-              }
-            : entry,
-        ),
-      });
+      this.commit(
+        {
+          ...this.state,
+          entries: this.state.entries.map((entry) =>
+            entry.id === keepId
+              ? {
+                  ...entry,
+                  calories,
+                  mealTitle: title,
+                  mealDescription: description,
+                }
+              : entry,
+          ),
+        },
+        [
+          {
+            type: "entry.patch",
+            entityId: keepId,
+            body: { calories, mealTitle: title, mealDescription: description },
+          },
+        ],
+      );
     } else {
-      this.commit({
-        ...this.state,
-        entries: this.state.entries.map((entry) => {
-          if (entry.id === keepId) return { ...entry, calories };
-          if (ids.has(entry.id)) return { ...entry, removed: true };
-          return entry;
-        }),
-      });
+      this.commit(
+        {
+          ...this.state,
+          entries: this.state.entries.map((entry) => {
+            if (entry.id === keepId) return { ...entry, calories };
+            if (ids.has(entry.id)) return { ...entry, removed: true };
+            return entry;
+          }),
+        },
+        [
+          { type: "entry.patch", entityId: keepId, body: { calories } },
+          ...this.editIds
+            .filter((id) => id !== keepId)
+            .map((id) => ({
+              type: "entry.remove" as const,
+              entityId: id,
+            })),
+        ],
+      );
     }
     this.closeEdit();
   }
@@ -434,9 +610,19 @@ export class NourishApp extends LitElement {
       description: String(data.get("description") ?? "").trim(),
       calories: Number(data.get("calories") ?? 0),
     };
-    if (!meal.title || !Number.isFinite(meal.calories) || meal.calories < 0)
+    if (!meal.title || !Number.isInteger(meal.calories) || meal.calories < 0)
       return;
-    this.commit({ ...this.state, meals: [meal, ...this.state.meals] });
+    this.commit({ ...this.state, meals: [meal, ...this.state.meals] }, [
+      {
+        type: "meal.create",
+        entityId: meal.id,
+        body: {
+          title: meal.title,
+          description: meal.description,
+          calories: meal.calories,
+        },
+      },
+    ]);
     window.history.replaceState({}, "", "/meals");
     this.page = "meals";
     this.menuOpen = false;
@@ -450,15 +636,24 @@ export class NourishApp extends LitElement {
     const title = titleCase(String(data.get("title") ?? "").trim());
     const description = String(data.get("description") ?? "").trim();
     const calories = Number(data.get("calories") ?? 0);
-    if (!title || !Number.isFinite(calories) || calories < 0) return;
-    this.commit({
-      ...this.state,
-      meals: this.state.meals.map((meal) =>
-        meal.id === this.selectedMealId
-          ? { ...meal, title, description, calories }
-          : meal,
-      ),
-    });
+    if (!title || !Number.isInteger(calories) || calories < 0) return;
+    this.commit(
+      {
+        ...this.state,
+        meals: this.state.meals.map((meal) =>
+          meal.id === this.selectedMealId
+            ? { ...meal, title, description, calories }
+            : meal,
+        ),
+      },
+      [
+        {
+          type: "meal.update",
+          entityId: this.selectedMealId,
+          body: { title, description, calories },
+        },
+      ],
+    );
     this.navigate("today");
   }
 
@@ -466,8 +661,17 @@ export class NourishApp extends LitElement {
     event.preventDefault();
     const form = event.currentTarget as HTMLFormElement;
     const calories = Number(new FormData(form).get("calories") ?? 0);
-    if (!Number.isFinite(calories) || calories <= 0) return;
-    this.commit({ ...this.state, goal: { calories } });
+    if (!Number.isInteger(calories) || calories <= 0) return;
+    const setAt = new Date().toISOString();
+    const goal = { id: crypto.randomUUID(), calories, setAt };
+    this.commit({ ...this.state, goals: [...this.state.goals, goal] }, [
+      {
+        type: "goal.create",
+        entityId: goal.id,
+        occurredAt: setAt,
+        body: { calories, setAt },
+      },
+    ]);
     this.navigate("today");
   }
 
@@ -509,7 +713,7 @@ export class NourishApp extends LitElement {
     const key = this.selectedDayKey;
     const label = formatDayLabel(key, todayKey());
     const total = dayTotal(this.state.entries, key);
-    const goal = this.state.goal?.calories;
+    const goal = this.caloriesFor(key);
     const weighted = goal ? weightedOver(this.state.entries, key, goal) : 0;
     const color = goal ? toneColor(weighted) : "var(--ink)";
     const entries = this.dayEntries(key);
@@ -537,7 +741,7 @@ export class NourishApp extends LitElement {
   private renderToday() {
     const today = todayKey();
     const total = dayTotal(this.state.entries, today);
-    const goal = this.state.goal?.calories;
+    const goal = this.caloriesFor(today);
     const weighted = goal ? weightedOver(this.state.entries, today, goal) : 0;
     const color = goal ? toneColor(weighted) : "var(--ink)";
     return html`
@@ -903,10 +1107,10 @@ export class NourishApp extends LitElement {
     const days = Array.from({ length: 30 }, (_, index) =>
       addDays(today, -index),
     ).filter((day) => this.showsCalories(day, today, first));
-    const goal = this.state.goal?.calories;
     return html`<ul class="day-list">
       ${days.map((day) => {
         const total = dayTotal(this.state.entries, day);
+        const goal = this.caloriesFor(day);
         const color = goal
           ? toneColor(weightedOver(this.state.entries, day, goal))
           : "var(--ink)";
@@ -932,7 +1136,6 @@ export class NourishApp extends LitElement {
   }
 
   private renderCalendar(today: string, first: string) {
-    const goal = this.state.goal?.calories;
     const current = monthKey(today);
     return html`<div class="calendar-card">
       <div class="calendar-nav">
@@ -965,6 +1168,7 @@ export class NourishApp extends LitElement {
           const happened = cell.key <= today;
           const show = this.showsCalories(cell.key, today, first);
           const total = show ? dayTotal(this.state.entries, cell.key) : 0;
+          const goal = this.caloriesFor(cell.key);
           const color =
             show && cell.inMonth && goal
               ? toneColor(weightedOver(this.state.entries, cell.key, goal))
@@ -1142,7 +1346,7 @@ export class NourishApp extends LitElement {
           name="calories"
           type="number"
           min="1"
-          .value=${String(this.state.goal?.calories ?? 2000)}
+          .value=${String(this.caloriesFor(todayKey()) ?? 2000)}
         />
         <button class="check-button" type="submit" aria-label="Save goal">
           <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -1156,6 +1360,64 @@ export class NourishApp extends LitElement {
         </p>
       </form>
     </section>`;
+  }
+
+  private renderAccount() {
+    if (this.account.status === "checking") {
+      return html`<div class="account-block">
+        <p class="account-copy">Checking account…</p>
+      </div>`;
+    }
+    if (this.account.status === "signed-in") {
+      const label = this.account.name || this.account.email || "Signed in";
+      return html`<div class="account-block">
+        <p class="account-name">${label}</p>
+        <p class="account-copy">
+          Signing out leaves this log on the device. Deleting Nourish in the
+          identity console removes activity totals only, not this food log.
+        </p>
+        <button
+          class="account-button"
+          type="button"
+          @click=${() => this.signOut()}
+        >
+          Sign out
+        </button>
+      </div>`;
+    }
+    return html`<div class="account-block">
+      <p class="account-copy">
+        This log already stays on this device. An account keeps it when you use
+        another one.
+      </p>
+      <div class="account-actions">
+        <button
+          class="account-button"
+          type="button"
+          @click=${() => this.signIn(false)}
+        >
+          Log in
+        </button>
+        <button
+          class="account-button account-secondary"
+          type="button"
+          @click=${() => this.signIn(true)}
+        >
+          Sign up
+        </button>
+      </div>
+      ${
+        authConfig().devLogin
+          ? html`<button
+              class="account-button account-secondary"
+              type="button"
+              @click=${() => this.useDevAccount()}
+            >
+              Dev sign in
+            </button>`
+          : ""
+      }
+    </div>`;
   }
 
   override render() {
@@ -1180,9 +1442,25 @@ export class NourishApp extends LitElement {
             this.closeEdit();
             this.menuOpen = true;
           }}
-          aria-label="Open menu"
+          aria-label="Account and menu"
+          aria-haspopup="dialog"
+          aria-expanded=${this.menuOpen ? "true" : "false"}
         >
-          <span class="hamburger" aria-hidden="true"></span>
+          ${
+            this.account.status === "signed-in" && this.account.picture
+              ? html`<img class="avatar" src=${this.account.picture} alt="" />`
+              : this.account.status === "signed-in"
+                ? html`<span class="avatar">${this.initials()}</span>`
+                : html`<svg
+                    class="profile-icon"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <circle cx="12" cy="12" r="9"></circle>
+                    <circle cx="12" cy="10" r="2.2"></circle>
+                    <path d="M7.2 17.2a5 5 0 0 1 9.6 0"></path>
+                  </svg>`
+          }
         </button>
       </header>
       <main class="app-main">
@@ -1191,6 +1469,11 @@ export class NourishApp extends LitElement {
             ? html`<p class="offline-note" role="status">
                 Offline. Your log stays on this device.
               </p>`
+            : ""
+        }
+        ${
+          this.syncNote
+            ? html`<p class="offline-note" role="status">${this.syncNote}</p>`
             : ""
         }
         ${this.page === "today" ? this.renderToday() : ""}
@@ -1211,6 +1494,7 @@ export class NourishApp extends LitElement {
                 class="menu-panel"
                 @click=${(event: Event) => event.stopPropagation()}
               >
+                ${this.renderAccount()}
                 <button
                   class="menu-link"
                   @click=${() => this.navigate("today")}
