@@ -827,28 +827,19 @@ export const appStyles = css`
   button.meal-create {
     appearance: none;
     display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.2rem;
+    align-items: center;
     width: 100%;
+    min-height: 4.6rem;
     padding: 1rem 1rem 0.9rem;
     border-radius: 1.25rem;
     border: 1.5px dotted rgba(215, 176, 122, 0.85);
     background: transparent;
-    color: inherit;
+    color: var(--gold);
     font: inherit;
-    text-align: left;
-    cursor: pointer;
-  }
-
-  .meal-create-title {
     font-size: 1.25rem;
     font-weight: 560;
-    color: var(--gold);
-  }
-
-  .meal-create-meta {
-    color: var(--muted);
+    text-align: left;
+    cursor: pointer;
   }
 
   button.meal-create:focus-visible {

@@ -816,27 +816,24 @@ export class NourishApp extends LitElement {
         role="menu"
         @click=${(event: Event) => event.stopPropagation()}
       >
-        ${
-          meals.length
-            ? meals.map(
-                (meal) =>
-                  html`<button
-                    class="popover-button"
-                    role="menuitem"
-                    @click=${() => this.addCalories(meal.calories, meal.id)}
-                  >
-                    <span>${titleCase(meal.title)}</span>
-                    <span class="popover-calories">${meal.calories}</span>
-                  </button>`,
-              )
-            : html`<button
-                class="popover-button popover-create"
-                role="menuitem"
-                @click=${() => this.openNewMeal()}
-              >
-                Create a meal
-              </button>`
-        }
+        <button
+          class="popover-button popover-create"
+          role="menuitem"
+          @click=${() => this.openNewMeal()}
+        >
+          Create a new meal
+        </button>
+        ${meals.map(
+          (meal) =>
+            html`<button
+              class="popover-button"
+              role="menuitem"
+              @click=${() => this.addCalories(meal.calories, meal.id)}
+            >
+              <span>${titleCase(meal.title)}</span>
+              <span class="popover-calories">${meal.calories}</span>
+            </button>`,
+        )}
       </div>`;
   }
 
@@ -1003,8 +1000,7 @@ export class NourishApp extends LitElement {
             type="button"
             @click=${() => this.openNewMeal()}
           >
-            <span class="meal-create-title">New meal</span>
-            <span class="meal-create-meta">Create a meal</span>
+            Create a new meal
           </button>
         </li>
       </ul>
@@ -1013,7 +1009,6 @@ export class NourishApp extends LitElement {
 
   private renderNewMeal() {
     return html`<section>
-      <h2 class="section-title">New meal</h2>
       <form class="composer-card" @submit=${this.saveMeal}>
         <label class="field-label" for="meal-title">Title</label>
         <input class="text-input" id="meal-title" name="title" required />
@@ -1093,7 +1088,6 @@ export class NourishApp extends LitElement {
 
   private renderGoal() {
     return html`<section>
-      <h2 class="section-title">Daily goal</h2>
       <form class="goal-card" @submit=${this.saveGoal}>
         <label class="field-label" for="goal-calories"
           >Calories to stay near</label
