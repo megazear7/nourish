@@ -1065,7 +1065,11 @@ export class NourishApp extends LitElement {
           min="0"
           required
         />
-        <button class="save-button" type="submit">Save meal</button>
+        <button class="check-button" type="submit" aria-label="Save meal">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M5 12.5 10 17.5 19 7.5"></path>
+          </svg>
+        </button>
       </form>
     </section>`;
   }
@@ -1077,7 +1081,6 @@ export class NourishApp extends LitElement {
     if (!meal)
       return html`<p class="empty-note">That meal is no longer here.</p>`;
     return html`<section>
-      <h2 class="section-title">Edit meal</h2>
       <form class="composer-card" @submit=${this.updateMeal}>
         <label class="field-label" for="edit-meal-title">Title</label>
         <input
@@ -1107,7 +1110,11 @@ export class NourishApp extends LitElement {
           .value=${String(meal.calories)}
           required
         />
-        <button class="save-button" type="submit">Save changes</button>
+        <button class="check-button" type="submit" aria-label="Save changes">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M5 12.5 10 17.5 19 7.5"></path>
+          </svg>
+        </button>
       </form>
     </section>`;
   }
@@ -1120,7 +1127,7 @@ export class NourishApp extends LitElement {
     if (this.page === "meals") return "Meals";
     if (this.page === "new-meal") return "New meal";
     if (this.page === "goal") return "Goal";
-    return "Edit";
+    return "Edit meal";
   }
 
   private renderGoal() {
@@ -1137,7 +1144,11 @@ export class NourishApp extends LitElement {
           min="1"
           .value=${String(this.state.goal?.calories ?? 2000)}
         />
-        <button class="save-button" type="submit">Save goal</button>
+        <button class="check-button" type="submit" aria-label="Save goal">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M5 12.5 10 17.5 19 7.5"></path>
+          </svg>
+        </button>
         <p class="tone-note">
           Color uses a seven-day window. Today counts fully, yesterday half, and
           each older day a little less. Under the goal pulls the color back
