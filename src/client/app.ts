@@ -489,6 +489,22 @@ export class NourishApp extends LitElement {
       .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
   }
 
+  private firstLoggedDay(): string {
+    let first = "";
+    for (const entry of this.state.entries) {
+      if (entry.removed || entry.calories <= 0) continue;
+      const key = dateKey(new Date(entry.timestamp));
+      if (!first || key < first) first = key;
+    }
+    return first;
+  }
+
+  private showsCalories(day: string, today: string, first: string): boolean {
+    if (day > today) return false;
+    if (dayTotal(this.state.entries, day) > 0) return true;
+    return Boolean(first) && day < today && day > first;
+  }
+
   private renderDay() {
     const key = this.selectedDayKey;
     const label = formatDayLabel(key, todayKey());
@@ -858,6 +874,7 @@ export class NourishApp extends LitElement {
 
   private renderHistory() {
     const today = todayKey();
+    const first = this.firstLoggedDay();
     return html`<section>
       <div class="section-heading">
         <h2 class="section-title">Days</h2>
@@ -878,14 +895,14 @@ export class NourishApp extends LitElement {
           </button>
         </div>
       </div>
-      ${this.historyMode === "calendar" ? this.renderCalendar(today) : this.renderHistoryList(today)}
+      ${this.historyMode === "calendar" ? this.renderCalendar(today, first) : this.renderHistoryList(today, first)}
     </section>`;
   }
 
-  private renderHistoryList(today: string) {
+  private renderHistoryList(today: string, first: string) {
     const days = Array.from({ length: 30 }, (_, index) =>
       addDays(today, -index),
-    );
+    ).filter((day) => this.showsCalories(day, today, first));
     const goal = this.state.goal?.calories;
     return html`<ul class="day-list">
       ${days.map((day) => {
@@ -914,7 +931,7 @@ export class NourishApp extends LitElement {
     </ul>`;
   }
 
-  private renderCalendar(today: string) {
+  private renderCalendar(today: string, first: string) {
     const goal = this.state.goal?.calories;
     const current = monthKey(today);
     return html`<div class="calendar-card">
@@ -946,9 +963,10 @@ export class NourishApp extends LitElement {
         ${WEEKDAYS.map((day) => html`<span class="calendar-weekday">${day}</span>`)}
         ${monthCells(this.calendarMonth).map((cell) => {
           const happened = cell.key <= today;
-          const total = happened ? dayTotal(this.state.entries, cell.key) : 0;
+          const show = this.showsCalories(cell.key, today, first);
+          const total = show ? dayTotal(this.state.entries, cell.key) : 0;
           const color =
-            happened && cell.inMonth && goal
+            show && cell.inMonth && goal
               ? toneColor(weightedOver(this.state.entries, cell.key, goal))
               : "var(--muted)";
           const classes = `calendar-day ${cell.inMonth ? "" : "outside"} ${cell.key === today ? "is-today" : ""}`;
@@ -959,9 +977,15 @@ export class NourishApp extends LitElement {
                 @click=${() => this.openDay(cell.key)}
               >
                 <span class="calendar-date">${Number(cell.key.slice(-2))}</span>
-                <span class="calendar-calories" style="color: ${color}"
-                  >${total}</span
-                >
+                ${
+                  show
+                    ? html`<span
+                        class="calendar-calories"
+                        style="color: ${color}"
+                        >${total}</span
+                      >`
+                    : ""
+                }
               </button>`
             : html`<div class=${classes}>
                 <span class="calendar-date">${Number(cell.key.slice(-2))}</span>
