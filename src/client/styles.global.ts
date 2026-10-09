@@ -821,6 +821,38 @@ export const appStyles = css`
   }
 
   .meal-list {
-    margin-top: 1.25rem;
+    margin-top: 0.35rem;
+  }
+
+  button.meal-create {
+    appearance: none;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.2rem;
+    width: 100%;
+    padding: 1rem 1rem 0.9rem;
+    border-radius: 1.25rem;
+    border: 1.5px dotted rgba(215, 176, 122, 0.85);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .meal-create-title {
+    font-size: 1.25rem;
+    font-weight: 560;
+    color: var(--gold);
+  }
+
+  .meal-create-meta {
+    color: var(--muted);
+  }
+
+  button.meal-create:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 3px;
   }
 `;

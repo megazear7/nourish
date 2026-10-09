@@ -25,7 +25,8 @@ import {
 import { loadState, saveState } from "./util.storage.js";
 import { appStyles } from "./styles.global.js";
 
-type PageName = "today" | "history" | "meals" | "goal" | "meal" | "day";
+type PageName =
+  "today" | "history" | "meals" | "goal" | "meal" | "new-meal" | "day";
 
 const QUICK_WINDOW_MS = 60_000;
 const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
@@ -233,6 +234,8 @@ export class NourishApp extends LitElement {
         this.selectedDayKey = key;
       } else this.page = "history";
     } else if (path.startsWith("/history")) this.page = "history";
+    else if (path === "/meals/new" || path.startsWith("/meals/new/"))
+      this.page = "new-meal";
     else if (path.startsWith("/meals")) this.page = "meals";
     else if (path.startsWith("/goal")) this.page = "goal";
     else this.page = "today";
@@ -252,6 +255,15 @@ export class NourishApp extends LitElement {
     window.history.pushState({}, "", `/meal/${encodeURIComponent(id)}`);
     this.page = "meal";
     this.selectedMealId = id;
+    this.menuOpen = false;
+    this.mealPickerOpen = false;
+    this.kebabKey = "";
+    this.closeEdit();
+  }
+
+  private openNewMeal(): void {
+    window.history.pushState({}, "", "/meals/new");
+    this.page = "new-meal";
     this.menuOpen = false;
     this.mealPickerOpen = false;
     this.kebabKey = "";
@@ -422,9 +434,14 @@ export class NourishApp extends LitElement {
       description: String(data.get("description") ?? "").trim(),
       calories: Number(data.get("calories") ?? 0),
     };
-    if (!meal.title || !Number.isFinite(meal.calories)) return;
+    if (!meal.title || !Number.isFinite(meal.calories) || meal.calories < 0)
+      return;
     this.commit({ ...this.state, meals: [meal, ...this.state.meals] });
-    form.reset();
+    window.history.replaceState({}, "", "/meals");
+    this.page = "meals";
+    this.menuOpen = false;
+    this.mealPickerOpen = false;
+    this.kebabKey = "";
   }
 
   private updateMeal(event: Event): void {
@@ -815,7 +832,7 @@ export class NourishApp extends LitElement {
             : html`<button
                 class="popover-button popover-create"
                 role="menuitem"
-                @click=${() => this.navigate("meals")}
+                @click=${() => this.openNewMeal()}
               >
                 Create a meal
               </button>`
@@ -946,28 +963,6 @@ export class NourishApp extends LitElement {
 
   private renderMeals() {
     return html`<section>
-      <h2 class="section-title">Meals</h2>
-      <form class="composer-card" @submit=${this.saveMeal}>
-        <label class="field-label" for="meal-title">Title</label>
-        <input class="text-input" id="meal-title" name="title" required />
-        <label class="field-label" for="meal-description">Description</label>
-        <textarea
-          class="description-input"
-          id="meal-description"
-          name="description"
-          rows="3"
-        ></textarea>
-        <label class="field-label" for="meal-calories">Calories</label>
-        <input
-          class="number-input"
-          id="meal-calories"
-          name="calories"
-          type="number"
-          min="0"
-          required
-        />
-        <button class="save-button" type="submit">Save meal</button>
-      </form>
       <ul class="meal-list">
         ${this.visibleMeals().map((meal) => {
           const key = `meal:${meal.id}`;
@@ -1002,7 +997,44 @@ export class NourishApp extends LitElement {
             </div>
           </li>`;
         })}
+        <li>
+          <button
+            class="meal-create"
+            type="button"
+            @click=${() => this.openNewMeal()}
+          >
+            <span class="meal-create-title">New meal</span>
+            <span class="meal-create-meta">Create a meal</span>
+          </button>
+        </li>
       </ul>
+    </section>`;
+  }
+
+  private renderNewMeal() {
+    return html`<section>
+      <h2 class="section-title">New meal</h2>
+      <form class="composer-card" @submit=${this.saveMeal}>
+        <label class="field-label" for="meal-title">Title</label>
+        <input class="text-input" id="meal-title" name="title" required />
+        <label class="field-label" for="meal-description">Description</label>
+        <textarea
+          class="description-input"
+          id="meal-description"
+          name="description"
+          rows="3"
+        ></textarea>
+        <label class="field-label" for="meal-calories">Calories</label>
+        <input
+          class="number-input"
+          id="meal-calories"
+          name="calories"
+          type="number"
+          min="0"
+          required
+        />
+        <button class="save-button" type="submit">Save meal</button>
+      </form>
     </section>`;
   }
 
@@ -1054,6 +1086,7 @@ export class NourishApp extends LitElement {
     if (this.page === "day")
       return formatDayLabel(this.selectedDayKey, todayKey());
     if (this.page === "meals") return "Meals";
+    if (this.page === "new-meal") return "New meal";
     if (this.page === "goal") return "Goal";
     return "Edit";
   }
@@ -1122,6 +1155,7 @@ export class NourishApp extends LitElement {
         ${this.page === "history" ? this.renderHistory() : ""}
         ${this.page === "day" ? this.renderDay() : ""}
         ${this.page === "meals" ? this.renderMeals() : ""}
+        ${this.page === "new-meal" ? this.renderNewMeal() : ""}
         ${this.page === "meal" ? this.renderMealEdit() : ""}
         ${this.page === "goal" ? this.renderGoal() : ""}
       </main>
