@@ -8,6 +8,7 @@ import {
 } from "../shared/type.nutrition.js";
 import {
   addDays,
+  backfillTimestamp,
   dateKey,
   formatDayLabel,
   formatTime,
@@ -401,6 +402,17 @@ export class NourishApp extends LitElement {
     return (first + second).toUpperCase();
   }
 
+  private entryTimestamp(): string {
+    const today = todayKey();
+    if (this.page !== "day" || this.selectedDayKey === today) {
+      return new Date().toISOString();
+    }
+    return backfillTimestamp(
+      this.selectedDayKey,
+      this.dayEntries(this.selectedDayKey).map((entry) => entry.timestamp),
+    );
+  }
+
   private addCalories(calories: number, mealId?: string): void {
     const meal = mealId
       ? this.state.meals.find((item) => item.id === mealId)
@@ -408,7 +420,7 @@ export class NourishApp extends LitElement {
     const entry: CalorieEntry = {
       id: crypto.randomUUID(),
       calories,
-      timestamp: new Date().toISOString(),
+      timestamp: this.entryTimestamp(),
       mealId,
       mealTitle: meal?.title,
       mealDescription: meal?.description,
@@ -724,6 +736,35 @@ export class NourishApp extends LitElement {
             </ul>`
           : html`<p class="empty-note">Nothing logged this day.</p>`
       }
+      ${this.renderActionDock()}
+    `;
+  }
+
+  private renderActionDock() {
+    return html`
+      <div class="action-dock">
+        <button class="calorie-button" @click=${() => this.addCalories(50)}>
+          +50
+        </button>
+        <button class="calorie-button" @click=${() => this.addCalories(100)}>
+          +100
+        </button>
+        <button class="calorie-button" @click=${() => this.addCalories(500)}>
+          +500
+        </button>
+        <button
+          class="meal-button"
+          aria-haspopup="menu"
+          aria-expanded=${this.mealPickerOpen ? "true" : "false"}
+          @click=${() => {
+            this.kebabKey = "";
+            this.mealPickerOpen = !this.mealPickerOpen;
+          }}
+        >
+          Meals
+        </button>
+      </div>
+      ${this.mealPickerOpen ? this.renderMealPicker() : ""}
     `;
   }
 
@@ -753,29 +794,7 @@ export class NourishApp extends LitElement {
               Nothing logged yet. Add a bite when you eat it.
             </p>`
       }
-      <div class="action-dock">
-        <button class="calorie-button" @click=${() => this.addCalories(50)}>
-          +50
-        </button>
-        <button class="calorie-button" @click=${() => this.addCalories(100)}>
-          +100
-        </button>
-        <button class="calorie-button" @click=${() => this.addCalories(500)}>
-          +500
-        </button>
-        <button
-          class="meal-button"
-          aria-haspopup="menu"
-          aria-expanded=${this.mealPickerOpen ? "true" : "false"}
-          @click=${() => {
-            this.kebabKey = "";
-            this.mealPickerOpen = !this.mealPickerOpen;
-          }}
-        >
-          Meals
-        </button>
-      </div>
-      ${this.mealPickerOpen ? this.renderMealPicker() : ""}
+      ${this.renderActionDock()}
     `;
   }
 
