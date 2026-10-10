@@ -1,40 +1,34 @@
-import { NutritionState } from "../shared/type.nutrition.js";
+import { dateKey, todayKey } from "../shared/util.dates.js";
+import {
+  emptyState,
+  normalizeState,
+  type NutritionState,
+} from "../shared/type.nutrition.js";
 
 const STORAGE_KEY = "nourish-state";
 
-const emptyState: NutritionState = {
-  entries: [],
-  meals: [],
-  goal: undefined,
-};
+export { dateKey, todayKey };
+
+export function entryDate(timestamp: string): string {
+  return dateKey(new Date(timestamp));
+}
 
 export function loadState(): NutritionState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return emptyState;
-    const parsed = JSON.parse(raw);
-    const result = NutritionState.safeParse(parsed);
-    return result.success ? result.data : emptyState;
+    if (!raw) return emptyState();
+    const normalized = normalizeState(JSON.parse(raw), () => ({
+      id: crypto.randomUUID(),
+      setAt: new Date().toISOString(),
+    }));
+    if (!normalized) return emptyState();
+    if (normalized.migrated) saveState(normalized.state);
+    return normalized.state;
   } catch {
-    return emptyState;
+    return emptyState();
   }
 }
 
 export function saveState(state: NutritionState): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-}
-
-export function todayKey(): string {
-  return dateKey(new Date());
-}
-
-export function dateKey(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-export function entryDate(timestamp: string): string {
-  return dateKey(new Date(timestamp));
 }

@@ -78,6 +78,27 @@ export const appStyles = css`
     border-radius: 999px;
     background: var(--panel);
     color: var(--ink);
+    overflow: hidden;
+  }
+
+  .profile-icon {
+    width: 1.35rem;
+    height: 1.35rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.6;
+  }
+
+  .avatar {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    place-items: center;
+    object-fit: cover;
+    background: var(--field);
+    color: var(--gold);
+    font-size: 0.85rem;
+    font-weight: 650;
   }
 
   .hamburger {
@@ -621,6 +642,48 @@ export const appStyles = css`
     font-size: 1.15rem;
     padding: 0.85rem 0.2rem;
     cursor: pointer;
+  }
+
+  .account-block {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    padding-bottom: 0.9rem;
+    margin-bottom: 0.4rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .account-name {
+    margin: 0;
+    font-size: 1.05rem;
+  }
+
+  .account-copy {
+    margin: 0;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+
+  .account-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .account-button {
+    border: 0;
+    border-radius: 999px;
+    background: var(--gold);
+    color: #1a140c;
+    font: inherit;
+    font-weight: 650;
+    padding: 0.65rem 0.9rem;
+    cursor: pointer;
+  }
+
+  .account-secondary {
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid rgba(255, 255, 255, 0.16);
   }
 
   .section-title {

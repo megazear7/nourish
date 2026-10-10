@@ -1,4 +1,8 @@
-import { CalorieEntry, DailyGoal, Meal, NutritionState } from "../shared/type.nutrition.js";
+import {
+  CalorieEntry,
+  Meal,
+  NutritionState,
+} from "../shared/type.nutrition.js";
 import { entryDate, loadState, saveState, todayKey } from "./util.storage.js";
 
 type Listener = () => void;
@@ -22,8 +26,12 @@ function commit(next: NutritionState): void {
 }
 
 export function setGoal(calories: number): void {
-  const goal: DailyGoal = { calories };
-  commit({ ...state, goal });
+  const goal = {
+    id: crypto.randomUUID(),
+    calories,
+    setAt: new Date().toISOString(),
+  };
+  commit({ ...state, goals: [...state.goals, goal] });
 }
 
 export function addEntry(calories: number, mealId?: string): void {
@@ -37,10 +45,18 @@ export function addEntry(calories: number, mealId?: string): void {
 }
 
 export function removeEntry(id: string): void {
-  commit({ ...state, entries: state.entries.filter((entry) => entry.id !== id) });
+  commit({
+    ...state,
+    entries: state.entries.filter((entry) => entry.id !== id),
+  });
 }
 
-export function upsertMeal(input: { id?: string; title: string; description: string; calories: number }): Meal {
+export function upsertMeal(input: {
+  id?: string;
+  title: string;
+  description: string;
+  calories: number;
+}): Meal {
   const meal: Meal = {
     id: input.id ?? crypto.randomUUID(),
     title: input.title,
