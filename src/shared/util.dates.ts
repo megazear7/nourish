@@ -50,3 +50,31 @@ export function withTime(timestamp: string, time: string): string {
   date.setHours(hours ?? 0, minutes ?? 0, 0, 0);
   return date.toISOString();
 }
+
+const BACKFILL_STEP_MS = 30 * 60 * 1000;
+
+// Past-day logs start at noon, then step 30 minutes after the latest entry.
+// At or after 11:30pm they stay at 11:59pm so they remain on that day.
+export function backfillTimestamp(
+  dayKey: string,
+  timestamps: string[],
+): string {
+  const day = parseDateKey(dayKey);
+  const minuteBeforeMidnight = new Date(day);
+  minuteBeforeMidnight.setHours(23, 59, 0, 0);
+
+  if (timestamps.length === 0) {
+    const noon = new Date(day);
+    noon.setHours(12, 0, 0, 0);
+    return noon.toISOString();
+  }
+
+  const lastMs = timestamps.reduce(
+    (latest, stamp) => Math.max(latest, new Date(stamp).getTime()),
+    Number.NEGATIVE_INFINITY,
+  );
+  const last = new Date(lastMs);
+  const minutes = last.getHours() * 60 + last.getMinutes();
+  if (minutes >= 23 * 60 + 30) return minuteBeforeMidnight.toISOString();
+  return new Date(lastMs + BACKFILL_STEP_MS).toISOString();
+}
