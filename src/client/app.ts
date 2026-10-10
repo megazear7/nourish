@@ -168,6 +168,9 @@ export class NourishApp extends LitElement {
   @state() private selectedMealId = "";
   @state() private selectedDayKey = "";
   @state() private menuOpen = false;
+  @state() private menuMounted = false;
+  private menuTimer = 0;
+  private menuTicket = 0;
   @state() private mealPickerOpen = false;
   @state() private kebabKey = "";
   @state() private offline = !navigator.onLine;
@@ -197,6 +200,7 @@ export class NourishApp extends LitElement {
   }
 
   override disconnectedCallback(): void {
+    window.clearTimeout(this.menuTimer);
     window.removeEventListener("popstate", this.syncRoute);
     window.removeEventListener("online", this.onOnline);
     window.removeEventListener("offline", this.onOffline);
@@ -275,7 +279,7 @@ export class NourishApp extends LitElement {
     const path = page === "today" ? "/" : `/${page}`;
     window.history.pushState({}, "", path);
     this.page = page;
-    this.menuOpen = false;
+    this.closeMenu();
     this.mealPickerOpen = false;
     this.kebabKey = "";
     this.closeEdit();
@@ -285,7 +289,7 @@ export class NourishApp extends LitElement {
     window.history.pushState({}, "", `/meal/${encodeURIComponent(id)}`);
     this.page = "meal";
     this.selectedMealId = id;
-    this.menuOpen = false;
+    this.closeMenu();
     this.mealPickerOpen = false;
     this.kebabKey = "";
     this.closeEdit();
@@ -294,7 +298,7 @@ export class NourishApp extends LitElement {
   private openNewMeal(): void {
     window.history.pushState({}, "", "/meals/new");
     this.page = "new-meal";
-    this.menuOpen = false;
+    this.closeMenu();
     this.mealPickerOpen = false;
     this.kebabKey = "";
     this.closeEdit();
@@ -304,7 +308,7 @@ export class NourishApp extends LitElement {
     window.history.pushState({}, "", `/day/${key}`);
     this.page = "day";
     this.selectedDayKey = key;
-    this.menuOpen = false;
+    this.closeMenu();
     this.mealPickerOpen = false;
     this.kebabKey = "";
     this.closeEdit();
@@ -383,6 +387,51 @@ export class NourishApp extends LitElement {
     }
   }
 
+  private openMenu(): void {
+    this.kebabKey = "";
+    this.closeEdit();
+    window.clearTimeout(this.menuTimer);
+    this.menuTimer = 0;
+    if (this.menuMounted) {
+      this.menuOpen = true;
+      return;
+    }
+    const ticket = ++this.menuTicket;
+    this.menuMounted = true;
+    this.menuOpen = false;
+    void this.updateComplete.then(() => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (ticket !== this.menuTicket || !this.menuMounted) return;
+          this.menuOpen = true;
+        });
+      });
+    });
+  }
+
+  private closeMenu(): void {
+    if (!this.menuMounted) return;
+    if (!this.menuOpen) {
+      if (this.menuTimer) return;
+      this.menuTicket += 1;
+      this.menuMounted = false;
+      return;
+    }
+    this.menuTicket += 1;
+    this.menuOpen = false;
+    window.clearTimeout(this.menuTimer);
+    const reduce = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    this.menuTimer = window.setTimeout(
+      () => {
+        this.menuTimer = 0;
+        if (!this.menuOpen) this.menuMounted = false;
+      },
+      reduce ? 0 : 320,
+    );
+  }
+
   private async signIn(signup: boolean): Promise<void> {
     if (!authConfigured()) {
       this.syncNote = "Sign-in is not configured for this build yet.";
@@ -392,7 +441,7 @@ export class NourishApp extends LitElement {
   }
 
   private async signOut(): Promise<void> {
-    this.menuOpen = false;
+    this.closeMenu();
     await logout();
     this.account = signedOut();
   }
@@ -506,7 +555,7 @@ export class NourishApp extends LitElement {
 
   private toggleKebab(key: string): void {
     this.mealPickerOpen = false;
-    this.menuOpen = false;
+    this.closeMenu();
     this.kebabKey = this.kebabKey === key ? "" : key;
   }
 
@@ -536,7 +585,7 @@ export class NourishApp extends LitElement {
       ? this.state.meals.find((item) => item.id === shown.mealId)
       : undefined;
     this.kebabKey = "";
-    this.menuOpen = false;
+    this.closeMenu();
     this.mealPickerOpen = false;
     this.editIds = shown.entries.map((item) => item.id);
     this.editMeal = Boolean(shown.mealId);
@@ -639,7 +688,7 @@ export class NourishApp extends LitElement {
     ]);
     window.history.replaceState({}, "", "/meals");
     this.page = "meals";
-    this.menuOpen = false;
+    this.closeMenu();
     this.mealPickerOpen = false;
     this.kebabKey = "";
   }
@@ -1393,24 +1442,9 @@ export class NourishApp extends LitElement {
       const label = this.account.name || this.account.email || "Signed in";
       return html`<div class="account-block">
         <p class="account-name">${label}</p>
-        <p class="account-copy">
-          Signing out leaves this log on the device. Deleting Nourish in the
-          identity console removes activity totals only, not this food log.
-        </p>
-        <button
-          class="account-button"
-          type="button"
-          @click=${() => this.signOut()}
-        >
-          Sign out
-        </button>
       </div>`;
     }
     return html`<div class="account-block">
-      <p class="account-copy">
-        This log already stays on this device. An account keeps it when you use
-        another one.
-      </p>
       <div class="account-actions">
         <button
           class="account-button"
@@ -1449,11 +1483,7 @@ export class NourishApp extends LitElement {
         </div>
         <button
           class="menu-button"
-          @click=${() => {
-            this.kebabKey = "";
-            this.closeEdit();
-            this.menuOpen = true;
-          }}
+          @click=${() => this.openMenu()}
           aria-label="Account and menu"
           aria-haspopup="dialog"
           aria-expanded=${this.menuOpen ? "true" : "false"}
@@ -1497,10 +1527,10 @@ export class NourishApp extends LitElement {
         ${this.page === "goal" ? this.renderGoal() : ""}
       </main>
       ${
-        this.menuOpen
+        this.menuMounted
           ? html`<div
-              class="menu-sheet"
-              @click=${() => (this.menuOpen = false)}
+              class="menu-sheet ${this.menuOpen ? "is-open" : ""}"
+              @click=${() => this.closeMenu()}
             >
               <nav
                 class="menu-panel"
@@ -1528,6 +1558,17 @@ export class NourishApp extends LitElement {
                 <button class="menu-link" @click=${() => this.navigate("goal")}>
                   Goal
                 </button>
+                ${
+                  this.account.status === "signed-in"
+                    ? html`<button
+                        class="menu-sign-out"
+                        type="button"
+                        @click=${() => this.signOut()}
+                      >
+                        Sign out
+                      </button>`
+                    : ""
+                }
               </nav>
             </div>`
           : ""

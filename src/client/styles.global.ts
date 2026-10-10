@@ -635,13 +635,28 @@ export const appStyles = css`
   .menu-sheet {
     position: fixed;
     inset: 0;
+    z-index: 12;
+    background: transparent;
+  }
+
+  .menu-sheet::before {
+    content: "";
+    position: absolute;
+    inset: 0;
     background: rgba(6, 7, 12, 0.55);
+    opacity: 0;
+    transition: opacity 240ms ease;
+  }
+
+  .menu-sheet.is-open::before {
+    opacity: 1;
   }
 
   .menu-panel {
     position: absolute;
     top: 0;
     right: 0;
+    z-index: 1;
     width: min(22rem, 88vw);
     height: 100%;
     background: var(--panel);
@@ -649,6 +664,19 @@ export const appStyles = css`
     display: flex;
     flex-direction: column;
     gap: 0.6rem;
+    transform: translateX(100%);
+    transition: transform 280ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .menu-sheet.is-open .menu-panel {
+    transform: translateX(0);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .menu-sheet::before,
+    .menu-panel {
+      transition: none;
+    }
   }
 
   .menu-link {
@@ -659,6 +687,18 @@ export const appStyles = css`
     font: inherit;
     font-size: 1.15rem;
     padding: 0.85rem 0.2rem;
+    cursor: pointer;
+  }
+
+  .menu-sign-out {
+    margin-top: auto;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    font-weight: 560;
+    padding: 0.75rem 0.9rem;
     cursor: pointer;
   }
 
