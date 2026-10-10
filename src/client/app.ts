@@ -590,7 +590,11 @@ export class NourishApp extends LitElement {
     this.editIds = shown.entries.map((item) => item.id);
     this.editMeal = Boolean(shown.mealId);
     this.editCalories = String(shown.calories);
-    this.editTitle = titleCase(entry?.mealTitle ?? meal?.title ?? "");
+    this.editTitle = titleCase(
+      shown.entries.find((item) => item.mealTitle)?.mealTitle ??
+        meal?.title ??
+        "",
+    );
     this.editDescription = entry?.mealDescription ?? meal?.description ?? "";
     this.editKey = shown.key;
     this.renderRoot.querySelector<HTMLElement>(":focus")?.blur();
@@ -609,8 +613,8 @@ export class NourishApp extends LitElement {
     const keepId = this.editIds[this.editIds.length - 1];
     if (!keepId) return;
     const ids = new Set(this.editIds);
+    const title = titleCase(this.editTitle.trim());
     if (this.editMeal) {
-      const title = titleCase(this.editTitle.trim());
       const description = this.editDescription.trim();
       if (!title) return;
       this.commit(
@@ -640,13 +644,18 @@ export class NourishApp extends LitElement {
         {
           ...this.state,
           entries: this.state.entries.map((entry) => {
-            if (entry.id === keepId) return { ...entry, calories };
+            if (entry.id === keepId)
+              return { ...entry, calories, mealTitle: title || undefined };
             if (ids.has(entry.id)) return { ...entry, removed: true };
             return entry;
           }),
         },
         [
-          { type: "entry.patch", entityId: keepId, body: { calories } },
+          {
+            type: "entry.patch",
+            entityId: keepId,
+            body: { calories, mealTitle: title },
+          },
           ...this.editIds
             .filter((id) => id !== keepId)
             .map((id) => ({
@@ -942,9 +951,13 @@ export class NourishApp extends LitElement {
                   >
                     ${titleCase(title)}
                   </button>`
-                : html`<span class="log-unit log-meal-inline"
-                    >${titleCase(title)}</span
-                  >`
+                : html`<button
+                    class="log-meal log-meal-inline"
+                    type="button"
+                    @click=${() => this.beginEdit(shown)}
+                  >
+                    ${titleCase(title)}
+                  </button>`
               : ""
           }
         </div>
@@ -998,7 +1011,13 @@ export class NourishApp extends LitElement {
               >
                 ${titleCase(title)}
               </button>`
-            : html`<span class="entry-title-row">${titleCase(title)}</span>`
+            : html`<button
+                class="entry-title-row"
+                type="button"
+                @click=${() => this.beginEdit(shown)}
+              >
+                ${titleCase(title)}
+              </button>`
           : ""
       }
       ${description ? html`<p class="entry-note">${description}</p>` : ""}
@@ -1025,19 +1044,20 @@ export class NourishApp extends LitElement {
         <h2 id="edit-heading" class="edit-heading">
           ${this.editMeal ? "Edit this serving" : "Edit calories"}
         </h2>
+        <label class="field-label" for="edit-use-title">Title</label>
+        <input
+          class="text-input"
+          id="edit-use-title"
+          placeholder=${this.editMeal ? "" : "Optional"}
+          .value=${live(this.editTitle)}
+          ?required=${this.editMeal}
+          @input=${(event: Event) => {
+            this.editTitle = (event.target as HTMLInputElement).value;
+          }}
+        />
         ${
           this.editMeal
-            ? html`<label class="field-label" for="edit-use-title">Title</label>
-                <input
-                  class="text-input"
-                  id="edit-use-title"
-                  .value=${live(this.editTitle)}
-                  required
-                  @input=${(event: Event) => {
-                    this.editTitle = (event.target as HTMLInputElement).value;
-                  }}
-                />
-                <label class="field-label" for="edit-use-description"
+            ? html`<label class="field-label" for="edit-use-description"
                   >Description</label
                 >
                 <textarea

@@ -116,6 +116,53 @@ describe("fold", () => {
     assert.equal(drop?.removed, true);
   });
 
+  it("names a calorie entry without creating a meal", () => {
+    const state = fold([
+      op({
+        opId: "c",
+        type: "entry.create",
+        entityId: "e1",
+        occurredAt: "2026-10-09T10:00:00.000Z",
+        body: { calories: 180, eatenAt: "2026-10-09T10:00:00.000Z" },
+      }),
+      op({
+        opId: "p",
+        type: "entry.patch",
+        entityId: "e1",
+        occurredAt: "2026-10-09T10:05:00.000Z",
+        body: { calories: 180, mealTitle: "Coffee" },
+      }),
+    ]);
+    assert.equal(state.entries[0]?.mealTitle, "Coffee");
+    assert.equal(state.entries[0]?.mealId, undefined);
+    assert.equal(state.meals.length, 0);
+  });
+
+  it("clears a calorie entry title without touching meals", () => {
+    const state = fold([
+      op({
+        opId: "c",
+        type: "entry.create",
+        entityId: "e1",
+        occurredAt: "2026-10-09T10:00:00.000Z",
+        body: {
+          calories: 180,
+          eatenAt: "2026-10-09T10:00:00.000Z",
+          mealTitle: "Coffee",
+        },
+      }),
+      op({
+        opId: "p",
+        type: "entry.patch",
+        entityId: "e1",
+        occurredAt: "2026-10-09T10:05:00.000Z",
+        body: { mealTitle: "" },
+      }),
+    ]);
+    assert.equal(state.entries[0]?.mealTitle, "");
+    assert.equal(state.meals.length, 0);
+  });
+
   it("appends goals and picks the one in effect for a day", () => {
     const goals = fold([
       op({
