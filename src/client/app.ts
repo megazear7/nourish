@@ -181,6 +181,9 @@ export class NourishApp extends LitElement {
   @state() private editTitle = "";
   @state() private editDescription = "";
   private editIds: string[] = [];
+  private lastAddClickAt = 0;
+  private lastAddStamp = "";
+  private lastAddDay = "";
 
   override connectedCallback(): void {
     super.connectedCallback();
@@ -407,10 +410,20 @@ export class NourishApp extends LitElement {
     if (this.page !== "day" || this.selectedDayKey === today) {
       return new Date().toISOString();
     }
-    return backfillTimestamp(
+    const now = Date.now();
+    const repeat =
+      this.lastAddDay === this.selectedDayKey &&
+      this.lastAddStamp !== "" &&
+      now - this.lastAddClickAt <= QUICK_WINDOW_MS;
+    this.lastAddClickAt = now;
+    this.lastAddDay = this.selectedDayKey;
+    if (repeat) return this.lastAddStamp;
+    const stamp = backfillTimestamp(
       this.selectedDayKey,
       this.dayEntries(this.selectedDayKey).map((entry) => entry.timestamp),
     );
+    this.lastAddStamp = stamp;
+    return stamp;
   }
 
   private addCalories(calories: number, mealId?: string): void {
