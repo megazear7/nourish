@@ -39,7 +39,6 @@ import {
   accessToken,
   authConfig,
   authConfigured,
-  devSignIn,
   idToken,
   initAuth,
   login,
@@ -366,7 +365,6 @@ export class NourishApp extends LitElement {
       this.syncNote = error instanceof Error ? error.message : "Sync failed.";
       return;
     }
-    if (this.account.dev) return;
     try {
       const client = new UserDataClient(
         authConfig().identityUrl,
@@ -387,15 +385,6 @@ export class NourishApp extends LitElement {
       return;
     }
     await login(signup);
-  }
-
-  private useDevAccount(): void {
-    const account = devSignIn();
-    recordLogin();
-    this.account = account;
-    this.menuOpen = false;
-    this.bindAccount(account.sub);
-    void this.flush();
   }
 
   private async signOut(): Promise<void> {
@@ -1406,17 +1395,6 @@ export class NourishApp extends LitElement {
           Sign up
         </button>
       </div>
-      ${
-        authConfig().devLogin
-          ? html`<button
-              class="account-button account-secondary"
-              type="button"
-              @click=${() => this.useDevAccount()}
-            >
-              Dev sign in
-            </button>`
-          : ""
-      }
     </div>`;
   }
 

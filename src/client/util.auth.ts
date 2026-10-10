@@ -4,7 +4,6 @@ declare const __NOURISH_AUTH0_DOMAIN__: string;
 declare const __NOURISH_AUTH0_CLIENT_ID__: string;
 declare const __NOURISH_AUTH0_AUDIENCE__: string;
 declare const __NOURISH_IDENTITY_URL__: string;
-declare const __NOURISH_DEV_LOGIN__: string;
 
 export type AccountStatus =
   "checking" | "signed-out" | "signed-in" | "unconfigured";
@@ -15,7 +14,6 @@ export type Account = {
   name: string;
   email: string;
   picture: string;
-  dev: boolean;
 };
 
 export const signedOut = (): Account => ({
@@ -24,14 +22,9 @@ export const signedOut = (): Account => ({
   name: "",
   email: "",
   picture: "",
-  dev: false,
 });
 
-const DEV_TOKEN = "dev";
-const DEV_SUB = "dev|local";
-
 let client: Auth0Client | null = null;
-let devAccount: Account | null = null;
 
 export function authConfig() {
   return {
@@ -43,7 +36,6 @@ export function authConfig() {
     audience: __NOURISH_AUTH0_AUDIENCE__ || "https://identity.megazear7.com",
     identityUrl:
       __NOURISH_IDENTITY_URL__ || "https://identity.megazear7.com/data",
-    devLogin: __NOURISH_DEV_LOGIN__ === "1",
   };
 }
 
@@ -64,12 +56,10 @@ function accountFromUser(user: {
     name: user.name ?? "",
     email: user.email ?? "",
     picture: user.picture ?? "",
-    dev: false,
   };
 }
 
 export async function initAuth(onLogin: () => void): Promise<Account> {
-  if (devAccount) return devAccount;
   if (!authConfigured()) return { ...signedOut(), status: "unconfigured" };
   client = await createAuth0Client({
     domain: authConfig().domain,
@@ -105,25 +95,11 @@ export async function login(signup: boolean): Promise<void> {
 }
 
 export async function logout(): Promise<void> {
-  devAccount = null;
   if (!client) return;
   await client.logout({ logoutParams: { returnTo: window.location.origin } });
 }
 
-export function devSignIn(): Account {
-  devAccount = {
-    status: "signed-in",
-    sub: DEV_SUB,
-    name: "Local dev",
-    email: "dev@localhost",
-    picture: "",
-    dev: true,
-  };
-  return devAccount;
-}
-
 export async function accessToken(): Promise<string | null> {
-  if (devAccount) return DEV_TOKEN;
   if (!client) return null;
   try {
     return (await client.getTokenSilently()) ?? null;
@@ -133,7 +109,7 @@ export async function accessToken(): Promise<string | null> {
 }
 
 export async function idToken(): Promise<string | null> {
-  if (!client || devAccount) return null;
+  if (!client) return null;
   const claims = await client.getIdTokenClaims();
   return claims?.__raw ?? null;
 }

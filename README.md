@@ -14,11 +14,9 @@ Sign-out does not wipe the device. Switching accounts stashes the previous accou
 
 The header icon opens the menu. Signed out, the top offers Log in and Sign up. Signed in, it offers Sign out and explains that deleting Nourish in the identity console removes activity totals only, not the food log.
 
-Auth0 is a bundled SPA (`@auth0/auth0-spa-js`), with refresh tokens in localStorage. The access token is sent as `Authorization`. The ID token is sent only as `X-ID-Token` when saving activity. Login count increments on an interactive login (the redirect callback or Dev sign in), not when a silent token refresh opens the app.
+Auth0 is a bundled SPA (`@auth0/auth0-spa-js`), with refresh tokens in localStorage. The access token is sent as `Authorization`. The ID token is sent only as `X-ID-Token` when saving activity. Login count increments on an interactive login (the redirect callback), not when a silent token refresh opens the app.
 
-If `AUTH0_DOMAIN` or `AUTH0_CLIENT_ID` is missing at build time, Log in explains that sign-in is not configured. Today still works.
-
-`NOURISH_DEV_LOGIN=1` adds a Dev sign in button. The API accepts `Authorization: Bearer dev` as `dev|local` only when `NOURISH_ALLOW_DEV_USER=1`. Never set either on production or a shared deploy preview.
+If `AUTH0_DOMAIN` or `AUTH0_CLIENT_ID` is missing at build time, Log in explains that sign-in is not configured. Today still works. Those two values are copied into the browser bundle when Netlify builds, so a deploy preview built before they were saved has to be rebuilt.
 
 ## Sync
 
@@ -46,36 +44,29 @@ npm start
 
 Open http://localhost:3000
 
-For local sync before Auth0 exists, put this in `.env` and restart:
-
-```
-NOURISH_DEV_LOGIN=1
-NOURISH_ALLOW_DEV_USER=1
-```
-
-Dev sign in, add calories, then `GET /api/state` with `Authorization: Bearer dev` should show them. Remove those two lines before any shared deploy.
+`TEST_USERNAME` and `TEST_PASSWORD` are a real Auth0 database user. They stay in `.env` and are never written into the site. `npm run test:auth` exchanges them for an access token and calls `GET /api/state`. Set `NOURISH_BASE_URL` to a deploy preview to run that against the deployed API.
 
 ## Testing
 
 `npm test` folds the log, checks rejected and duplicate ops, reloads the file store, and checks account stash / backfill ordering.
 
-Local UI, with the dev flags above:
+Local UI:
 
 1. Open `/`. Today renders with no account. The header is a profile icon, not a hamburger.
-2. Open the menu. Log in, Sign up, and Dev sign in are at the top. Today, History, Meals, and Goal stay below.
-3. Add 50, 100, and 500. They stay after refresh. With Dev sign in they also survive a second browser profile pointed at the same API (the second device pulls `GET /api/state`).
+2. Open the menu. Log in and Sign up are at the top. Today, History, Meals, and Goal stay below.
+3. Add 50, 100, and 500. They stay after refresh. Signed in, they also survive a second browser pointed at the same API (the second device pulls `GET /api/state`).
 4. Change a group's time from the clock. Delete with the trash control. Edit by tapping the calorie total. Five quick adds inside a minute are one bubble; saving that edit keeps one row and removes the others.
 5. Create a meal from Meals. The row appears only after the check. Updating a meal does not rewrite entries already logged. History opens on the calendar. Days before the first log, and future days, are blank. The goal form check saves a new goal row; an older day keeps the older goal.
-6. Go offline, add calories, come back. The queue flushes. Sign out. The log remains. Dev sign in again. It syncs as `dev|local`.
+6. Go offline, add calories, come back. The queue flushes. Sign out. The log remains.
 
-Deploy preview, after Auth0 and Netlify env are set (see below):
+Deploy preview:
 
 1. Open the preview URL from the pull request. Confirm `/` loads and `/api/state` without a token returns 401 JSON, not the HTML shell.
-2. Log in and Sign up from the menu. The return URL is the preview origin, with no `code` left in the address bar.
+2. Log in and Sign up from the menu. The return URL is the preview origin, with no `code` left in the address bar. If the menu says sign-in is not configured, the preview was built before `AUTH0_DOMAIN` and `AUTH0_CLIENT_ID` existed. Retry the deploy.
 3. On two browsers, add food as the same user. The later `occurredAt` wins even if the older edit arrives second. A second goal is a new row. History days use the goal that was in effect that day.
 4. In the identity console, Nourish shows entries, meals, logins, the current goal, and last login. Open Nourish uses `NOURISH_ORIGIN`. Deleting Nourish there removes those totals only. The food log is still on the preview after refresh.
 
-Real Auth0 cannot be completed until the steps below are done. Dev sign in is the local stand-in and is disabled unless both flags are set.
+`npm run test:auth` does the same token check with `TEST_USERNAME` and `TEST_PASSWORD` against localhost, or against `NOURISH_BASE_URL`.
 
 ## Auth0 and Netlify
 
@@ -100,7 +91,7 @@ On the Nourish Netlify site:
 | `NOURISH_IDENTITY_URL` | build | Defaults to `https://identity.megazear7.com/data` |
 | `NETLIFY_DB_URL` | runtime | Created when Netlify Database is enabled. The migration is `netlify/database/migrations/20261009120000_nourish_log.sql`. |
 
-`AUTH0_DOMAIN` and `AUTH0_CLIENT_ID` are read when the browser bundle is built. Changing them requires a new deploy. Do not set `NOURISH_DEV_LOGIN` or `NOURISH_ALLOW_DEV_USER` on Netlify.
+`AUTH0_DOMAIN` and `AUTH0_CLIENT_ID` are read when the browser bundle is built. Changing them requires a new deploy. `TEST_USERNAME` and `TEST_PASSWORD` are only for `npm run test:auth`. Do not put them in the browser bundle.
 
 On the identity site (`megazear-users`):
 

@@ -15,7 +15,8 @@
     "build:tsc": "tsc",
     "lint": "prettier src --check && eslint src",
     "fix": "prettier src --write && eslint src --fix",
-    "test": "tsc -p tsconfig.json && node --test dist/tsc/shared/*.test.js dist/tsc/server/*.test.js dist/tsc/client/*.test.js"
+    "test": "tsc -p tsconfig.json && node --test dist/tsc/shared/*.test.js dist/tsc/server/*.test.js dist/tsc/client/*.test.js",
+    "test:auth": "node scripts/auth-session.mjs"
   },
   "keywords": ["Zod", "Lit", "TypeScript", "PWA", "Nutrition"],
   "author": "Alex Lockhart",

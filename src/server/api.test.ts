@@ -3,9 +3,9 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
-import { liveAuth } from "./auth.js";
 import { FileStore } from "./file-store.js";
 import { handleApi } from "./handle.js";
+import type { Authenticator } from "./auth.js";
 
 const ENTRY = "22222222-2222-4222-8222-222222222222";
 const OTHER = "44444444-4444-4444-8444-444444444444";
@@ -28,14 +28,20 @@ describe("api", { concurrency: false }, () => {
   before(async () => {
     directory = await mkdtemp(path.join(tmpdir(), "nourish-"));
     store = new FileStore(path.join(directory, "nourish.json"));
-    process.env.NOURISH_ALLOW_DEV_USER = "1";
   });
 
   after(async () => {
     if (directory) await rm(directory, { recursive: true, force: true });
   });
 
-  const auth = () => liveAuth();
+  const auth: Authenticator = async (req) => {
+    const header = req.headers.get("authorization") ?? "";
+    const token = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
+    if (token === "test-user") {
+      return { userId: "auth0|test", email: "test@example.com" };
+    }
+    return null;
+  };
 
   function call(
     method: string,
@@ -53,7 +59,7 @@ describe("api", { concurrency: false }, () => {
         body: body === undefined ? undefined : JSON.stringify(body),
       }),
       store,
-      auth(),
+      auth,
     );
   }
 
@@ -64,11 +70,8 @@ describe("api", { concurrency: false }, () => {
     assert.equal(write.status, 401);
   });
 
-  it("rejects the dev token unless the local flag is on", async () => {
-    const previous = process.env.NOURISH_ALLOW_DEV_USER;
-    delete process.env.NOURISH_ALLOW_DEV_USER;
-    const denied = await call("GET", "/api/state", undefined, "dev");
-    process.env.NOURISH_ALLOW_DEV_USER = previous;
+  it("rejects a bearer token that is not a signed-in user", async () => {
+    const denied = await call("GET", "/api/state", undefined, "not-a-user");
     assert.equal(denied.status, 401);
   });
 
@@ -77,7 +80,7 @@ describe("api", { concurrency: false }, () => {
       "POST",
       "/api/ops",
       { deviceId: "55555555-5555-4555-8555-555555555555", ops: [op({})] },
-      "dev",
+      "test-user",
     );
     assert.equal(created.status, 200);
     const first = (await created.json()) as {
@@ -107,14 +110,19 @@ describe("api", { concurrency: false }, () => {
           }),
         ],
       },
-      "dev",
+      "test-user",
     );
     const folded = (await older.json()) as {
       state: { entries: { calories: number }[] };
     };
     assert.equal(folded.state.entries[0]?.calories, 90);
 
-    const again = await call("POST", "/api/ops", { ops: [op({})] }, "dev");
+    const again = await call(
+      "POST",
+      "/api/ops",
+      { ops: [op({})] },
+      "test-user",
+    );
     const duplicate = (await again.json()) as {
       results: { status: string }[];
       state: { entries: unknown[] };
@@ -125,10 +133,10 @@ describe("api", { concurrency: false }, () => {
     const reloaded = new FileStore(path.join(directory, "nourish.json"));
     const read = await handleApi(
       new Request("http://localhost/api/state", {
-        headers: { authorization: "Bearer dev" },
+        headers: { authorization: "Bearer test-user" },
       }),
       reloaded,
-      auth(),
+      auth,
     );
     const state = (await read.json()) as {
       entries: { calories: number }[];
@@ -151,7 +159,7 @@ describe("api", { concurrency: false }, () => {
           },
         ],
       },
-      "dev",
+      "test-user",
     );
     const withGoal = (await goal.json()) as {
       state: { goals: { id: string; calories: number }[] };
@@ -178,7 +186,7 @@ describe("api", { concurrency: false }, () => {
           }),
         ],
       },
-      "dev",
+      "test-user",
     );
     const body = (await mixed.json()) as {
       results: { status: string }[];
@@ -195,7 +203,7 @@ describe("api", { concurrency: false }, () => {
       new Request("http://localhost/api/ops", {
         method: "POST",
         headers: {
-          authorization: "Bearer dev",
+          authorization: "Bearer test-user",
           "content-type": "application/json",
         },
         body: JSON.stringify({
@@ -221,7 +229,7 @@ describe("api", { concurrency: false }, () => {
   });
 
   it("requires an ops array and ignores the service-worker shell path", async () => {
-    const missing = await call("POST", "/api/ops", {}, "dev");
+    const missing = await call("POST", "/api/ops", {}, "test-user");
     assert.equal(missing.status, 400);
     const worker = await readFile(
       path.join(process.cwd(), "public/sw.js"),

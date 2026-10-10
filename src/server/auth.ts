@@ -4,9 +4,6 @@ export type Viewer = { userId: string; email: string | null };
 
 export type Authenticator = (req: Request) => Promise<Viewer | null>;
 
-const DEV_TOKEN = "dev";
-const DEV_USER = "dev|local";
-
 function domainHost(raw: string): string {
   return raw
     .trim()
@@ -22,17 +19,14 @@ export function liveAuth(): Authenticator {
     const header = req.headers.get("authorization") ?? "";
     const token = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
     if (!token) return null;
-    if (process.env.NOURISH_ALLOW_DEV_USER === "1" && token === DEV_TOKEN) {
-      return { userId: DEV_USER, email: "dev@localhost" };
-    }
     const hosts = [
       ...hostsFrom(process.env.AUTH0_DOMAIN),
       ...hostsFrom(process.env.AUTH0_ISSUER_DOMAINS),
     ];
     const issuers = [...new Set(hosts.map((host) => `https://${host}/`))];
-    if (!issuers.length) return null;
+    if (!issuers.length || !hosts[0]) return null;
     if (!jwks || jwksHost !== hosts[0]) {
-      jwksHost = hosts[0] ?? "";
+      jwksHost = hosts[0];
       jwks = createRemoteJWKSet(
         new URL(`https://${jwksHost}/.well-known/jwks.json`),
       );
