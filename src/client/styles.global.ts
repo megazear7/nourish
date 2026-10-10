@@ -8,6 +8,7 @@ export const appStyles = css`
     --ink: #f4efe6;
     --muted: #a9a297;
     --gold: #d7b07a;
+    --content: 45rem;
     display: block;
     min-height: 100vh;
     color: var(--ink);
@@ -31,10 +32,20 @@ export const appStyles = css`
   }
 
   .app-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    position: relative;
+    display: block;
+  }
+
+  .header-main {
+    width: min(100%, var(--content));
+    margin-inline: auto;
     padding: 1.25rem 1.25rem 0.5rem;
+  }
+
+  @media (max-width: 54rem) {
+    .header-main {
+      padding-right: 4.75rem;
+    }
   }
 
   .brand {
@@ -68,6 +79,11 @@ export const appStyles = css`
   }
 
   .menu-button {
+    position: absolute;
+    top: 1.25rem;
+    right: 1.25rem;
+    bottom: 0.5rem;
+    margin-block: auto;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -131,7 +147,8 @@ export const appStyles = css`
   .app-main {
     flex: 1;
     min-width: 0;
-    max-width: 100%;
+    width: min(100%, var(--content));
+    margin-inline: auto;
     padding: 0.5rem 1.25rem 7.5rem;
   }
 
@@ -501,15 +518,16 @@ export const appStyles = css`
 
   .action-dock {
     position: fixed;
-    left: 0;
-    right: 0;
+    left: 50%;
     bottom: 0;
     z-index: 5;
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 0.55rem;
+    width: min(100%, var(--content));
     padding: 0.85rem 1rem 1.15rem;
     background: linear-gradient(to top, var(--canvas) 70%, transparent);
+    transform: translateX(-50%);
   }
 
   .calorie-button,
@@ -535,7 +553,7 @@ export const appStyles = css`
 
   .meal-bubbles {
     position: fixed;
-    right: 1rem;
+    right: max(1rem, calc((100% - var(--content)) / 2 + 1rem));
     bottom: 5.6rem;
     z-index: 6;
     display: flex;

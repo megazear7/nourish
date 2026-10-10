@@ -1433,17 +1433,19 @@ export class NourishApp extends LitElement {
   override render() {
     return html`<div class="app-shell">
       <header class="app-header">
-        <div class="brand">
-          <a
-            class="brand-mark"
-            href="/"
-            @click=${(event: Event) => {
-              event.preventDefault();
-              this.navigate("today");
-            }}
-            >Nourish</a
-          >
-          <h1 class="brand-name">${this.heading()}</h1>
+        <div class="header-main">
+          <div class="brand">
+            <a
+              class="brand-mark"
+              href="/"
+              @click=${(event: Event) => {
+                event.preventDefault();
+                this.navigate("today");
+              }}
+              >Nourish</a
+            >
+            <h1 class="brand-name">${this.heading()}</h1>
+          </div>
         </div>
         <button
           class="menu-button"
