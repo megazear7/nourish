@@ -978,4 +978,21 @@ export const appStyles = css`
     outline: 2px solid var(--gold);
     outline-offset: 3px;
   }
+
+  @media (min-width: 800px) {
+    .app-main {
+      width: 100%;
+      max-width: 40rem;
+      margin-inline: auto;
+    }
+
+    .action-dock {
+      max-width: 40rem;
+      margin-inline: auto;
+    }
+
+    .meal-bubbles {
+      right: max(1rem, calc((100vw - 40rem) / 2 + 1rem));
+    }
+  }
 `;
