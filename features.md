@@ -20,6 +20,8 @@ If a change adds, removes, or alters any of that, update the matching part of th
 
 Agents are told to do this from `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`, and `.cursor/rules/nourish.mdc`. Those files point here. This file is the behavior reference.
 
+Those five files are one instruction set. When any of them changes, the same change is written into the other four in the same commit. A new tool's instruction file is added to that list everywhere. Relative links to this file may differ. The instructions may not.
+
 ## What it is
 
 Nourish is a calorie log. It is not a macro tracker, meal planner, or food database.

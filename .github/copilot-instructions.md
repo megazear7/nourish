@@ -8,4 +8,14 @@ When a change adds, removes, or alters behavior, update features.md in the same 
 
 The running UI is `src/client/app.ts`. Files that features.md marks as unused are not the live app. Do not wire them back in while "cleaning up" unless the task says to.
 
-These same instructions are in `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`, and `.cursor/rules/nourish.mdc`. If you change the instructions, change all of those files together.
+## One instruction set for every agent
+
+The text in this file is a copy, not a note for one tool. The copies are:
+
+- `AGENTS.md` — Cursor, Codex, Grok, Copilot, and most other agents
+- `CLAUDE.md` — Claude Code
+- `GEMINI.md` — Gemini CLI
+- `.github/copilot-instructions.md` — GitHub Copilot in VS Code, Visual Studio, JetBrains, and github.com
+- `.cursor/rules/nourish.mdc` — Cursor, applied to every chat
+
+When you add, remove, or edit any instruction for an AI working in this repository, write that same change into every file in the list, in the same commit. Do not update only the file your own tool reads. When you are done, the instruction text in all five files must match, except for a relative link to `features.md`. If a new tool needs its own file, add that file and add it to this list in every copy.
