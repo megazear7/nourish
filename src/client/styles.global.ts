@@ -470,6 +470,11 @@ export const appStyles = css`
     box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
   }
 
+  .kebab-up .kebab-menu {
+    top: auto;
+    bottom: calc(100% + 0.2rem);
+  }
+
   .kebab-menu .popover-button {
     justify-content: flex-start;
     gap: 0.65rem;
@@ -1011,7 +1016,67 @@ export const appStyles = css`
   }
 
   .meal-list {
-    margin-top: 0.35rem;
+    gap: 0;
+    margin-top: 0;
+  }
+
+  .meal-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    cursor: grab;
+    user-select: none;
+    touch-action: pan-y;
+  }
+
+  .meal-card.is-dragging {
+    cursor: grabbing;
+    opacity: 0.55;
+    touch-action: none;
+  }
+
+  .meal-list.is-dragging .meal-card {
+    touch-action: none;
+  }
+
+  .meal-top,
+  .meal-bottom {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .meal-bottom {
+    justify-content: flex-end;
+  }
+
+  .meal-card .entry-calories,
+  .meal-card .entry-meta {
+    margin: 0;
+  }
+
+  .meal-top .entry-calories {
+    min-width: 0;
+  }
+
+  .meal-gap {
+    height: 0.75rem;
+    display: flex;
+    align-items: center;
+    pointer-events: none;
+  }
+
+  .drop-line {
+    display: block;
+    width: 100%;
+    height: 2px;
+    border-radius: 999px;
+    background: transparent;
+  }
+
+  .drop-line.is-on {
+    background: var(--gold);
   }
 
   button.meal-create {

@@ -200,4 +200,62 @@ describe("fold", () => {
     assert.equal(second?.state.goals.length, 1);
     assert.equal(second?.state.goals[0]?.id, "migrated");
   });
+
+  it("reorders meals and puts a later create at the front", () => {
+    const meal = (id: string, title: string, at: string): Op =>
+      op({
+        opId: `c-${id}`,
+        type: "meal.create",
+        entityId: id,
+        occurredAt: at,
+        body: { title, description: "", calories: 100 },
+      });
+    const state = fold([
+      meal("a", "A", "2026-10-01T00:00:00.000Z"),
+      meal("b", "B", "2026-10-02T00:00:00.000Z"),
+      meal("c", "C", "2026-10-03T00:00:00.000Z"),
+      op({
+        opId: "order",
+        type: "meal.reorder",
+        entityId: "b",
+        occurredAt: "2026-10-04T00:00:00.000Z",
+        body: { ids: ["c", "a", "b"] },
+      }),
+      meal("d", "D", "2026-10-05T00:00:00.000Z"),
+    ]);
+    assert.deepEqual(
+      state.meals.map((item) => item.id),
+      ["d", "c", "a", "b"],
+    );
+  });
+
+  it("keeps meals missing from a reorder in their previous order", () => {
+    const state = fold([
+      op({
+        opId: "c-a",
+        type: "meal.create",
+        entityId: "a",
+        occurredAt: "2026-10-01T00:00:00.000Z",
+        body: { title: "A", description: "", calories: 1 },
+      }),
+      op({
+        opId: "c-b",
+        type: "meal.create",
+        entityId: "b",
+        occurredAt: "2026-10-02T00:00:00.000Z",
+        body: { title: "B", description: "", calories: 1 },
+      }),
+      op({
+        opId: "order",
+        type: "meal.reorder",
+        entityId: "a",
+        occurredAt: "2026-10-03T00:00:00.000Z",
+        body: { ids: ["b", "missing"] },
+      }),
+    ]);
+    assert.deepEqual(
+      state.meals.map((item) => item.id),
+      ["b", "a"],
+    );
+  });
 });

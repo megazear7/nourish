@@ -7,6 +7,7 @@ export const OP_TYPES = [
   "meal.create",
   "meal.update",
   "meal.remove",
+  "meal.reorder",
   "goal.create",
 ] as const;
 
@@ -50,6 +51,10 @@ const mealBody = z.object({
   calories: z.number().int().nonnegative(),
 });
 
+const mealReorderBody = z.object({
+  ids: z.array(id).min(1),
+});
+
 const goalBody = z.object({
   calories: z.number().int().positive(),
   setAt: iso,
@@ -64,6 +69,7 @@ const bodies = {
   "meal.create": mealBody,
   "meal.update": mealBody,
   "meal.remove": emptyBody,
+  "meal.reorder": mealReorderBody,
   "goal.create": goalBody,
 } as const;
 

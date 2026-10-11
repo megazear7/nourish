@@ -168,7 +168,7 @@ There is no custom-calorie field on this dock.
 Opens above the Meals button (`bottom: 5.6rem`, right-aligned, max width `18rem`, max height `min(58vh, 26rem)`, scrolls). A transparent full-screen backdrop click closes it. Bubbles are pills.
 
 1. **Create a new meal** — quieter styling, no shadow. Goes to `/meals/new`.
-2. One bubble per saved meal that is not removed, in stored array order (newest creates are unshifted to the front). Each bubble shows the title in title case and the calorie number. No unit word. Click logs `meal.calories` with `mealId`, and copies `title` and `description` onto the new entry. The picker closes.
+2. One bubble per saved meal that is not removed, in stored array order. A new meal is unshifted to the front. Dragging a card on the Meals page rewrites that order, and the picker follows it. Each bubble shows the title in title case and the calorie number. No unit word. Click logs `meal.calories` with `mealId`, and copies `title` and `description` onto the new entry. The picker closes.
 
 Logging a meal does not change the saved meal. Later edits to the saved meal do not change rows already logged.
 
@@ -340,13 +340,22 @@ Focus rings on calendar buttons and list day buttons use a 2px outline.
 
 No page title inside the list besides the header **Meals**. No empty sentence. If nothing is saved, the only control is the create button.
 
-Each non-removed meal is a card:
+Each non-removed meal is a card. Press and drag the card (not a button) to reorder. A move under 8 pixels is a click, not a drag. The card stays in place while dragging, at 55% opacity. Order is committed on pointer up.
 
-- Title, title-cased, `1.25rem`.
-- Meta: `{description or "No description"} · {calories} calories`. Description is not title-cased.
-- Kebab, key `meal:{id}`:
+Drop slots are the gaps before the first card, between cards, and after the last card. The pointer’s half of a card picks the gap above or below that card. The top half of the first card, or above it, is the start. The bottom half of the last card, or below it, is the end. The gap beside the card you are holding is a no-op and does not save.
+
+Each of those gaps is always a `0.75rem` row (`.meal-gap`). The gold line (`.drop-line`, 2px, `--gold`) is centered in that row and is transparent until that gap is the drop slot. Turning the line on does not change the row’s height, so the list does not jump. With no meals, there are no gap rows. The create button is not a drop slot.
+
+- Title, title-cased, `1.25rem`, top left. Margins on the title and meta are cleared.
+- Meta, under the title: `{description or "No description"} · {calories} calories`. Description is not title-cased.
+- Two kebabs, the same Edit / Remove menu:
+  - Top right, key `meal:{id}:top`. The menu opens downward.
+  - Bottom right, key `meal:{id}:bottom`. The menu opens upward (`.kebab-up`).
   - **Edit** — no icon. Opens `/meal/{id}`.
   - **Remove** — muted red text, no icon. Sets `removed: true` and enqueues `meal.remove`. Does not delete or change log rows that point at this id.
+- Starting a drag closes an open kebab. The card uses `cursor: grab`, and `touch-action: pan-y` until a drag is active, then `touch-action: none` on every card.
+
+A successful drop rewrites `state.meals`: visible meals in the new order, then removed meals in their previous order. It enqueues `meal.reorder` with `count: false`, `entityId` set to the meal that moved, and `body.ids` the full id list including removed meals. Dropping into the gap directly above or below the dragged card does nothing.
 
 Under the cards, a full-width button **Create a new meal**: dotted gold border, transparent fill, gold text, min-height `4.6rem`. Opens `/meals/new`.
 
@@ -377,7 +386,7 @@ Form fields mirror new-meal, ids `edit-meal-title`, `edit-meal-description`, `ed
 
 Save validates like create, maps the one meal, enqueues `meal.update` with `{ title, description, calories }`, then navigates to `/` with `pushState`. Existing log rows keep the title, description, and calories they copied at log time.
 
-There is no delete button on this form. Delete is the meal-list kebab.
+There is no delete button on this form. Delete is either kebab on the meal card.
 
 ## Goal
 
@@ -597,6 +606,7 @@ Types, in [src/shared/type.op.ts](src/shared/type.op.ts):
 | `meal.create` | `title` trimmed, at least 1 character; `description` string; `calories` integer ≥ 0 | Insert if new |
 | `meal.update` | Same as create | Overlay if the meal exists |
 | `meal.remove` | Empty object | Set `removed: true` if the meal exists |
+| `meal.reorder` | `ids`: at least one UUID. Duplicates are allowed by the schema; the fold keeps the first | Rebuild meal order: listed ids that exist, in that order, then any meal not listed, in its previous order. After this, a later `meal.create` is inserted at the front. Before any reorder, creates still append in time order |
 | `goal.create` | `calories` positive integer, `setAt` non-empty | Insert if that id is new. Goals are never updated or removed |
 
 `opId` and `entityId` must be UUIDs. `occurredAt` must be a non-empty string.
@@ -647,7 +657,7 @@ Local document:
 | `currentGoal` | Calories of `latestGoal`, or null |
 | `updatedAt` | Set when a counted op changes a counter or `currentGoal` changes |
 
-Patches, meal updates, and removes do not increment counters. Ops with `count: false` do not increment counters. `currentGoal` is still compared on every `recordOps` call.
+Patches, meal updates, removes, and reorders do not increment counters. Ops with `count: false` do not increment counters. `meal.reorder` is enqueued with `count: false`. `currentGoal` is still compared on every `recordOps` call.
 
 PUT URL: `{NOURISH_IDENTITY_URL}?app=nourish&visibility=private&path=activity/{deviceId}`
 
@@ -666,7 +676,7 @@ Migration [netlify/database/migrations/20261009120000_nourish_log.sql](netlify/d
 | Table | Role |
 | --- | --- |
 | `nourish_users` | `user_id` primary key, nullable `email`, `created_at`, `updated_at`. Email is filled in with `COALESCE` so a later token without email does not wipe a known email |
-| `operations` | Append-only. `op_id` UUID primary key. `user_id` FK cascade. `device_id` UUID nullable. `entity_id`, `op_type` check constraint for the seven types, `occurred_at`, `received_at` default now, `body` JSONB. Index `(user_id, occurred_at, op_id)`. Insert is `ON CONFLICT (op_id) DO NOTHING` |
+| `operations` | Append-only. `op_id` UUID primary key. `user_id` FK cascade. `device_id` UUID nullable. `entity_id`, `op_type` check constraint for the eight types, `occurred_at`, `received_at` default now, `body` JSONB. Index `(user_id, occurred_at, op_id)`. Insert is `ON CONFLICT (op_id) DO NOTHING`. `meal.reorder` is added by [netlify/database/migrations/20261011150000_meal_reorder.sql](netlify/database/migrations/20261011150000_meal_reorder.sql), which replaces `operations_op_type_check` |
 | `calorie_entries` | Folded read model, rewritten on each sync. Positive calories, `eaten_at`, optional meal fields, `removed` default false |
 | `meals` | Same. Title required, description default `''`, calories ≥ 0, `removed` |
 | `goals` | Same. Positive calories, `set_at`. Index `(user_id, set_at)` |
