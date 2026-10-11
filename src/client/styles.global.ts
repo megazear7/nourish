@@ -1011,7 +1011,71 @@ export const appStyles = css`
   }
 
   .meal-list {
-    margin-top: 0.35rem;
+    gap: 0;
+    margin-top: 0;
+  }
+
+  .meal-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .meal-card.is-dragging {
+    opacity: 0.55;
+  }
+
+  .meal-drag {
+    cursor: grab;
+    touch-action: none;
+  }
+
+  .meal-card.is-dragging .meal-drag {
+    cursor: grabbing;
+  }
+
+  .meal-list.is-dragging .meal-card {
+    touch-action: none;
+  }
+
+  .meal-top,
+  .meal-bottom {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .meal-bottom {
+    justify-content: flex-end;
+  }
+
+  .meal-card .entry-calories,
+  .meal-card .entry-meta {
+    margin: 0;
+  }
+
+  .meal-top .entry-calories {
+    min-width: 0;
+  }
+
+  .meal-gap {
+    height: 0.75rem;
+    display: flex;
+    align-items: center;
+    pointer-events: none;
+  }
+
+  .drop-line {
+    display: block;
+    width: 100%;
+    height: 2px;
+    border-radius: 999px;
+    background: transparent;
+  }
+
+  .drop-line.is-on {
+    background: var(--gold);
   }
 
   button.meal-create {

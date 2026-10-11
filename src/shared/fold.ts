@@ -54,12 +54,13 @@ export function fold(ops: Op[], base?: NutritionState): NutritionState {
   const entries = new Map<string, CalorieEntry>(
     (base?.entries ?? []).map((entry) => [entry.id, { ...entry }]),
   );
-  const meals = new Map<string, Meal>(
+  let meals = new Map<string, Meal>(
     (base?.meals ?? []).map((meal) => [meal.id, { ...meal }]),
   );
   const goals = new Map<string, Goal>(
     (base?.goals ?? []).map((goal) => [goal.id, { ...goal }]),
   );
+  let customMealOrder = false;
 
   for (const op of [...ops].sort(byTime)) {
     if (op.type === "entry.create") {
@@ -111,7 +112,15 @@ export function fold(ops: Op[], base?: NutritionState): NutritionState {
         description: string;
         calories: number;
       };
-      meals.set(op.entityId, { id: op.entityId, ...body });
+      const created = { id: op.entityId, ...body };
+      if (!customMealOrder && !base) {
+        meals.set(op.entityId, created);
+        continue;
+      }
+      const next = new Map<string, Meal>();
+      next.set(op.entityId, created);
+      for (const [id, meal] of meals) next.set(id, meal);
+      meals = next;
       continue;
     }
     if (op.type === "meal.update") {
@@ -128,6 +137,20 @@ export function fold(ops: Op[], base?: NutritionState): NutritionState {
     if (op.type === "meal.remove") {
       const current = meals.get(op.entityId);
       if (current) meals.set(op.entityId, { ...current, removed: true });
+      continue;
+    }
+    if (op.type === "meal.reorder") {
+      const ids = (op.body as { ids?: string[] }).ids ?? [];
+      const next = new Map<string, Meal>();
+      for (const id of ids) {
+        const meal = meals.get(id);
+        if (meal && !next.has(id)) next.set(id, meal);
+      }
+      for (const [id, meal] of meals) {
+        if (!next.has(id)) next.set(id, meal);
+      }
+      meals = next;
+      customMealOrder = true;
       continue;
     }
     if (op.type === "goal.create" && !goals.has(op.entityId)) {

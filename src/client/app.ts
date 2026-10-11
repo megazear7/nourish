@@ -173,6 +173,14 @@ export class NourishApp extends LitElement {
   private menuTicket = 0;
   @state() private mealPickerOpen = false;
   @state() private kebabKey = "";
+  @state() private mealDragging = "";
+  @state() private mealDropIndex = -1;
+  private mealPointer: {
+    id: string;
+    pointerId: number;
+    x: number;
+    y: number;
+  } | null = null;
   @state() private offline = !navigator.onLine;
   @state() private account: Account = { ...signedOut(), status: "checking" };
   @state() private syncNote = "";
@@ -204,6 +212,7 @@ export class NourishApp extends LitElement {
   override disconnectedCallback(): void {
     window.clearTimeout(this.menuTimer);
     window.clearTimeout(this.shareTimer);
+    this.endMealPointer();
     window.removeEventListener("popstate", this.syncRoute);
     window.removeEventListener("online", this.onOnline);
     window.removeEventListener("offline", this.onOffline);
@@ -722,6 +731,88 @@ export class NourishApp extends LitElement {
 
   private visibleMeals(): Meal[] {
     return this.state.meals.filter((meal) => !meal.removed);
+  }
+
+  private onMealPointerDown(event: PointerEvent, id: string): void {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    this.endMealPointer();
+    const handle = event.currentTarget;
+    if (handle instanceof HTMLElement)
+      handle.setPointerCapture(event.pointerId);
+    this.mealPointer = {
+      id,
+      pointerId: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+    };
+    this.mealDragging = id;
+    this.kebabKey = "";
+    this.mealDropIndex = this.mealDropIndexFrom(event.clientY);
+    window.addEventListener("pointermove", this.onMealPointerMove, {
+      passive: false,
+    });
+    window.addEventListener("pointerup", this.onMealPointerUp);
+    window.addEventListener("pointercancel", this.onMealPointerUp);
+  }
+
+  private endMealPointer(): void {
+    window.removeEventListener("pointermove", this.onMealPointerMove);
+    window.removeEventListener("pointerup", this.onMealPointerUp);
+    window.removeEventListener("pointercancel", this.onMealPointerUp);
+  }
+
+  private onMealPointerMove = (event: PointerEvent): void => {
+    const drag = this.mealPointer;
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    if (event.cancelable) event.preventDefault();
+    const next = this.mealDropIndexFrom(event.clientY);
+    if (next !== this.mealDropIndex) this.mealDropIndex = next;
+  };
+
+  private onMealPointerUp = (event: PointerEvent): void => {
+    const drag = this.mealPointer;
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    const id = this.mealDragging;
+    const to = this.mealDropIndex;
+    this.endMealPointer();
+    this.mealPointer = null;
+    this.mealDragging = "";
+    this.mealDropIndex = -1;
+    if (id && to >= 0) this.reorderMeal(id, to);
+  };
+
+  private mealDropIndexFrom(clientY: number): number {
+    const cards = [
+      ...this.renderRoot.querySelectorAll<HTMLElement>("[data-meal-id]"),
+    ];
+    if (!cards.length) return 0;
+    for (let index = 0; index < cards.length; index += 1) {
+      const rect = cards[index].getBoundingClientRect();
+      if (clientY < rect.top + rect.height / 2) return index;
+    }
+    return cards.length;
+  }
+
+  private reorderMeal(id: string, toGap: number): void {
+    const visible = this.visibleMeals();
+    const from = visible.findIndex((meal) => meal.id === id);
+    if (from < 0 || toGap === from || toGap === from + 1) return;
+    const nextVisible = visible.slice();
+    const [moved] = nextVisible.splice(from, 1);
+    if (!moved) return;
+    const insertAt = toGap > from ? toGap - 1 : toGap;
+    nextVisible.splice(insertAt, 0, moved);
+    const removed = this.state.meals.filter((meal) => meal.removed);
+    const meals = [...nextVisible, ...removed];
+    this.commit({ ...this.state, meals }, [
+      {
+        type: "meal.reorder",
+        entityId: id,
+        count: false,
+        body: { ids: meals.map((meal) => meal.id) },
+      },
+    ]);
   }
 
   private saveMeal(event: Event): void {
@@ -1342,41 +1433,69 @@ export class NourishApp extends LitElement {
   }
 
   private renderMeals() {
+    const meals = this.visibleMeals();
+    const gap = (index: number) => {
+      const on = this.mealDragging !== "" && this.mealDropIndex === index;
+      return html`<li class="meal-gap" aria-hidden="true">
+        <span class="drop-line ${on ? "is-on" : ""}"></span>
+      </li>`;
+    };
     return html`<section>
-      <ul class="meal-list">
-        ${this.visibleMeals().map((meal) => {
+      <ul class="meal-list ${this.mealDragging ? "is-dragging" : ""}">
+        ${meals.map((meal, index) => {
           const key = `meal:${meal.id}`;
-          return html`<li
-            class="meal-card ${this.kebabKey === key ? "menu-open" : ""}"
-          >
-            <div class="meal-row">
-              <div class="entry-copy">
+          return html`${gap(index)}
+            <li
+              class="meal-card ${this.kebabKey === key ? "menu-open" : ""} ${
+                this.mealDragging === meal.id ? "is-dragging" : ""
+              }"
+              data-meal-id=${meal.id}
+            >
+              <div class="meal-top">
                 <p class="entry-calories">${titleCase(meal.title)}</p>
-                <p class="entry-meta">
-                  ${meal.description || "No description"} · ${meal.calories}
-                  calories
-                </p>
+                ${this.renderKebab(
+                  key,
+                  html`<button
+                      class="popover-button"
+                      role="menuitem"
+                      @click=${() => this.openMeal(meal.id)}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      class="popover-button kebab-remove"
+                      role="menuitem"
+                      @click=${() => this.removeMeal(meal.id)}
+                    >
+                      Remove
+                    </button>`,
+                )}
               </div>
-              ${this.renderKebab(
-                key,
-                html`<button
-                    class="popover-button"
-                    role="menuitem"
-                    @click=${() => this.openMeal(meal.id)}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    class="popover-button kebab-remove"
-                    role="menuitem"
-                    @click=${() => this.removeMeal(meal.id)}
-                  >
-                    Remove
-                  </button>`,
-              )}
-            </div>
-          </li>`;
+              <p class="entry-meta">
+                ${meal.description || "No description"} · ${meal.calories}
+                calories
+              </p>
+              <div class="meal-bottom">
+                <button
+                  class="icon-button meal-drag"
+                  type="button"
+                  aria-label="Drag to reorder"
+                  @pointerdown=${(event: PointerEvent) =>
+                    this.onMealPointerDown(event, meal.id)}
+                >
+                  <svg class="dots" viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="9" cy="7" r="1.5"></circle>
+                    <circle cx="15" cy="7" r="1.5"></circle>
+                    <circle cx="9" cy="12" r="1.5"></circle>
+                    <circle cx="15" cy="12" r="1.5"></circle>
+                    <circle cx="9" cy="17" r="1.5"></circle>
+                    <circle cx="15" cy="17" r="1.5"></circle>
+                  </svg>
+                </button>
+              </div>
+            </li>`;
         })}
+        ${meals.length ? gap(meals.length) : ""}
         <li>
           <button
             class="meal-create"
