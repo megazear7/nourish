@@ -176,6 +176,8 @@ export class NourishApp extends LitElement {
   @state() private offline = !navigator.onLine;
   @state() private account: Account = { ...signedOut(), status: "checking" };
   @state() private syncNote = "";
+  @state() private shareCopied = false;
+  private shareTimer = 0;
   @state() private historyMode: "list" | "calendar" = "calendar";
   @state() private calendarMonth = monthKey(todayKey());
   @state() private editKey = "";
@@ -201,6 +203,7 @@ export class NourishApp extends LitElement {
 
   override disconnectedCallback(): void {
     window.clearTimeout(this.menuTimer);
+    window.clearTimeout(this.shareTimer);
     window.removeEventListener("popstate", this.syncRoute);
     window.removeEventListener("online", this.onOnline);
     window.removeEventListener("offline", this.onOffline);
@@ -430,6 +433,55 @@ export class NourishApp extends LitElement {
       },
       reduce ? 0 : 320,
     );
+  }
+
+  private appUrl(): string {
+    return new URL("/", window.location.origin).href;
+  }
+
+  private useShareSheet(): boolean {
+    if (typeof navigator.share !== "function") return false;
+    return (
+      window.matchMedia("(pointer: coarse)").matches &&
+      window.matchMedia("(hover: none)").matches
+    );
+  }
+
+  private async shareApp(): Promise<void> {
+    const url = this.appUrl();
+    if (this.useShareSheet()) {
+      try {
+        await navigator.share({ title: "Nourish", url });
+        this.closeMenu();
+        return;
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+      }
+    }
+    await this.copyAppUrl(url);
+  }
+
+  private async copyAppUrl(url: string): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      const input = document.createElement("textarea");
+      input.value = url;
+      input.setAttribute("readonly", "");
+      input.style.position = "fixed";
+      input.style.left = "-9999px";
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand("copy");
+      input.remove();
+    }
+    this.shareCopied = true;
+    window.clearTimeout(this.shareTimer);
+    this.shareTimer = window.setTimeout(() => {
+      this.shareCopied = false;
+    }, 1600);
   }
 
   private async signIn(signup: boolean): Promise<void> {
@@ -1578,17 +1630,26 @@ export class NourishApp extends LitElement {
                 <button class="menu-link" @click=${() => this.navigate("goal")}>
                   Goal
                 </button>
-                ${
-                  this.account.status === "signed-in"
-                    ? html`<button
-                        class="menu-sign-out"
-                        type="button"
-                        @click=${() => this.signOut()}
-                      >
-                        Sign out
-                      </button>`
-                    : ""
-                }
+                <div class="menu-footer">
+                  ${
+                    this.account.status === "signed-in"
+                      ? html`<button
+                          class="menu-sign-out"
+                          type="button"
+                          @click=${() => this.signOut()}
+                        >
+                          Sign out
+                        </button>`
+                      : ""
+                  }
+                  <button
+                    class="menu-link"
+                    type="button"
+                    @click=${() => void this.shareApp()}
+                  >
+                    ${this.shareCopied ? "Copied" : "Share"}
+                  </button>
+                </div>
               </nav>
             </div>`
           : ""

@@ -112,7 +112,11 @@ Opening the menu closes any kebab and the edit sheet. The sheet is mounted first
   - `signed-in`: display name, else email, else **Signed in**. No email line under the name. No avatar in the panel.
   - otherwise: **Log in** (gold pill) and **Sign up** (transparent pill, light border).
 - Nav buttons, left aligned, `1.15rem`, no icons: **Today**, **History**, **Meals**, **Goal**. Each navigates and closes the menu.
-- **Sign out** only when signed in. It sits at the bottom of the panel (`margin-top: auto`), outline pill, muted text. It closes the menu, calls Auth0 logout back to this origin, and sets the in-memory account to signed out. It does not clear `nourish-state`, the queue, or the activity document.
+- **Share** is the last control in the panel. It sits in a footer with `margin-top: auto`, so it rests at the bottom. Signed in, **Sign out** is directly above it in that footer. Signed out, Share is alone at the bottom.
+  - The URL is the app root: `origin + "/"`, not the page you are on.
+  - A phone or tablet (`pointer: coarse` and `hover: none`) with `navigator.share` opens the system share sheet. Title is **Nourish**, and the URL is that root. Dismissing the sheet does nothing else. A successful share closes the menu. If the sheet fails for another reason, it falls through to copy.
+  - Desktop, and any device without the share sheet, copies that URL. The button label becomes **Copied** for 1.6 seconds. The menu stays open. If the clipboard API refuses, it falls back to selecting a hidden textarea and `document.execCommand("copy")`.
+- **Sign out** only when signed in. Outline pill, muted text. It closes the menu, calls Auth0 logout back to this origin, and sets the in-memory account to signed out. It does not clear `nourish-state`, the queue, or the activity document.
 
 There is no close button. There is no link to a day, a meal, or new-meal.
 

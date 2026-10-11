@@ -53,7 +53,7 @@ Open http://localhost:3000
 Local UI:
 
 1. Open `/`. Today renders with no account. The header is a profile icon, not a hamburger.
-2. Open the menu. Log in and Sign up are at the top. Today, History, Meals, and Goal stay below.
+2. Open the menu. Log in and Sign up are at the top. Today, History, Meals, and Goal stay below. Share is the last item, at the bottom. On a desktop it copies the app URL. On a phone it opens the share sheet.
 3. Add 50, 100, and 500. They stay after refresh. Signed in, they also survive a second browser pointed at the same API (the second device pulls `GET /api/state`).
 4. Change a group's time from the clock. Delete with the trash control. Edit by tapping the calorie total. Five quick adds inside a minute are one bubble; saving that edit keeps one row and removes the others.
 5. Create a meal from Meals. The row appears only after the check. Updating a meal does not rewrite entries already logged. History opens on the calendar. Days before the first log, and future days, are blank. The goal form check saves a new goal row; an older day keeps the older goal.
