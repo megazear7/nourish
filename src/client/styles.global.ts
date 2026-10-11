@@ -691,6 +691,7 @@ export const appStyles = css`
   }
 
   .menu-sign-out {
+    margin-top: auto;
     border: 1px solid rgba(255, 255, 255, 0.14);
     border-radius: 999px;
     background: transparent;
@@ -699,13 +700,6 @@ export const appStyles = css`
     font-weight: 560;
     padding: 0.75rem 0.9rem;
     cursor: pointer;
-  }
-
-  .menu-footer {
-    margin-top: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 0.6rem;
   }
 
   .account-block {

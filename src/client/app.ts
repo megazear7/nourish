@@ -1630,26 +1630,24 @@ export class NourishApp extends LitElement {
                 <button class="menu-link" @click=${() => this.navigate("goal")}>
                   Goal
                 </button>
-                <div class="menu-footer">
-                  ${
-                    this.account.status === "signed-in"
-                      ? html`<button
-                          class="menu-sign-out"
-                          type="button"
-                          @click=${() => this.signOut()}
-                        >
-                          Sign out
-                        </button>`
-                      : ""
-                  }
-                  <button
-                    class="menu-link"
-                    type="button"
-                    @click=${() => void this.shareApp()}
-                  >
-                    ${this.shareCopied ? "Copied" : "Share"}
-                  </button>
-                </div>
+                <button
+                  class="menu-link"
+                  type="button"
+                  @click=${() => void this.shareApp()}
+                >
+                  ${this.shareCopied ? "Copied" : "Share"}
+                </button>
+                ${
+                  this.account.status === "signed-in"
+                    ? html`<button
+                        class="menu-sign-out"
+                        type="button"
+                        @click=${() => this.signOut()}
+                      >
+                        Sign out
+                      </button>`
+                    : ""
+                }
               </nav>
             </div>`
           : ""
