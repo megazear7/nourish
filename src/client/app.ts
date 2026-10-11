@@ -212,6 +212,7 @@ export class NourishApp extends LitElement {
   override disconnectedCallback(): void {
     window.clearTimeout(this.menuTimer);
     window.clearTimeout(this.shareTimer);
+    this.endMealPointer();
     window.removeEventListener("popstate", this.syncRoute);
     window.removeEventListener("online", this.onOnline);
     window.removeEventListener("offline", this.onOffline);
@@ -734,27 +735,36 @@ export class NourishApp extends LitElement {
 
   private onMealPointerDown(event: PointerEvent, id: string): void {
     if (event.button !== 0) return;
-    const target = event.target;
-    if (target instanceof Element && target.closest("button")) return;
-    const card = event.currentTarget;
-    if (card instanceof HTMLElement) card.setPointerCapture(event.pointerId);
+    event.preventDefault();
+    this.endMealPointer();
+    const handle = event.currentTarget;
+    if (handle instanceof HTMLElement)
+      handle.setPointerCapture(event.pointerId);
     this.mealPointer = {
       id,
       pointerId: event.pointerId,
       x: event.clientX,
       y: event.clientY,
     };
+    this.mealDragging = id;
+    this.kebabKey = "";
+    this.mealDropIndex = this.mealDropIndexFrom(event.clientY);
+    window.addEventListener("pointermove", this.onMealPointerMove, {
+      passive: false,
+    });
+    window.addEventListener("pointerup", this.onMealPointerUp);
+    window.addEventListener("pointercancel", this.onMealPointerUp);
+  }
+
+  private endMealPointer(): void {
+    window.removeEventListener("pointermove", this.onMealPointerMove);
+    window.removeEventListener("pointerup", this.onMealPointerUp);
+    window.removeEventListener("pointercancel", this.onMealPointerUp);
   }
 
   private onMealPointerMove = (event: PointerEvent): void => {
     const drag = this.mealPointer;
     if (!drag || event.pointerId !== drag.pointerId) return;
-    const distance = Math.hypot(event.clientX - drag.x, event.clientY - drag.y);
-    if (!this.mealDragging) {
-      if (distance < 8) return;
-      this.mealDragging = drag.id;
-      this.kebabKey = "";
-    }
     if (event.cancelable) event.preventDefault();
     const next = this.mealDropIndexFrom(event.clientY);
     if (next !== this.mealDropIndex) this.mealDropIndex = next;
@@ -765,6 +775,7 @@ export class NourishApp extends LitElement {
     if (!drag || event.pointerId !== drag.pointerId) return;
     const id = this.mealDragging;
     const to = this.mealDropIndex;
+    this.endMealPointer();
     this.mealPointer = null;
     this.mealDragging = "";
     this.mealDropIndex = -1;
@@ -1001,13 +1012,9 @@ export class NourishApp extends LitElement {
     `;
   }
 
-  private renderKebab(
-    key: string,
-    items: TemplateResult,
-    placement: "down" | "up" = "down",
-  ) {
+  private renderKebab(key: string, items: TemplateResult) {
     const open = this.kebabKey === key;
-    return html`<div class="kebab ${placement === "up" ? "kebab-up" : ""}">
+    return html`<div class="kebab">
       <button
         class="icon-button"
         aria-label="More options"
@@ -1436,45 +1443,55 @@ export class NourishApp extends LitElement {
     return html`<section>
       <ul class="meal-list ${this.mealDragging ? "is-dragging" : ""}">
         ${meals.map((meal, index) => {
-          const topKey = `meal:${meal.id}:top`;
-          const bottomKey = `meal:${meal.id}:bottom`;
-          const open = this.kebabKey === topKey || this.kebabKey === bottomKey;
-          const menu = html`<button
-              class="popover-button"
-              role="menuitem"
-              @click=${() => this.openMeal(meal.id)}
-            >
-              Edit
-            </button>
-            <button
-              class="popover-button kebab-remove"
-              role="menuitem"
-              @click=${() => this.removeMeal(meal.id)}
-            >
-              Remove
-            </button>`;
+          const key = `meal:${meal.id}`;
           return html`${gap(index)}
             <li
-              class="meal-card ${open ? "menu-open" : ""} ${
+              class="meal-card ${this.kebabKey === key ? "menu-open" : ""} ${
                 this.mealDragging === meal.id ? "is-dragging" : ""
               }"
               data-meal-id=${meal.id}
-              @pointerdown=${(event: PointerEvent) =>
-                this.onMealPointerDown(event, meal.id)}
-              @pointermove=${this.onMealPointerMove}
-              @pointerup=${this.onMealPointerUp}
-              @pointercancel=${this.onMealPointerUp}
             >
               <div class="meal-top">
                 <p class="entry-calories">${titleCase(meal.title)}</p>
-                ${this.renderKebab(topKey, menu)}
+                ${this.renderKebab(
+                  key,
+                  html`<button
+                      class="popover-button"
+                      role="menuitem"
+                      @click=${() => this.openMeal(meal.id)}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      class="popover-button kebab-remove"
+                      role="menuitem"
+                      @click=${() => this.removeMeal(meal.id)}
+                    >
+                      Remove
+                    </button>`,
+                )}
               </div>
               <p class="entry-meta">
                 ${meal.description || "No description"} · ${meal.calories}
                 calories
               </p>
               <div class="meal-bottom">
-                ${this.renderKebab(bottomKey, menu, "up")}
+                <button
+                  class="icon-button meal-drag"
+                  type="button"
+                  aria-label="Drag to reorder"
+                  @pointerdown=${(event: PointerEvent) =>
+                    this.onMealPointerDown(event, meal.id)}
+                >
+                  <svg class="dots" viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="9" cy="7" r="1.5"></circle>
+                    <circle cx="15" cy="7" r="1.5"></circle>
+                    <circle cx="9" cy="12" r="1.5"></circle>
+                    <circle cx="15" cy="12" r="1.5"></circle>
+                    <circle cx="9" cy="17" r="1.5"></circle>
+                    <circle cx="15" cy="17" r="1.5"></circle>
+                  </svg>
+                </button>
               </div>
             </li>`;
         })}

@@ -470,11 +470,6 @@ export const appStyles = css`
     box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
   }
 
-  .kebab-up .kebab-menu {
-    top: auto;
-    bottom: calc(100% + 0.2rem);
-  }
-
   .kebab-menu .popover-button {
     justify-content: flex-start;
     gap: 0.65rem;
@@ -1024,15 +1019,19 @@ export const appStyles = css`
     display: flex;
     flex-direction: column;
     gap: 0.35rem;
-    cursor: grab;
-    user-select: none;
-    touch-action: pan-y;
   }
 
   .meal-card.is-dragging {
-    cursor: grabbing;
     opacity: 0.55;
+  }
+
+  .meal-drag {
+    cursor: grab;
     touch-action: none;
+  }
+
+  .meal-card.is-dragging .meal-drag {
+    cursor: grabbing;
   }
 
   .meal-list.is-dragging .meal-card {

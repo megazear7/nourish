@@ -340,20 +340,18 @@ Focus rings on calendar buttons and list day buttons use a 2px outline.
 
 No page title inside the list besides the header **Meals**. No empty sentence. If nothing is saved, the only control is the create button.
 
-Each non-removed meal is a card. Press and drag the card (not a button) to reorder. A move under 8 pixels is a click, not a drag. The card stays in place while dragging, at 55% opacity. Order is committed on pointer up.
+Each non-removed meal is a card. Reorder by pressing the drag handle at the bottom right and moving. The rest of the card does not start a drag. The card stays in place while dragging, at 55% opacity. Order is committed on pointer up. Releasing without leaving the gaps beside that card does nothing.
 
-Drop slots are the gaps before the first card, between cards, and after the last card. The pointer’s half of a card picks the gap above or below that card. The top half of the first card, or above it, is the start. The bottom half of the last card, or below it, is the end. The gap beside the card you are holding is a no-op and does not save.
+Drop slots are the gaps before the first card, between cards, and after the last card. The pointer’s half of a card picks the gap above or below that card. The top half of the first card, or above it, is the start. The bottom half of the last card, or below it, is the end.
 
 Each of those gaps is always a `0.75rem` row (`.meal-gap`). The gold line (`.drop-line`, 2px, `--gold`) is centered in that row and is transparent until that gap is the drop slot. Turning the line on does not change the row’s height, so the list does not jump. With no meals, there are no gap rows. The create button is not a drop slot.
 
 - Title, title-cased, `1.25rem`, top left. Margins on the title and meta are cleared.
 - Meta, under the title: `{description or "No description"} · {calories} calories`. Description is not title-cased.
-- Two kebabs, the same Edit / Remove menu:
-  - Top right, key `meal:{id}:top`. The menu opens downward.
-  - Bottom right, key `meal:{id}:bottom`. The menu opens upward (`.kebab-up`).
+- One kebab, top right, key `meal:{id}`. The menu opens downward.
   - **Edit** — no icon. Opens `/meal/{id}`.
   - **Remove** — muted red text, no icon. Sets `removed: true` and enqueues `meal.remove`. Does not delete or change log rows that point at this id.
-- Starting a drag closes an open kebab. The card uses `cursor: grab`, and `touch-action: pan-y` until a drag is active, then `touch-action: none` on every card.
+- Drag handle, bottom right. Six dots in two columns. `aria-label="Drag to reorder"`. `touch-action: none` and `cursor: grab` on that button only. Pressing it closes an open kebab and starts the drag immediately.
 
 A successful drop rewrites `state.meals`: visible meals in the new order, then removed meals in their previous order. It enqueues `meal.reorder` with `count: false`, `entityId` set to the meal that moved, and `body.ids` the full id list including removed meals. Dropping into the gap directly above or below the dragged card does nothing.
 
@@ -386,7 +384,7 @@ Form fields mirror new-meal, ids `edit-meal-title`, `edit-meal-description`, `ed
 
 Save validates like create, maps the one meal, enqueues `meal.update` with `{ title, description, calories }`, then navigates to `/` with `pushState`. Existing log rows keep the title, description, and calories they copied at log time.
 
-There is no delete button on this form. Delete is either kebab on the meal card.
+There is no delete button on this form. Delete is the kebab on the meal card.
 
 ## Goal
 
