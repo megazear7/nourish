@@ -1,8 +1,24 @@
 # Nourish features
 
-Exhaustive description of how the Nourish app works, taken from the `main` branch (tree `f07482101ee755a961c136fe0811a85279a04a1e`, last pushed 2026-10-10). This file describes behavior in the source. It is not a roadmap.
+Exhaustive description of how the Nourish app works. The behavior sections were taken from the `main` branch (tree `f07482101ee755a961c136fe0811a85279a04a1e`, last pushed 2026-10-10). This file describes behavior in the source. It is not a roadmap.
 
 The running app is a single custom element, `<nourish-app>`, defined in [src/client/app.ts](src/client/app.ts). Rollup’s only entry is that file, so the browser bundle does not include the older view components listed at the end.
+
+## Goal
+
+Nourish is a very simple calorie tracker. It is meant to be as efficient as possible at tracking calories, with no extra weight or bloat in the UI.
+
+A person should be able to keep their calories up to date with as few clicks and as few decisions as possible. Tracking has to stay so light that they do not stop because the app was slightly too hard to use, or because writing one thing down took slightly too long.
+
+That goal outranks new surface area. A control, a step, or a decision that is not required to log calories is a cost. Do not add one unless the task is explicitly to add it. When behavior does change, update this file in the same change.
+
+## Keeping this file current
+
+Read this file before changing the app. It is the source of truth for pages, buttons, routes, copy, storage, sync, and scoring.
+
+If a change adds, removes, or alters any of that, update the matching part of this file in the same change. Do not leave it stale. Do not describe a feature here that the code does not implement.
+
+Agents are told to do this from `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`, and `.cursor/rules/nourish.mdc`. Those files point here. This file is the behavior reference.
 
 ## What it is
 
