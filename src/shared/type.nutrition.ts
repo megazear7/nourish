@@ -1,4 +1,5 @@
 import z from "zod";
+import { isDateKey } from "./util.dates.js";
 
 export const CalorieEntry = z.object({
   id: z.string(),
@@ -29,6 +30,10 @@ export const Goal = z.object({
   id: z.string().min(1),
   calories: z.number().int().positive(),
   setAt: z.string().min(1),
+  day: z
+    .string()
+    .refine((value) => isDateKey(value), { message: "expected a date" })
+    .optional(),
 });
 export type Goal = z.infer<typeof Goal>;
 

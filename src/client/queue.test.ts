@@ -69,6 +69,29 @@ describe("queue", { concurrency: false }, () => {
     assert.equal(folded.entries[0]?.calories, 40);
   });
 
+  it("keeps a day-scoped goal's date when an old log is backfilled", async () => {
+    const { backfillCreates } = await import("./util.sync.js");
+    const { loadQueue } = await import("./util.queue.js");
+    const id = "88888888-8888-4888-8888-888888888888";
+    backfillCreates({
+      entries: [],
+      meals: [],
+      goals: [
+        {
+          id,
+          calories: 1600,
+          setAt: "2026-10-13T15:00:00.000Z",
+          day: "2026-10-05",
+        },
+      ],
+    });
+    const created = loadQueue().ops.find((item) => item.type === "goal.create");
+    assert.ok(created);
+    assert.equal(created.count, false);
+    assert.equal(created.body.day, "2026-10-05");
+    assert.equal(created.body.calories, 1600);
+  });
+
   it("restores one account without uploading the other account's queue", async () => {
     const queue = await import("./util.queue.js");
     const goal = "88888888-8888-4888-8888-888888888888";

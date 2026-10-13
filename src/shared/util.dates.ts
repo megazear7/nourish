@@ -14,6 +14,10 @@ export function parseDateKey(key: string): Date {
   return new Date(year, (month ?? 1) - 1, day ?? 1);
 }
 
+export function isDateKey(key: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(key) && dateKey(parseDateKey(key)) === key;
+}
+
 export function addDays(key: string, days: number): string {
   const date = parseDateKey(key);
   date.setDate(date.getDate() + days);

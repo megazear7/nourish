@@ -171,9 +171,9 @@ export class PostgresStore implements NourishStore {
       }
       for (const goal of outcome.state.goals) {
         await query(
-          `INSERT INTO goals (id, user_id, calories, set_at, updated_at)
-           VALUES ($1::uuid, $2, $3, $4::timestamptz, NOW())`,
-          [goal.id, userId, goal.calories, goal.setAt],
+          `INSERT INTO goals (id, user_id, calories, set_at, day, updated_at)
+           VALUES ($1::uuid, $2, $3, $4::timestamptz, $5, NOW())`,
+          [goal.id, userId, goal.calories, goal.setAt, goal.day ?? null],
         );
       }
       return { results: outcome.results, state: outcome.state };

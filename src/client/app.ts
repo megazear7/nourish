@@ -193,6 +193,8 @@ export class NourishApp extends LitElement {
   @state() private editCalories = "";
   @state() private editTitle = "";
   @state() private editDescription = "";
+  @state() private dayGoalKey = "";
+  @state() private dayGoalCalories = "";
   private editIds: string[] = [];
   private lastAddClickAt = 0;
   private lastAddStamp = "";
@@ -638,6 +640,7 @@ export class NourishApp extends LitElement {
   private closeEdit(): void {
     this.editKey = "";
     this.editIds = [];
+    this.dayGoalKey = "";
   }
 
   private beginEdit(shown: ShownEntry): void {
@@ -890,6 +893,42 @@ export class NourishApp extends LitElement {
     this.navigate("today");
   }
 
+  private openDayGoal(key: string): void {
+    this.kebabKey = "";
+    this.closeMenu();
+    this.mealPickerOpen = false;
+    this.closeEdit();
+    const current = this.caloriesFor(key);
+    this.dayGoalCalories = current === undefined ? "" : String(current);
+    this.dayGoalKey = key;
+    this.renderRoot.querySelector<HTMLElement>(":focus")?.blur();
+  }
+
+  private saveDayGoal(event: Event): void {
+    event.preventDefault();
+    const key = this.dayGoalKey;
+    if (!key) return;
+    const form = event.currentTarget as HTMLFormElement;
+    const calories = Number(new FormData(form).get("calories") ?? 0);
+    if (!Number.isInteger(calories) || calories <= 0) return;
+    const setAt = new Date().toISOString();
+    const goal = {
+      id: crypto.randomUUID(),
+      calories,
+      setAt,
+      day: key,
+    };
+    this.commit({ ...this.state, goals: [...this.state.goals, goal] }, [
+      {
+        type: "goal.create",
+        entityId: goal.id,
+        occurredAt: setAt,
+        body: { calories, setAt, day: key },
+      },
+    ]);
+    this.dayGoalKey = "";
+  }
+
   private todayEntries(): CalorieEntry[] {
     const today = todayKey();
     return this.state.entries
@@ -918,6 +957,18 @@ export class NourishApp extends LitElement {
     return first;
   }
 
+  private renderGoalControl(
+    goal: number | undefined,
+    onClick: () => void,
+  ): TemplateResult {
+    if (goal) {
+      // prettier-ignore
+      return html`<span class="calorie-goal">/ <button class="goal-link" type="button" aria-label="Change goal" @click=${onClick}>${goal}</button> calories</span>`;
+    }
+    // prettier-ignore
+    return html`<span class="calorie-goal"><button class="goal-link" type="button" aria-label="Set a goal" @click=${onClick}>/ no goal set</button></span>`;
+  }
+
   private showsCalories(day: string, today: string, first: string): boolean {
     if (day > today) return false;
     if (dayTotal(this.state.entries, day) > 0) return true;
@@ -940,7 +991,7 @@ export class NourishApp extends LitElement {
         </p>
         <p class="calorie-line">
           <span class="calorie-total" style="color: ${color}">${total}</span>
-          <span class="calorie-goal">${goal ? `/ ${goal} ` : ""}calories</span>
+          ${this.renderGoalControl(goal, () => this.openDayGoal(key))}
         </p>
       </section>
       ${
@@ -996,7 +1047,7 @@ export class NourishApp extends LitElement {
         </p>
         <p class="calorie-line">
           <span class="calorie-total" style="color: ${color}">${total}</span>
-          <span class="calorie-goal">${goal ? `/ ${goal} ` : ""}calories</span>
+          ${this.renderGoalControl(goal, () => this.navigate("goal"))}
         </p>
       </section>
       ${
@@ -1771,7 +1822,53 @@ export class NourishApp extends LitElement {
             </div>`
           : ""
       }
-      ${this.renderEdit()}
+      ${this.renderEdit()} ${this.renderDayGoal()}
+    </div>`;
+  }
+
+  private renderDayGoal() {
+    if (!this.dayGoalKey) return "";
+    const label = formatDayLabel(this.dayGoalKey, todayKey());
+    return html`<div
+      class="edit-sheet"
+      @click=${() => {
+        this.dayGoalKey = "";
+      }}
+      @keydown=${(event: KeyboardEvent) => {
+        if (event.key === "Escape") this.dayGoalKey = "";
+      }}
+    >
+      <form
+        class="edit-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="day-goal-heading"
+        @submit=${this.saveDayGoal}
+        @click=${(event: Event) => event.stopPropagation()}
+      >
+        <h2 id="day-goal-heading" class="edit-heading">Goal for ${label}</h2>
+        <p class="tone-note">Only this day. Other days stay the same.</p>
+        <label class="field-label" for="day-goal-calories">Calories</label>
+        <input
+          class="number-input"
+          id="day-goal-calories"
+          name="calories"
+          type="number"
+          inputmode="numeric"
+          min="1"
+          step="1"
+          required
+          .value=${live(this.dayGoalCalories)}
+          @input=${(event: Event) => {
+            this.dayGoalCalories = (event.target as HTMLInputElement).value;
+          }}
+        />
+        <button class="check-button" type="submit" aria-label="Save goal">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M5 12.5 10 17.5 19 7.5"></path>
+          </svg>
+        </button>
+      </form>
     </div>`;
   }
 }

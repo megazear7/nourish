@@ -193,7 +193,11 @@ export function backfillCreates(state: NutritionState): void {
       entityId: goal.id,
       occurredAt: goal.setAt,
       count: false,
-      body: { calories: goal.calories, setAt: goal.setAt },
+      body: {
+        calories: goal.calories,
+        setAt: goal.setAt,
+        ...(goal.day ? { day: goal.day } : {}),
+      },
     });
   }
   if (!drafts.length) return;
