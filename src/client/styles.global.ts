@@ -202,6 +202,20 @@ export const appStyles = css`
     font-size: 1rem;
   }
 
+  .goal-link {
+    border: 0;
+    padding: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .goal-link:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+  }
+
   .calorie-unit,
   .goal-note,
   .tone-note,

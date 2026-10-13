@@ -1,4 +1,5 @@
 import z from "zod";
+import { isDateKey } from "./util.dates.js";
 
 export const OP_TYPES = [
   "entry.create",
@@ -58,6 +59,10 @@ const mealReorderBody = z.object({
 const goalBody = z.object({
   calories: z.number().int().positive(),
   setAt: iso,
+  day: z
+    .string()
+    .refine((value) => isDateKey(value), { message: "expected a date" })
+    .optional(),
 });
 
 const emptyBody = z.object({}).strict();

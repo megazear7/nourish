@@ -1,4 +1,4 @@
-import { parseDateKey } from "./util.dates.js";
+import { dateKey, parseDateKey } from "./util.dates.js";
 import type {
   CalorieEntry,
   Goal,
@@ -14,25 +14,46 @@ export function endOfLocalDay(dayKey: string): number {
   return end.getTime() - 1;
 }
 
+function preferGoal(current: Goal | undefined, goal: Goal): Goal {
+  if (!current) return goal;
+  const at = new Date(goal.setAt).getTime();
+  const bestAt = new Date(current.setAt).getTime();
+  if (at > bestAt || (at === bestAt && goal.id > current.id)) return goal;
+  return current;
+}
+
 export function goalForDay(goals: Goal[], dayKey: string): Goal | undefined {
   const limit = endOfLocalDay(dayKey);
-  let best: Goal | undefined;
+  let forward: Goal | undefined;
+  let override: Goal | undefined;
   for (const goal of goals) {
     const at = new Date(goal.setAt).getTime();
-    if (Number.isNaN(at) || at > limit) continue;
-    if (!best) {
-      best = goal;
+    if (Number.isNaN(at)) continue;
+    if (goal.day) {
+      if (goal.day === dayKey) override = preferGoal(override, goal);
       continue;
     }
-    const bestAt = new Date(best.setAt).getTime();
-    if (at > bestAt || (at === bestAt && goal.id > best.id)) best = goal;
+    if (at > limit) continue;
+    forward = preferGoal(forward, goal);
   }
-  return best;
+  if (!override) return forward;
+  if (!forward) return override;
+  if (dateKey(new Date(forward.setAt)) !== dayKey) return override;
+  const forwardAt = new Date(forward.setAt).getTime();
+  const overrideAt = new Date(override.setAt).getTime();
+  if (
+    forwardAt > overrideAt ||
+    (forwardAt === overrideAt && forward.id > override.id)
+  ) {
+    return forward;
+  }
+  return override;
 }
 
 export function latestGoal(goals: Goal[]): Goal | undefined {
   let best: Goal | undefined;
   for (const goal of goals) {
+    if (goal.day) continue;
     if (!best) {
       best = goal;
       continue;
@@ -154,11 +175,16 @@ export function fold(ops: Op[], base?: NutritionState): NutritionState {
       continue;
     }
     if (op.type === "goal.create" && !goals.has(op.entityId)) {
-      const body = op.body as { calories: number; setAt: string };
+      const body = op.body as {
+        calories: number;
+        setAt: string;
+        day?: string;
+      };
       goals.set(op.entityId, {
         id: op.entityId,
         calories: body.calories,
         setAt: body.setAt,
+        ...(body.day ? { day: body.day } : {}),
       });
     }
   }

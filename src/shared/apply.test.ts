@@ -71,4 +71,40 @@ describe("acceptOps", () => {
     assert.equal(outcome.results[1]?.status, "rejected");
     assert.equal(outcome.state.entries.length, 0);
   });
+
+  it("rejects a goal day that is not a real date and keeps a real one", () => {
+    const goal = {
+      opId: "44444444-4444-4444-8444-444444444444",
+      type: "goal.create",
+      entityId: "55555555-5555-4555-8555-555555555555",
+      occurredAt: "2026-10-13T15:00:00.000Z",
+      body: {
+        calories: 1600,
+        setAt: "2026-10-13T15:00:00.000Z",
+        day: "2026-02-31",
+      },
+    };
+    const rejected = acceptOps({
+      userId: "auth0|a",
+      incoming: [goal],
+      existing: [],
+      entityOwners: [],
+    });
+    assert.equal(rejected.results[0]?.status, "rejected");
+    assert.equal(rejected.state.goals.length, 0);
+    const applied = acceptOps({
+      userId: "auth0|a",
+      incoming: [
+        {
+          ...goal,
+          body: { ...goal.body, day: "2026-10-05" },
+        },
+      ],
+      existing: [],
+      entityOwners: [],
+    });
+    assert.equal(applied.results[0]?.status, "applied");
+    assert.equal(applied.state.goals[0]?.day, "2026-10-05");
+    assert.equal(applied.state.goals[0]?.calories, 1600);
+  });
 });

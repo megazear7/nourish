@@ -33,7 +33,7 @@ A person can:
 - Name a plain calorie row later without creating a saved meal.
 - Change when a row was eaten, edit its calories, or mark it removed.
 - Look back through a calendar or a 30-day list, and open any past day to log into that day.
-- Set a daily calorie goal. Goals are a history of rows, not one mutable number. A past day keeps the goal that was in effect that day.
+- Set a daily calorie goal. Goals are a history of rows, not one mutable number. A past day keeps the goal that was in effect that day. From a day page, one day can be given its own goal without changing the others.
 - See one color for the day, from a seven-day weighted sum of how far each day sat from the goal.
 - Use the app with no account. The log stays in `localStorage`.
 - Sign in and sync that log across browsers. Offline edits queue and upload later.
@@ -127,8 +127,8 @@ Summary block:
 
 - Kicker **Today** (uppercase, muted, tracked).
 - If a goal applies to today, an em dash and a status label: **On track**, **Drifting**, **Running hot**, or **Over the window**. See [Color](#color).
-- Huge number (`4.4rem`) of today’s calorie total. Color is the tone color when a goal exists, otherwise `--ink` (`#f4efe6`).
-- Beside it, muted: `/ {goal} calories` when a goal exists, otherwise just `calories`. The total is not formatted with thousands separators. The goal number is not either.
+- Huge number (`4.4rem`) of today’s calorie total. Color is the tone color when a goal exists, otherwise `--ink` (`#f4efe6`). The total is not formatted with thousands separators.
+- Beside it, a muted button. When a goal applies to today the line reads `/ {goal} calories` and only the number is the button, `aria-label="Change goal"`. The goal number is not formatted with thousands separators. The word **calories** is not a control. When today has no goal the button’s label is exactly `/ no goal set`, `aria-label="Set a goal"`. Either click calls `navigate("goal")`. The button uses `.goal-link`: no border, no background, inherited muted type.
 
 Rows: non-removed entries whose local date is today, passed through the bubble grouper, newest bubble first. Empty copy: **Nothing logged yet. Add a bite when you eat it.**
 
@@ -143,6 +143,17 @@ Same summary as Today, except the kicker is `formatDayLabel`:
 - Otherwise the runtime locale’s short weekday, short month, and numeric day (for example `Tue, Oct 6`).
 
 Status label and tone color use that day’s goal and a weighted window that ends on that day, not on today.
+
+The goal control is the same button as Today. Clicking it does not navigate. It opens a modal, including when this URL is today’s date. Only the main Today page goes to `/goal`.
+
+The modal reuses the edit sheet: dim layer `.edit-sheet`, dialog `.edit-modal`, `role="dialog"`, `aria-modal="true"`, labelled by `#day-goal-heading`. Clicking the dim layer closes it. `Escape` while focus is inside closes it. Clicking the form does not. Dismiss does not save.
+
+- Heading **Goal for {label}**, where `{label}` is `formatDayLabel` for that day.
+- One line: **Only this day. Other days stay the same.**
+- Number input `#day-goal-calories`, `name="calories"`, `type="number"`, `min="1"`, `step="1"`, `inputmode="numeric"`, required. Prefilled with that day’s current goal, or empty when there is none.
+- Gold check button, `aria-label="Save goal"`.
+
+Save requires an integer greater than 0. It appends `{ id, calories, setAt, day }` where `day` is this page’s date key and `setAt` is now. It enqueues `goal.create` with that body and `occurredAt` equal to `setAt`, closes the modal, and stays on this URL. It does not push a history entry. No title, description, nudges, or color paragraph.
 
 Empty copy: **Nothing logged this day.**
 
@@ -397,15 +408,21 @@ Path `/goal`. One form.
 
   > Color uses a seven-day window. Today counts fully, yesterday half, and each older day a little less. Under the goal pulls the color back toward green. 150 over the weighted window is yellow. 300 over is red.
 
-Save requires an integer greater than 0. It appends a new goal `{ id, calories, setAt }` with `setAt` equal to now. It does not change older goal rows. It enqueues `goal.create` with `occurredAt` and body `setAt` both set to that timestamp, then `pushState`s `/`.
+Save requires an integer greater than 0. It appends a new forward goal `{ id, calories, setAt }` with `setAt` equal to now and no `day`. It does not change older goal rows. It enqueues `goal.create` with `occurredAt` and body `setAt` both set to that timestamp, then `pushState`s `/`. That goal applies to today and every later day that does not have its own day-scoped goal, including today when a one-day goal for today was saved earlier the same calendar day.
 
 ### Which goal a day uses
 
-`goalForDay`: among goals whose `setAt` is a valid time and is **on or before the last millisecond of that local day**, pick the greatest `setAt`. If two share `setAt`, the greater `id` string wins.
+`goalForDay` looks at goals whose `setAt` parses as a time.
 
-So a goal set on Tuesday afternoon does not apply to Tuesday morning’s calendar math for Monday, and it does apply to Tuesday. A day before every goal has no goal: no status label, ink-colored total, no `/ N` in the summary.
+A goal with no `day` is a forward goal. Among forward goals whose `setAt` is **on or before the last millisecond of that local day**, pick the greatest `setAt`. If two share `setAt`, the greater `id` string wins. A goal set on Tuesday afternoon does not apply to Monday, and it does apply to Tuesday.
 
-`latestGoal` (greatest `setAt`, then id) exists for callers that want “the current goal” without a day. The live screen uses `goalForDay` for today instead, which matches `latestGoal` unless a goal is stamped in the future.
+A goal with `day` set to a real local date key applies only to that date. It is an override. Its `setAt` does not have to fall on that date: opening an old day and saving uses `setAt` of now. Other days never see it. A later forward goal saved on a different calendar day does not clear it.
+
+One exception: if a forward goal’s own local calendar date is this same day and that forward goal’s `setAt` is later than the latest override (or the times are equal and the forward id is greater), the forward goal wins for that day. That is how the Goal page still resets today after a one-day goal was saved for today. Days after that forward goal use it too. A forward goal does not reach backward onto an earlier override.
+
+A day with no forward goal and no override has no goal: no status label, ink-colored total, and the summary button reads `/ no goal set`.
+
+`latestGoal` is the greatest `setAt`, then id, among goals that have no `day`. Day-scoped goals do not become the activity document’s current goal. The live screen uses `goalForDay` for today instead, which matches `latestGoal` unless a goal is stamped in the future or today has a day-scoped override that is still newer than any forward goal set on that same calendar day.
 
 ### Color
 
@@ -560,7 +577,7 @@ Backfill, for anything not already represented by a `*.create` op still in the q
 
 - Each entry: `entry.create` at the entry’s own timestamp, `count: false`. If the entry is already removed, a following `entry.remove` at that timestamp plus 1 millisecond, also `count: false`.
 - Each meal: `meal.create` at now, `count: false`, and `meal.remove` one millisecond later if removed.
-- Each goal: `goal.create` at the goal’s `setAt`, `count: false`.
+- Each goal: `goal.create` at the goal’s `setAt`, `count: false`. The body is `{ calories, setAt }` plus `day` when the stored goal has one.
 
 `count: false` means the activity counters do not increase. The food log still syncs.
 
@@ -605,7 +622,7 @@ Types, in [src/shared/type.op.ts](src/shared/type.op.ts):
 | `meal.update` | Same as create | Overlay if the meal exists |
 | `meal.remove` | Empty object | Set `removed: true` if the meal exists |
 | `meal.reorder` | `ids`: at least one UUID. Duplicates are allowed by the schema; the fold keeps the first | Rebuild meal order: listed ids that exist, in that order, then any meal not listed, in its previous order. After this, a later `meal.create` is inserted at the front. Before any reorder, creates still append in time order |
-| `goal.create` | `calories` positive integer, `setAt` non-empty | Insert if that id is new. Goals are never updated or removed |
+| `goal.create` | `calories` positive integer, `setAt` non-empty, optional `day`. `day` must be a real local date key (`YYYY-MM-DD` that survives `dateKey(parseDateKey(day))`). An invalid `day` rejects the op. Omitting `day` stays valid | Insert if that id is new. `day` is copied onto the goal when present. Goals are never updated or removed |
 
 `opId` and `entityId` must be UUIDs. `occurredAt` must be a non-empty string.
 
@@ -631,7 +648,7 @@ Response JSON: `{ results: [{ opId, status, reason? }], state }`. `state` is the
 
 **Meal:** `id`, `title` (min 1), `description`, `calories` (integer ≥ 0), optional `removed`.
 
-**Goal:** `id` (min 1), `calories` (positive integer), `setAt` (min 1).
+**Goal:** `id` (min 1), `calories` (positive integer), `setAt` (min 1), optional `day` (a real local date key). No `day` means the goal runs forward from `setAt`. A `day` means that one date only.
 
 **NutritionState:** `entries`, `meals`, `goals`.
 
@@ -677,7 +694,7 @@ Migration [netlify/database/migrations/20261009120000_nourish_log.sql](netlify/d
 | `operations` | Append-only. `op_id` UUID primary key. `user_id` FK cascade. `device_id` UUID nullable. `entity_id`, `op_type` check constraint for the eight types, `occurred_at`, `received_at` default now, `body` JSONB. Index `(user_id, occurred_at, op_id)`. Insert is `ON CONFLICT (op_id) DO NOTHING`. `meal.reorder` is added by [netlify/database/migrations/20261011150000_meal_reorder.sql](netlify/database/migrations/20261011150000_meal_reorder.sql), which replaces `operations_op_type_check` |
 | `calorie_entries` | Folded read model, rewritten on each sync. Positive calories, `eaten_at`, optional meal fields, `removed` default false |
 | `meals` | Same. Title required, description default `''`, calories ≥ 0, `removed` |
-| `goals` | Same. Positive calories, `set_at`. Index `(user_id, set_at)` |
+| `goals` | Same. Positive calories, `set_at`. Nullable `day` text, added by [netlify/database/migrations/20261013130000_goal_day.sql](netlify/database/migrations/20261013130000_goal_day.sql). Null is a forward goal. A date key is one day. Index `(user_id, set_at)` |
 
 On sync the three read-model tables for that user are deleted and reinserted from the fold, including removed rows. `GET /api/state` does **not** read those tables. It loads `operations` and folds them. Inserting the user row on read uses `ON CONFLICT DO NOTHING` and does not refresh email.
 
@@ -736,13 +753,13 @@ Dependencies that ship: `lit`, `@lit/context` (declared; the live app does not c
 
 ## Tests that lock behavior
 
-Shared fold tests: later `occurredAt` wins even if the older patch is applied second; a patch logged “before” its create still applies once both are sorted; collapsing a quick-add group keeps one row and tombstones the other; a title patch does not create a meal; a goal set on Oct 1 is what Oct 2 uses, and a goal set on Oct 8 is what Oct 9 uses; a day before every goal has no goal; legacy `goal` migrates once.
+Shared fold tests: later `occurredAt` wins even if the older patch is applied second; a patch logged “before” its create still applies once both are sorted; collapsing a quick-add group keeps one row and tombstones the other; a title patch does not create a meal; a goal set on Oct 1 is what Oct 2 uses, and a goal set on Oct 8 is what Oct 9 uses; a day before every goal has no goal; a day-scoped goal changes only that day and survives a later forward goal on another calendar day; a later forward goal whose `setAt` falls on the override’s calendar day replaces that override; a one-day goal with no forward goal leaves neighboring days empty; legacy `goal` migrates once.
 
-Accept tests: a fractional calorie is rejected and a sibling op in the same batch still applies; repeating an `opId` is `duplicate` and does not double the calories; another user’s `opId` or `entityId` is `conflict`.
+Accept tests: a fractional calorie is rejected and a sibling op in the same batch still applies; repeating an `opId` is `duplicate` and does not double the calories; another user’s `opId` or `entityId` is `conflict`; a `goal.create` with `day` `2026-02-31` is rejected, and `2026-10-05` is stored on the goal.
 
 API tests against the file store: anonymous GET and POST are 401; an unknown bearer is 401; ops survive a new `FileStore` on the same file; a later patch beats an earlier one; a second user’s patch of the first user’s entry is `conflict`; missing `ops` is 400; `public/sw.js` contains the `/api/` bypass.
 
-Queue tests: backfill of an already-removed entry orders create then remove, both `count: false`, and folds to `removed: true`; restoring account A after account B was queued does not keep B’s ops; `resetOpenDocument` keeps `deviceId` and clears ops and `syncedUserId`.
+Queue tests: backfill of an already-removed entry orders create then remove, both `count: false`, and folds to `removed: true`; backfill of a day-scoped goal keeps `day` on the `goal.create` body and `count: false`; restoring account A after account B was queued does not keep B’s ops; `resetOpenDocument` keeps `deviceId` and clears ops and `syncedUserId`.
 
 There is no browser test and no screenshot test in the repo.
 
@@ -815,7 +832,7 @@ Five quick adds become one bubble. Edit, set 180, optional title `coffee`. Save.
 
 ### Goal history
 
-Save 2000 on Monday. Save 1800 on Friday. Monday through Thursday use 2000. Friday and after use 1800, until another goal is saved. The color window on Friday still subtracts 1800 from Monday, not 2000.
+Save 2000 on Monday. Save 1800 on Friday. Monday through Thursday use 2000. Friday and after use 1800, until another goal is saved. The color window on Friday still subtracts 1800 from Monday, not 2000. Saving 1600 from Monday’s day page changes Monday only. Thursday stays 2000, and a later forward goal does not put Monday back.
 
 ### Install
 

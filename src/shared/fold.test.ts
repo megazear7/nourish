@@ -2,10 +2,17 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { fold, goalForDay } from "./fold.js";
 import { normalizeState } from "./type.nutrition.js";
+import { addDays, parseDateKey } from "./util.dates.js";
 import type { Op } from "./type.op.js";
 
 function op(partial: Omit<Op, "body"> & { body?: Op["body"] }): Op {
   return { body: {}, ...partial } as Op;
+}
+
+function localIso(key: string, hours: number): string {
+  const date = parseDateKey(key);
+  date.setHours(hours, 0, 0, 0);
+  return date.toISOString();
 }
 
 describe("fold", () => {
@@ -183,6 +190,83 @@ describe("fold", () => {
     assert.equal(goalForDay(goals, "2026-10-02")?.calories, 2000);
     assert.equal(goalForDay(goals, "2026-10-09")?.calories, 1800);
     assert.equal(goalForDay(goals, "2026-09-01"), undefined);
+  });
+
+  it("keeps a day-scoped goal on that day only", () => {
+    const first = localIso("2026-10-01", 15);
+    const overrideAt = localIso("2026-10-13", 9);
+    const later = localIso("2026-10-13", 16);
+    const goals = fold([
+      op({
+        opId: "g1",
+        type: "goal.create",
+        entityId: "g1",
+        occurredAt: first,
+        body: { calories: 2000, setAt: first },
+      }),
+      op({
+        opId: "g-day",
+        type: "goal.create",
+        entityId: "g-day",
+        occurredAt: overrideAt,
+        body: { calories: 1600, setAt: overrideAt, day: "2026-10-05" },
+      }),
+      op({
+        opId: "g2",
+        type: "goal.create",
+        entityId: "g2",
+        occurredAt: later,
+        body: { calories: 1800, setAt: later },
+      }),
+    ]).goals;
+    assert.equal(goals.find((goal) => goal.id === "g-day")?.day, "2026-10-05");
+    assert.equal(goalForDay(goals, "2026-10-04")?.calories, 2000);
+    assert.equal(goalForDay(goals, "2026-10-05")?.calories, 1600);
+    assert.equal(goalForDay(goals, "2026-10-06")?.calories, 2000);
+    assert.equal(goalForDay(goals, "2026-10-12")?.calories, 2000);
+    assert.equal(goalForDay(goals, "2026-10-13")?.calories, 1800);
+    assert.equal(goalForDay(goals, "2026-10-14")?.calories, 1800);
+    assert.equal(goalForDay(goals, "2026-09-01"), undefined);
+  });
+
+  it("lets a later forward goal saved that same day replace a one-day goal", () => {
+    const day = "2026-10-05";
+    const overrideAt = localIso(day, 10);
+    const forwardAt = localIso(day, 15);
+    const goals = fold([
+      op({
+        opId: "day",
+        type: "goal.create",
+        entityId: "day",
+        occurredAt: overrideAt,
+        body: { calories: 1600, setAt: overrideAt, day },
+      }),
+      op({
+        opId: "forward",
+        type: "goal.create",
+        entityId: "forward",
+        occurredAt: forwardAt,
+        body: { calories: 1800, setAt: forwardAt },
+      }),
+    ]).goals;
+    assert.equal(goalForDay(goals, day)?.calories, 1800);
+    assert.equal(goalForDay(goals, addDays(day, 1))?.calories, 1800);
+    assert.equal(goalForDay(goals, addDays(day, -1)), undefined);
+  });
+
+  it("uses a one-day goal when no forward goal exists", () => {
+    const at = localIso("2026-10-13", 9);
+    const goals = fold([
+      op({
+        opId: "only",
+        type: "goal.create",
+        entityId: "only",
+        occurredAt: at,
+        body: { calories: 1600, setAt: at, day: "2026-10-05" },
+      }),
+    ]).goals;
+    assert.equal(goalForDay(goals, "2026-10-05")?.calories, 1600);
+    assert.equal(goalForDay(goals, "2026-10-06"), undefined);
   });
 
   it("turns the old single goal into one row and then drops it", () => {
