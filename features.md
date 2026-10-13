@@ -406,7 +406,7 @@ Path `/goal`. One form.
 - Check button, `aria-label="Save goal"`.
 - Help text, verbatim:
 
-  > Color uses a seven-day window. Today counts fully, yesterday half, and each older day a little less. Under the goal pulls the color back toward green. 150 over the weighted window is yellow. 300 over is red.
+  > The calorie color looks across the last seven days, not just today. Today counts in full, yesterday half as much, and each older day a little less. At or under this goal the number stays green (On track). A modest surplus fades toward yellow (Drifting). About 150 calories over that blend reads Running hot, and about 300 over turns red.
 
 Save requires an integer greater than 0. It appends a new forward goal `{ id, calories, setAt }` with `setAt` equal to now and no `day`. It does not change older goal rows. It enqueues `goal.create` with `occurredAt` and body `setAt` both set to that timestamp, then `pushState`s `/`. That goal applies to today and every later day that does not have its own day-scoped goal, including today when a one-day goal for today was saved earlier the same calendar day.
 

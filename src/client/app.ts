@@ -1666,9 +1666,11 @@ export class NourishApp extends LitElement {
           </svg>
         </button>
         <p class="tone-note">
-          Color uses a seven-day window. Today counts fully, yesterday half, and
-          each older day a little less. Under the goal pulls the color back
-          toward green. 150 over the weighted window is yellow. 300 over is red.
+          The calorie color looks across the last seven days, not just today.
+          Today counts in full, yesterday half as much, and each older day a
+          little less. At or under this goal the number stays green (On track).
+          A modest surplus fades toward yellow (Drifting). About 150 calories
+          over that blend reads Running hot, and about 300 over turns red.
         </p>
       </form>
     </section>`;
