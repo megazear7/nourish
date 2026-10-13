@@ -92,7 +92,7 @@ Both use class `offline-note` (gold, `0.85rem`) and `role="status"`.
 
 `syncNote` is set to:
 
-- `Sign in again to sync.` when the access token cannot be refreshed, or the API returns 401.
+- `Sign in again to sync.` when the access token cannot be refreshed, or the API returns 401. That line is a button (`.sync-reauth`): the same gold type, underlined, no chrome. It closes the menu if it is open and calls the same redirect as **Log in**. It does not log out first. Every other note stays plain text.
 - `Sync failed.` or `Sync failed (NNN).` on other failures.
 - `N change could not sync.` / `N changes could not sync.` when one or more ops in the batch are `rejected`. Applied and duplicate ops are still dropped from the queue.
 - `Food log synced. Activity totals could not be saved.` when `/api/ops` or `/api/state` succeeded and the identity PUT failed, and no other note was set.
@@ -115,7 +115,9 @@ Opening the menu closes any kebab and the edit sheet. The sheet is mounted first
   - The URL is the app root: `origin + "/"`, not the page you are on.
   - A phone or tablet (`pointer: coarse` and `hover: none`) with `navigator.share` opens the system share sheet. Title is **Nourish**, and the URL is that root. Dismissing the sheet does nothing else. A successful share closes the menu. If the sheet fails for another reason, it falls through to copy.
   - Desktop, and any device without the share sheet, copies that URL. The button label becomes **Copied** for 1.6 seconds. The menu stays open. If the clipboard API refuses, it falls back to selecting a hidden textarea and `document.execCommand("copy")`.
-- **Sign out** only when signed in. It sits at the bottom of the panel (`margin-top: auto`), below Share, outline pill, muted text. It closes the menu, calls Auth0 logout back to this origin, and sets the in-memory account to signed out. It does not clear `nourish-state`, the queue, or the activity document.
+- Bottom button only when signed in. It sits at the bottom of the panel (`margin-top: auto`), below Share, outline pill, muted text.
+  - Usually **Sign out**. It closes the menu, calls Auth0 logout back to this origin, and sets the in-memory account to signed out. It does not clear `nourish-state`, the queue, or the activity document.
+  - When the status line is **Sign in again to sync.**, that button reads **Re-authenticate**. It closes the menu and calls the same `loginWithRedirect` as **Log in**. It does not log out.
 
 There is no close button. There is no link to a day, a meal, or new-meal.
 
@@ -486,9 +488,9 @@ On load, if the query has both `code` and `state`, `handleRedirectCallback` runs
 
 If Auth0 says the user is authenticated and `getUser()` has a `sub`, status is `signed-in` with `sub`, `name`, `email`, and `picture` (missing strings become empty). Otherwise signed out.
 
-**Log in** calls `loginWithRedirect` with the same audience and redirect. **Sign up** adds `screen_hint: "signup"`.
+**Log in** calls `loginWithRedirect` with the same audience and redirect. **Sign up** adds `screen_hint: "signup"`. The **Sign in again to sync.** status button and the menu’s **Re-authenticate** button both call **Log in**.
 
-**Sign out** calls `logout` with `returnTo` set to this origin. Auth0 leaves the page. The food log remains on the device.
+**Sign out** calls `logout` with `returnTo` set to this origin. Auth0 leaves the page. The food log remains on the device. **Re-authenticate** does not call this.
 
 Access tokens are sent as `Authorization: Bearer`. The raw ID token is sent only as `X-ID-Token` on the identity activity PUT. Access tokens do not include email unless an Auth0 Action adds it. The server stores a null email in that case.
 

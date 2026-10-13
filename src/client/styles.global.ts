@@ -158,6 +158,22 @@ export const appStyles = css`
     font-size: 0.85rem;
   }
 
+  .sync-reauth {
+    border: 0;
+    padding: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+    cursor: pointer;
+  }
+
+  .sync-reauth:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+  }
+
   .day-summary {
     padding: 1.5rem 0 1rem;
   }

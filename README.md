@@ -12,7 +12,7 @@ Sign-out does not wipe the device. Switching accounts stashes the previous accou
 
 ## Account
 
-The header icon opens the menu. Signed out, the top offers Log in and Sign up. Signed in, your name stays at the top and Sign out sits at the bottom of the menu.
+The header icon opens the menu. Signed out, the top offers Log in and Sign up. Signed in, your name stays at the top and Sign out sits at the bottom of the menu. If the session has expired, the gold line **Sign in again to sync.** opens Log in, and that bottom button says **Re-authenticate** instead of Sign out.
 
 Auth0 is a bundled SPA (`@auth0/auth0-spa-js`), with refresh tokens in localStorage. The access token is sent as `Authorization`. The ID token is sent only as `X-ID-Token` when saving activity. Login count increments on an interactive login (the redirect callback), not when a silent token refresh opens the app.
 

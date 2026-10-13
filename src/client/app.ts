@@ -47,7 +47,7 @@ import {
   signedOut,
   type Account,
 } from "./util.auth.js";
-import { backfillCreates, flushSync } from "./util.sync.js";
+import { backfillCreates, flushSync, signInAgainNote } from "./util.sync.js";
 import { appStyles } from "./styles.global.js";
 
 type PageName =
@@ -370,7 +370,7 @@ export class NourishApp extends LitElement {
     if (this.account.status !== "signed-in") return;
     const token = await accessToken();
     if (!token) {
-      this.syncNote = "Sign in again to sync.";
+      this.syncNote = signInAgainNote;
       return;
     }
     try {
@@ -501,6 +501,15 @@ export class NourishApp extends LitElement {
       return;
     }
     await login(signup);
+  }
+
+  private needsReauth(): boolean {
+    return this.syncNote === signInAgainNote;
+  }
+
+  private async reauthenticate(): Promise<void> {
+    this.closeMenu();
+    await this.signIn(false);
   }
 
   private async signOut(): Promise<void> {
@@ -1759,7 +1768,17 @@ export class NourishApp extends LitElement {
         }
         ${
           this.syncNote
-            ? html`<p class="offline-note" role="status">${this.syncNote}</p>`
+            ? this.needsReauth()
+              ? html`<p class="offline-note" role="status">
+                  <button
+                    class="sync-reauth"
+                    type="button"
+                    @click=${() => void this.reauthenticate()}
+                  >
+                    ${this.syncNote}
+                  </button>
+                </p>`
+              : html`<p class="offline-note" role="status">${this.syncNote}</p>`
             : ""
         }
         ${this.page === "today" ? this.renderToday() : ""}
@@ -1814,9 +1833,12 @@ export class NourishApp extends LitElement {
                     ? html`<button
                         class="menu-sign-out"
                         type="button"
-                        @click=${() => this.signOut()}
+                        @click=${() =>
+                          this.needsReauth()
+                            ? void this.reauthenticate()
+                            : void this.signOut()}
                       >
-                        Sign out
+                        ${this.needsReauth() ? "Re-authenticate" : "Sign out"}
                       </button>`
                     : ""
                 }

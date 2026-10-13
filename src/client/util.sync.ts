@@ -51,6 +51,8 @@ function paint(base: NutritionState, pending: QueuedOp[]): NutritionState {
   );
 }
 
+export const signInAgainNote = "Sign in again to sync.";
+
 let chain: Promise<void> = Promise.resolve();
 
 export function flushSync(
@@ -85,7 +87,7 @@ async function pushAndPull(
         ops: queue.ops.map(({ count: _count, ...op }) => op),
       }),
     });
-    if (response.status === 401) throw new Error("Sign in again to sync.");
+    if (response.status === 401) throw new Error(signInAgainNote);
     if (!response.ok) throw new Error(`Sync failed (${response.status}).`);
     const payload = (await response.json()) as SyncResponse;
     const finished = (payload.results ?? [])
@@ -115,7 +117,7 @@ async function pushAndPull(
     return;
   }
   const response = await fetch("/api/state", { headers });
-  if (response.status === 401) throw new Error("Sign in again to sync.");
+  if (response.status === 401) throw new Error(signInAgainNote);
   if (!response.ok) throw new Error(`Sync failed (${response.status}).`);
   const payload = (await response.json()) as NutritionState;
   const next = stateFrom(payload);
