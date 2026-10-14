@@ -232,6 +232,67 @@ export const appStyles = css`
     outline-offset: 2px;
   }
 
+  .fast-link {
+    border: 0;
+    padding: 0;
+    margin: 0.25rem 0 0;
+    background: none;
+    color: var(--muted);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .fast-link:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+  }
+
+  .fast-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+
+  .fast-switch {
+    position: relative;
+    flex: none;
+    width: 3rem;
+    height: 1.75rem;
+    border: 1px solid var(--muted);
+    border-radius: 999px;
+    padding: 0;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  .fast-switch::after {
+    content: "";
+    position: absolute;
+    top: 0.2rem;
+    left: 0.2rem;
+    width: 1.2rem;
+    height: 1.2rem;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: transform 0.15s;
+  }
+
+  .fast-switch[aria-checked="true"] {
+    border-color: var(--gold);
+  }
+
+  .fast-switch[aria-checked="true"]::after {
+    background: var(--gold);
+    transform: translateX(1.2rem);
+  }
+
+  .fast-switch:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+  }
+
   .calorie-unit,
   .goal-note,
   .tone-note,

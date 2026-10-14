@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { fold, goalForDay } from "./fold.js";
+import { fastForDay, fold, goalForDay, isFasted } from "./fold.js";
 import { normalizeState } from "./type.nutrition.js";
 import { addDays, parseDateKey } from "./util.dates.js";
 import type { Op } from "./type.op.js";
@@ -341,5 +341,50 @@ describe("fold", () => {
       state.meals.map((item) => item.id),
       ["b", "a"],
     );
+  });
+});
+
+describe("fasts", () => {
+  const fastOp = (
+    id: string,
+    at: string,
+    fasted: boolean,
+    day = "2026-10-05",
+  ) =>
+    op({
+      opId: `o-${id}`,
+      type: "fast.set",
+      entityId: id,
+      occurredAt: at,
+      body: { day, fasted, setAt: at },
+    });
+
+  it("lets the later fast.set for a day win and fasted false clears it", () => {
+    const on = fastOp("f1", "2026-10-05T10:00:00.000Z", true);
+    const off = fastOp("f2", "2026-10-05T11:00:00.000Z", false);
+    assert.equal(isFasted(fold([on]).fasts, "2026-10-05"), true);
+    const both = fold([off, on]);
+    assert.equal(both.fasts.length, 2);
+    assert.equal(isFasted(both.fasts, "2026-10-05"), false);
+    assert.equal(isFasted(both.fasts, "2026-10-06"), false);
+  });
+
+  it("breaks a setAt tie with the greater id", () => {
+    const at = "2026-10-05T10:00:00.000Z";
+    const state = fold([fastOp("a", at, true), fastOp("b", at, false)]);
+    assert.equal(fastForDay(state.fasts, "2026-10-05")?.id, "b");
+  });
+});
+
+describe("normalizeState fasts", () => {
+  it("loads a document without fasts", () => {
+    const loaded = normalizeState(
+      { entries: [], meals: [], goals: [] },
+      () => ({
+        id: "x",
+        setAt: "2026-10-05T10:00:00.000Z",
+      }),
+    );
+    assert.deepEqual(loaded?.state.fasts, []);
   });
 });

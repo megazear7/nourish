@@ -21,9 +21,10 @@ import {
   toneColor,
   toneLabel,
   weightedOver,
+  UNTRACKED_FALLBACK,
   dayTotal,
 } from "../shared/util.score.js";
-import { goalForDay } from "../shared/fold.js";
+import { goalForDay, isFasted } from "../shared/fold.js";
 import { loadState, saveState } from "./util.storage.js";
 import {
   enqueue,
@@ -195,6 +196,7 @@ export class NourishApp extends LitElement {
   @state() private editDescription = "";
   @state() private dayGoalKey = "";
   @state() private dayGoalCalories = "";
+  @state() private fastKey = "";
   private editIds: string[] = [];
   private lastAddClickAt = 0;
   private lastAddStamp = "";
@@ -650,6 +652,7 @@ export class NourishApp extends LitElement {
     this.editKey = "";
     this.editIds = [];
     this.dayGoalKey = "";
+    this.fastKey = "";
   }
 
   private beginEdit(shown: ShownEntry): void {
@@ -913,6 +916,28 @@ export class NourishApp extends LitElement {
     this.renderRoot.querySelector<HTMLElement>(":focus")?.blur();
   }
 
+  private openFast(key: string): void {
+    this.kebabKey = "";
+    this.closeMenu();
+    this.mealPickerOpen = false;
+    this.closeEdit();
+    this.fastKey = key;
+    this.renderRoot.querySelector<HTMLElement>(":focus")?.blur();
+  }
+
+  private setFasted(day: string, fasted: boolean): void {
+    const setAt = new Date().toISOString();
+    const fast = { id: crypto.randomUUID(), day, fasted, setAt };
+    this.commit({ ...this.state, fasts: [...this.state.fasts, fast] }, [
+      {
+        type: "fast.set",
+        entityId: fast.id,
+        occurredAt: setAt,
+        body: { day, fasted, setAt },
+      },
+    ]);
+  }
+
   private saveDayGoal(event: Event): void {
     event.preventDefault();
     const key = this.dayGoalKey;
@@ -984,12 +1009,20 @@ export class NourishApp extends LitElement {
     return Boolean(first) && day < today && day > first;
   }
 
+  private renderFastLink(key: string, ask: string): TemplateResult {
+    const text = isFasted(this.state.fasts, key) ? "I fasted today." : ask;
+    // prettier-ignore
+    return html`<button class="fast-link" type="button" @click=${() => this.openFast(key)}>${text}</button>`;
+  }
+
   private renderDay() {
     const key = this.selectedDayKey;
     const label = formatDayLabel(key, todayKey());
     const total = dayTotal(this.state.entries, key);
     const goal = this.caloriesFor(key);
-    const weighted = goal ? weightedOver(this.state.entries, key, goal) : 0;
+    const weighted = goal
+      ? weightedOver(this.state.entries, key, goal, this.state.fasts)
+      : 0;
     const color = goal ? toneColor(weighted) : "var(--ink)";
     const entries = this.dayEntries(key);
     return html`
@@ -1008,7 +1041,8 @@ export class NourishApp extends LitElement {
           ? html`<ul class="entry-list">
               ${shownEntries(entries).map((entry) => this.renderEntry(entry))}
             </ul>`
-          : html`<p class="empty-note">Nothing logged this day.</p>`
+          : html`<p class="empty-note">Nothing logged this day.</p>
+              ${this.renderFastLink(key, "Or did you fast today?")}`
       }
       ${this.renderActionDock()}
     `;
@@ -1046,7 +1080,9 @@ export class NourishApp extends LitElement {
     const today = todayKey();
     const total = dayTotal(this.state.entries, today);
     const goal = this.caloriesFor(today);
-    const weighted = goal ? weightedOver(this.state.entries, today, goal) : 0;
+    const weighted = goal
+      ? weightedOver(this.state.entries, today, goal, this.state.fasts)
+      : 0;
     const color = goal ? toneColor(weighted) : "var(--ink)";
     return html`
       <section class="day-summary">
@@ -1065,8 +1101,9 @@ export class NourishApp extends LitElement {
               ${shownEntries(this.todayEntries()).map((entry) => this.renderEntry(entry))}
             </ul>`
           : html`<p class="empty-note">
-              Nothing logged yet. Add a bite when you eat it.
-            </p>`
+                Nothing logged yet. Add a bite when you eat it.
+              </p>
+              ${this.renderFastLink(today, "Or did you fast today?")}`
       }
       ${this.renderActionDock()}
     `;
@@ -1405,7 +1442,9 @@ export class NourishApp extends LitElement {
         const total = dayTotal(this.state.entries, day);
         const goal = this.caloriesFor(day);
         const color = goal
-          ? toneColor(weightedOver(this.state.entries, day, goal))
+          ? toneColor(
+              weightedOver(this.state.entries, day, goal, this.state.fasts),
+            )
           : "var(--ink)";
         return html`<li class="day-card day-link">
           <button
@@ -1464,7 +1503,14 @@ export class NourishApp extends LitElement {
           const goal = this.caloriesFor(cell.key);
           const color =
             show && cell.inMonth && goal
-              ? toneColor(weightedOver(this.state.entries, cell.key, goal))
+              ? toneColor(
+                  weightedOver(
+                    this.state.entries,
+                    cell.key,
+                    goal,
+                    this.state.fasts,
+                  ),
+                )
               : "var(--muted)";
           const classes = `calendar-day ${cell.inMonth ? "" : "outside"} ${cell.key === today ? "is-today" : ""}`;
           return happened
@@ -1846,7 +1892,55 @@ export class NourishApp extends LitElement {
             </div>`
           : ""
       }
-      ${this.renderEdit()} ${this.renderDayGoal()}
+      ${this.renderEdit()} ${this.renderDayGoal()} ${this.renderFast()}
+    </div>`;
+  }
+
+  private renderFast() {
+    const key = this.fastKey;
+    if (!key) return "";
+    const fasted = isFasted(this.state.fasts, key);
+    const assumed = this.caloriesFor(key) ?? UNTRACKED_FALLBACK;
+    const close = () => {
+      this.fastKey = "";
+    };
+    return html`<div
+      class="edit-sheet"
+      @click=${close}
+      @keydown=${(event: KeyboardEvent) => {
+        if (event.key === "Escape") close();
+      }}
+    >
+      <div
+        class="edit-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="fast-heading"
+        @click=${(event: Event) => event.stopPropagation()}
+      >
+        <h2 id="fast-heading" class="edit-heading">Did you fast?</h2>
+        <p class="tone-note">
+          ${
+            fasted
+              ? "This day will be counted as 0 calories because you marked it as a fast."
+              : `This day will be counted as ${assumed} calories for the purpose of goal tracking since no food was logged.`
+          }
+        </p>
+        <div class="fast-row">
+          <span id="fast-switch-label">I fasted today</span>
+          <button
+            class="fast-switch"
+            type="button"
+            role="switch"
+            aria-checked=${fasted ? "true" : "false"}
+            aria-labelledby="fast-switch-label"
+            @click=${() => this.setFasted(key, !fasted)}
+          ></button>
+        </div>
+        <p class="tone-note">
+          Turn on this toggle if you actually did not eat anything today.
+        </p>
+      </div>
     </div>`;
   }
 
