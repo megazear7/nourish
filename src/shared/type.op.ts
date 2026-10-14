@@ -10,6 +10,7 @@ export const OP_TYPES = [
   "meal.remove",
   "meal.reorder",
   "goal.create",
+  "fast.set",
 ] as const;
 
 export type OpType = (typeof OP_TYPES)[number];
@@ -65,6 +66,14 @@ const goalBody = z.object({
     .optional(),
 });
 
+const fastBody = z.object({
+  day: z.string().refine((value) => isDateKey(value), {
+    message: "expected a date",
+  }),
+  fasted: z.boolean(),
+  setAt: iso,
+});
+
 const emptyBody = z.object({}).strict();
 
 const bodies = {
@@ -76,6 +85,7 @@ const bodies = {
   "meal.remove": emptyBody,
   "meal.reorder": mealReorderBody,
   "goal.create": goalBody,
+  "fast.set": fastBody,
 } as const;
 
 export const Op = z

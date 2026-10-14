@@ -1,4 +1,5 @@
-import { CalorieEntry } from "./type.nutrition.js";
+import { isFasted } from "./fold.js";
+import { CalorieEntry, Fast } from "./type.nutrition.js";
 import { addDays, dateKey } from "./util.dates.js";
 
 export const YELLOW_OVER = 150;
@@ -22,14 +23,31 @@ export function dayTotal(entries: CalorieEntry[], day: string): number {
     .reduce((sum, entry) => sum + entry.calories, 0);
 }
 
+export const UNTRACKED_FALLBACK = 2000;
+
+export function assumedCalories(
+  entries: CalorieEntry[],
+  day: string,
+  goal: number | undefined,
+  fasts: Fast[] = [],
+): number {
+  const logged = entries.some(
+    (entry) => !entry.removed && dateKey(new Date(entry.timestamp)) === day,
+  );
+  if (logged) return dayTotal(entries, day);
+  if (isFasted(fasts, day)) return 0;
+  return goal ?? UNTRACKED_FALLBACK;
+}
+
 export function weightedOver(
   entries: CalorieEntry[],
   day: string,
   goal: number,
+  fasts: Fast[] = [],
 ): number {
   return WINDOW.reduce((sum, slot) => {
     const slotDay = addDays(day, -slot.daysAgo);
-    const delta = dayTotal(entries, slotDay) - goal;
+    const delta = assumedCalories(entries, slotDay, goal, fasts) - goal;
     return sum + delta * slot.weight;
   }, 0);
 }

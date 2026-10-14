@@ -16,6 +16,7 @@ export type SyncResponse = {
   entries?: NutritionState["entries"];
   meals?: NutritionState["meals"];
   goals?: NutritionState["goals"];
+  fasts?: NutritionState["fasts"];
 };
 
 function stateFrom(
@@ -32,6 +33,7 @@ function stateFrom(
       entries: payload.entries,
       meals: payload.meals ?? [],
       goals: payload.goals ?? [],
+      fasts: payload.fasts ?? [],
     };
   }
   return null;
@@ -140,6 +142,9 @@ export function backfillCreates(state: NutritionState): void {
       .filter((op) => op.type.endsWith(".create"))
       .map((op) => op.entityId),
   );
+  const queuedFasts = new Set(
+    queue.ops.filter((op) => op.type === "fast.set").map((op) => op.entityId),
+  );
   const drafts: OpDraft[] = [];
   for (const entry of state.entries) {
     if (created.has(entry.id)) continue;
@@ -200,6 +205,16 @@ export function backfillCreates(state: NutritionState): void {
         setAt: goal.setAt,
         ...(goal.day ? { day: goal.day } : {}),
       },
+    });
+  }
+  for (const fast of state.fasts) {
+    if (created.has(fast.id) || queuedFasts.has(fast.id)) continue;
+    drafts.push({
+      type: "fast.set" as const,
+      entityId: fast.id,
+      occurredAt: fast.setAt,
+      count: false,
+      body: { day: fast.day, fasted: fast.fasted, setAt: fast.setAt },
     });
   }
   if (!drafts.length) return;

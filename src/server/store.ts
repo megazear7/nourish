@@ -47,6 +47,7 @@ export function applyPersisted(
   for (const entry of outcome.state.entries) ids.add(entry.id);
   for (const meal of outcome.state.meals) ids.add(meal.id);
   for (const goal of outcome.state.goals) ids.add(goal.id);
+  for (const fast of outcome.state.fasts) ids.add(fast.id);
   data.owners = [
     ...data.owners.filter((owner) => owner.userId !== userId),
     ...[...ids].map((entityId) => ({ entityId, userId })),

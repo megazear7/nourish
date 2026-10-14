@@ -132,7 +132,7 @@ Summary block:
 - Huge number (`4.4rem`) of today’s calorie total. Color is the tone color when a goal exists, otherwise `--ink` (`#f4efe6`). The total is not formatted with thousands separators.
 - Beside it, a muted button. When a goal applies to today the line reads `/ {goal} calories` and only the number is the button, `aria-label="Change goal"`. The goal number is not formatted with thousands separators. The word **calories** is not a control. When today has no goal the button’s label is exactly `/ no goal set`, `aria-label="Set a goal"`. Either click calls `navigate("goal")`. The button uses `.goal-link`: no border, no background, inherited muted type.
 
-Rows: non-removed entries whose local date is today, passed through the bubble grouper, newest bubble first. Empty copy: **Nothing logged yet. Add a bite when you eat it.**
+Rows: non-removed entries whose local date is today, passed through the bubble grouper, newest bubble first. Empty copy: **Nothing logged yet. Add a bite when you eat it.** and, as a separate line below it, a link-style button **Or did you fast today?** See [Fast modal](#fast-modal). The button is not part of the paragraph. It uses `.fast-link`: no border, no background, muted, gold focus ring. When today is already marked fasted and has no entries, the button reads **I fasted today.** It is hidden when today has entries.
 
 The bottom action dock is shown on Today and on a day page only.
 
@@ -157,7 +157,7 @@ The modal reuses the edit sheet: dim layer `.edit-sheet`, dialog `.edit-modal`, 
 
 Save requires an integer greater than 0. It appends `{ id, calories, setAt, day }` where `day` is this page’s date key and `setAt` is now. It enqueues `goal.create` with that body and `occurredAt` equal to `setAt`, closes the modal, and stays on this URL. It does not push a history entry. No title, description, nudges, or color paragraph.
 
-Empty copy: **Nothing logged this day.**
+Empty copy: **Nothing logged this day.** followed by the same `.fast-link` button, **Or did you fast today?** (**I fasted today.** when that date is marked fasted), including when the date is today. It opens the [Fast modal](#fast-modal) for that page’s date key. It is hidden when the day has entries.
 
 The dock is the same four buttons. Calories added here are not stamped “now”. See [When a new row is stamped](#when-a-new-row-is-stamped).
 
@@ -426,6 +426,18 @@ A day with no forward goal and no override has no goal: no status label, ink-col
 
 `latestGoal` is the greatest `setAt`, then id, among goals that have no `day`. Day-scoped goals do not become the activity document’s current goal. The live screen uses `goalForDay` for today instead, which matches `latestGoal` unless a goal is stamped in the future or today has a day-scoped override that is still newer than any forward goal set on that same calendar day.
 
+### Fast modal
+
+Opened by the empty-state fast link on Today (day key `todayKey()`) or on a day page (that page’s key). It is rendered next to the edit and day-goal modals so both pages share it. It reuses the edit sheet: `.edit-sheet` dim layer, `.edit-modal` dialog, `role="dialog"`, `aria-modal="true"`, labelled by `#fast-heading`. Clicking the dim layer closes it. `Escape` while focus is inside closes it. Clicking the dialog does not. No history entry. No check button. Closing does not discard a toggle.
+
+- Heading **Did you fast?**
+- Toggle off: **This day will be counted as X calories for the purpose of goal tracking since no food was logged.** X is that day’s goal from `goalForDay`, or 2000 when the day has no goal. Not formatted with thousands separators.
+- Toggle on: **This day will be counted as 0 calories because you marked it as a fast.**
+- A switch labelled **I fasted today**: a `button` with `role="switch"` and `aria-checked`.
+- Under it: **Turn on this toggle if you actually did not eat anything today.**
+
+Flipping the switch commits at once: it appends a `Fast` `{ id, day, fasted, setAt }` with a new UUID and `setAt` now, and enqueues `fast.set` with `occurredAt` now and body `{ day, fasted, setAt }`. The modal stays open and the text updates. Turning it off writes `fasted: false`; older rows are never changed or removed. Logging food later does not clear the mark; the food is scored and the link hides, and if all entries are removed the mark applies again.
+
 ### Color
 
 Constants in [src/shared/util.score.ts](src/shared/util.score.ts):
@@ -436,7 +448,11 @@ Constants in [src/shared/util.score.ts](src/shared/util.score.ts):
 - Yellow threshold `150`
 - Red threshold `300`
 
-For a viewed day D and that day’s goal G, look at D, D−1, … D−6. Each slot contributes `(calories that day − G) * weight`.
+For a viewed day D and that day’s goal G, look at D, D−1, … D−6. Each slot contributes `(assumed calories that day − G) * weight`, where assumed calories (`assumedCalories` in [src/shared/util.score.ts](src/shared/util.score.ts)) depend on the day’s status:
+
+- **Logged**: at least one non-removed entry. The sum of those entries. A fast mark is ignored while food exists.
+- **Fasted**: no non-removed entries and the latest fast mark for that date says fasted (greatest `setAt`, then greater `id`). 0.
+- **Untracked**: no non-removed entries and not fasted. G, the viewed day’s goal, or `UNTRACKED_FALLBACK` (2000) when the viewed day has no goal.
 
 | Days before D | Weight |
 | --- | --- |
@@ -448,7 +464,7 @@ For a viewed day D and that day’s goal G, look at D, D−1, … D−6. Each sl
 | 5 | 1/6 |
 | 6 | 1/7 |
 
-The same G is subtracted for every slot. Older days do not use their own historical goal inside this sum. A day under goal produces a negative term and can pull a later overage back toward green. Removed entries are excluded. Empty days count as 0 − G, which is negative.
+The same G is subtracted for every slot. Older days do not use their own historical goal inside this sum. A day under goal produces a negative term and can pull a later overage back toward green. Removed entries are excluded. An untracked empty day counts as G, so it contributes 0. A day marked fasted with no food counts as 0, so it contributes `−G * weight`. Example: goal 1800, today 2230, the previous six days untracked, gives a weighted sum of 430, which is Over the window. The big calorie numbers (Today, day pages, history, calendar) stay the logged total, so an untracked or fasted day still shows 0. Only the tone color and status label use assumed calories.
 
 | Weighted sum | Label | Color |
 | --- | --- | --- |
@@ -552,7 +568,7 @@ Netlify headers: `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Re
 
 | Key | Contents |
 | --- | --- |
-| `nourish-state` | `{ entries, meals, goals }`. This is the open document |
+| `nourish-state` | `{ entries, meals, goals, fasts }`. A document without `fasts` loads with `fasts: []`. This is the open document |
 | `nourish-queue` | `{ deviceId, syncedUserId, ops }` |
 | `nourish-account:{userId}` | Stash `{ state, queue }` for a previous signed-in user on this device |
 | `nourish-activity` | Activity counters. One document for the browser profile, not keyed by user |
@@ -580,6 +596,7 @@ Backfill, for anything not already represented by a `*.create` op still in the q
 - Each entry: `entry.create` at the entry’s own timestamp, `count: false`. If the entry is already removed, a following `entry.remove` at that timestamp plus 1 millisecond, also `count: false`.
 - Each meal: `meal.create` at now, `count: false`, and `meal.remove` one millisecond later if removed.
 - Each goal: `goal.create` at the goal’s `setAt`, `count: false`. The body is `{ calories, setAt }` plus `day` when the stored goal has one.
+- Each fast not already queued as a `fast.set`: `fast.set` at the fast’s `setAt`, `count: false`, body `{ day, fasted, setAt }`.
 
 `count: false` means the activity counters do not increase. The food log still syncs.
 
@@ -625,6 +642,7 @@ Types, in [src/shared/type.op.ts](src/shared/type.op.ts):
 | `meal.remove` | Empty object | Set `removed: true` if the meal exists |
 | `meal.reorder` | `ids`: at least one UUID. Duplicates are allowed by the schema; the fold keeps the first | Rebuild meal order: listed ids that exist, in that order, then any meal not listed, in its previous order. After this, a later `meal.create` is inserted at the front. Before any reorder, creates still append in time order |
 | `goal.create` | `calories` positive integer, `setAt` non-empty, optional `day`. `day` must be a real local date key (`YYYY-MM-DD` that survives `dateKey(parseDateKey(day))`). An invalid `day` rejects the op. Omitting `day` stays valid | Insert if that id is new. `day` is copied onto the goal when present. Goals are never updated or removed |
+| `fast.set` | `day` real local date key (same rule as a day-scoped goal), `fasted` boolean, `setAt` non-empty | Insert if that id is new. Each toggle is a new row with a new UUID; older rows are never updated or deleted. Per day the greatest `setAt` wins, then the greater id |
 
 `opId` and `entityId` must be UUIDs. `occurredAt` must be a non-empty string.
 
@@ -652,7 +670,9 @@ Response JSON: `{ results: [{ opId, status, reason? }], state }`. `state` is the
 
 **Goal:** `id` (min 1), `calories` (positive integer), `setAt` (min 1), optional `day` (a real local date key). No `day` means the goal runs forward from `setAt`. A `day` means that one date only.
 
-**NutritionState:** `entries`, `meals`, `goals`.
+**Fast:** `id` (min 1), `day` (a real local date key), `fasted` (boolean), `setAt` (min 1). Per day, the greatest `setAt` wins; on a tie the greater `id`; no mark means not fasted (`fastForDay`, `isFasted` in [src/shared/fold.ts](src/shared/fold.ts)).
+
+**NutritionState:** `entries`, `meals`, `goals`, `fasts`.
 
 **DaySummary** (`date`, `totalCalories`, optional `goal`) is defined and not used by the UI.
 
@@ -693,10 +713,11 @@ Migration [netlify/database/migrations/20261009120000_nourish_log.sql](netlify/d
 | Table | Role |
 | --- | --- |
 | `nourish_users` | `user_id` primary key, nullable `email`, `created_at`, `updated_at`. Email is filled in with `COALESCE` so a later token without email does not wipe a known email |
-| `operations` | Append-only. `op_id` UUID primary key. `user_id` FK cascade. `device_id` UUID nullable. `entity_id`, `op_type` check constraint for the eight types, `occurred_at`, `received_at` default now, `body` JSONB. Index `(user_id, occurred_at, op_id)`. Insert is `ON CONFLICT (op_id) DO NOTHING`. `meal.reorder` is added by [netlify/database/migrations/20261011150000_meal_reorder.sql](netlify/database/migrations/20261011150000_meal_reorder.sql), which replaces `operations_op_type_check` |
+| `operations` | Append-only. `op_id` UUID primary key. `user_id` FK cascade. `device_id` UUID nullable. `entity_id`, `op_type` check constraint for the nine types, `occurred_at`, `received_at` default now, `body` JSONB. Index `(user_id, occurred_at, op_id)`. Insert is `ON CONFLICT (op_id) DO NOTHING`. `meal.reorder` is added by [netlify/database/migrations/20261011150000_meal_reorder.sql](netlify/database/migrations/20261011150000_meal_reorder.sql), which replaces `operations_op_type_check`; `fast.set` is added the same way by [netlify/database/migrations/20261014120000_fasts.sql](netlify/database/migrations/20261014120000_fasts.sql) |
 | `calorie_entries` | Folded read model, rewritten on each sync. Positive calories, `eaten_at`, optional meal fields, `removed` default false |
 | `meals` | Same. Title required, description default `''`, calories ≥ 0, `removed` |
 | `goals` | Same. Positive calories, `set_at`. Nullable `day` text, added by [netlify/database/migrations/20261013130000_goal_day.sql](netlify/database/migrations/20261013130000_goal_day.sql). Null is a forward goal. A date key is one day. Index `(user_id, set_at)` |
+| `fasts` | Same, rewritten on each sync. `id` UUID primary key, `user_id` FK cascade, `day` text, `fasted` boolean, `set_at`, `updated_at`. Created by [netlify/database/migrations/20261014120000_fasts.sql](netlify/database/migrations/20261014120000_fasts.sql). Fast ids are part of the entity-owner lookup before `acceptOps` |
 
 On sync the three read-model tables for that user are deleted and reinserted from the fold, including removed rows. `GET /api/state` does **not** read those tables. It loads `operations` and folds them. Inserting the user row on read uses `ON CONFLICT DO NOTHING` and does not refresh email.
 
@@ -715,7 +736,7 @@ Local server only. [src/server/file-store.ts](src/server/file-store.ts) writes `
 | Request | Auth | Result |
 | --- | --- | --- |
 | `OPTIONS` any | no | 204 empty |
-| `GET /api/state` | bearer | 200 nutrition state. Creates the user row if needed. Empty log is `{ entries: [], meals: [], goals: [] }` |
+| `GET /api/state` | bearer | 200 nutrition state. Creates the user row if needed. Empty log is `{ entries: [], meals: [], goals: [], fasts: [] }` |
 | `POST /api/ops` | bearer | 200 `{ results, state }` |
 | anything else under the function | bearer | 404 JSON |
 | missing or bad token | | 401 JSON, not the HTML shell |
@@ -755,13 +776,15 @@ Dependencies that ship: `lit`, `@lit/context` (declared; the live app does not c
 
 ## Tests that lock behavior
 
-Shared fold tests: later `occurredAt` wins even if the older patch is applied second; a patch logged “before” its create still applies once both are sorted; collapsing a quick-add group keeps one row and tombstones the other; a title patch does not create a meal; a goal set on Oct 1 is what Oct 2 uses, and a goal set on Oct 8 is what Oct 9 uses; a day before every goal has no goal; a day-scoped goal changes only that day and survives a later forward goal on another calendar day; a later forward goal whose `setAt` falls on the override’s calendar day replaces that override; a one-day goal with no forward goal leaves neighboring days empty; legacy `goal` migrates once.
+Shared fold tests: later `occurredAt` wins even if the older patch is applied second; a patch logged “before” its create still applies once both are sorted; collapsing a quick-add group keeps one row and tombstones the other; a title patch does not create a meal; a later `fast.set` for the same day wins and `fasted: false` clears it; a document without `fasts` loads; a goal set on Oct 1 is what Oct 2 uses, and a goal set on Oct 8 is what Oct 9 uses; a day before every goal has no goal; a day-scoped goal changes only that day and survives a later forward goal on another calendar day; a later forward goal whose `setAt` falls on the override’s calendar day replaces that override; a one-day goal with no forward goal leaves neighboring days empty; legacy `goal` migrates once.
 
 Accept tests: a fractional calorie is rejected and a sibling op in the same batch still applies; repeating an `opId` is `duplicate` and does not double the calories; another user’s `opId` or `entityId` is `conflict`; a `goal.create` with `day` `2026-02-31` is rejected, and `2026-10-05` is stored on the goal.
 
 API tests against the file store: anonymous GET and POST are 401; an unknown bearer is 401; ops survive a new `FileStore` on the same file; a later patch beats an earlier one; a second user’s patch of the first user’s entry is `conflict`; missing `ops` is 400; `public/sw.js` contains the `/api/` bypass.
 
-Queue tests: backfill of an already-removed entry orders create then remove, both `count: false`, and folds to `removed: true`; backfill of a day-scoped goal keeps `day` on the `goal.create` body and `count: false`; restoring account A after account B was queued does not keep B’s ops; `resetOpenDocument` keeps `deviceId` and clears ops and `syncedUserId`.
+Queue tests: backfill of an already-removed entry orders create then remove, both `count: false`, and folds to `removed: true`; backfill of a day-scoped goal keeps `day` on the `goal.create` body and `count: false`; backfill of a local fast enqueues one `fast.set` with `count: false`; restoring account A after account B was queued does not keep B’s ops; `resetOpenDocument` keeps `deviceId` and clears ops and `syncedUserId`.
+
+Score tests ([src/shared/util.score.test.ts](src/shared/util.score.test.ts)): assumed calories for logged, fasted, untracked, and missing-goal days; goal 1800 with today at 2230 and six untracked days is 430, Over the window; a fasted yesterday contributes −900; a logged day uses its real total.
 
 There is no browser test and no screenshot test in the repo.
 
@@ -834,7 +857,7 @@ Five quick adds become one bubble. Edit, set 180, optional title `coffee`. Save.
 
 ### Goal history
 
-Save 2000 on Monday. Save 1800 on Friday. Monday through Thursday use 2000. Friday and after use 1800, until another goal is saved. The color window on Friday still subtracts 1800 from Monday, not 2000. Saving 1600 from Monday’s day page changes Monday only. Thursday stays 2000, and a later forward goal does not put Monday back.
+Save 2000 on Monday. Save 1800 on Friday. Monday through Thursday use 2000. Friday and after use 1800, until another goal is saved. The color window on Friday still uses Friday’s 1800 for every slot, not Monday’s 2000: an untracked Monday is assumed to be 1800, so it contributes 0 to the weighted sum. A Monday that was actually logged still uses Monday’s logged total minus 1800. Saving 1600 from Monday’s day page changes Monday only. Thursday stays 2000, and a later forward goal does not put Monday back.
 
 ### Install
 

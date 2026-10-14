@@ -1,6 +1,7 @@
 import { dateKey, parseDateKey } from "./util.dates.js";
 import type {
   CalorieEntry,
+  Fast,
   Goal,
   Meal,
   NutritionState,
@@ -65,6 +66,28 @@ export function latestGoal(goals: Goal[]): Goal | undefined {
   return best;
 }
 
+function preferFast(current: Fast | undefined, fast: Fast): Fast {
+  if (!current) return fast;
+  const at = new Date(fast.setAt).getTime();
+  const bestAt = new Date(current.setAt).getTime();
+  if (at > bestAt || (at === bestAt && fast.id > current.id)) return fast;
+  return current;
+}
+
+export function fastForDay(fasts: Fast[], dayKey: string): Fast | undefined {
+  let best: Fast | undefined;
+  for (const fast of fasts) {
+    if (fast.day !== dayKey) continue;
+    if (Number.isNaN(new Date(fast.setAt).getTime())) continue;
+    best = preferFast(best, fast);
+  }
+  return best;
+}
+
+export function isFasted(fasts: Fast[], dayKey: string): boolean {
+  return fastForDay(fasts, dayKey)?.fasted ?? false;
+}
+
 function byTime(a: Op, b: Op): number {
   const time = a.occurredAt.localeCompare(b.occurredAt);
   if (time !== 0) return time;
@@ -80,6 +103,9 @@ export function fold(ops: Op[], base?: NutritionState): NutritionState {
   );
   const goals = new Map<string, Goal>(
     (base?.goals ?? []).map((goal) => [goal.id, { ...goal }]),
+  );
+  const fasts = new Map<string, Fast>(
+    (base?.fasts ?? []).map((fast) => [fast.id, { ...fast }]),
   );
   let customMealOrder = false;
 
@@ -174,6 +200,17 @@ export function fold(ops: Op[], base?: NutritionState): NutritionState {
       customMealOrder = true;
       continue;
     }
+    if (op.type === "fast.set") {
+      if (fasts.has(op.entityId)) continue;
+      const body = op.body as { day: string; fasted: boolean; setAt: string };
+      fasts.set(op.entityId, {
+        id: op.entityId,
+        day: body.day,
+        fasted: body.fasted,
+        setAt: body.setAt,
+      });
+      continue;
+    }
     if (op.type === "goal.create" && !goals.has(op.entityId)) {
       const body = op.body as {
         calories: number;
@@ -193,5 +230,6 @@ export function fold(ops: Op[], base?: NutritionState): NutritionState {
     entries: [...entries.values()],
     meals: [...meals.values()],
     goals: [...goals.values()],
+    fasts: [...fasts.values()],
   };
 }

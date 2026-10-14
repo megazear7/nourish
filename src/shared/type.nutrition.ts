@@ -37,6 +37,16 @@ export const Goal = z.object({
 });
 export type Goal = z.infer<typeof Goal>;
 
+export const Fast = z.object({
+  id: z.string().min(1),
+  day: z.string().refine((value) => isDateKey(value), {
+    message: "expected a date",
+  }),
+  fasted: z.boolean(),
+  setAt: z.string().min(1),
+});
+export type Fast = z.infer<typeof Fast>;
+
 export const DaySummary = z.object({
   date: z.string(),
   totalCalories: z.number().int().nonnegative(),
@@ -48,6 +58,7 @@ export const NutritionState = z.object({
   entries: z.array(CalorieEntry),
   meals: z.array(Meal),
   goals: z.array(Goal),
+  fasts: z.array(Fast),
 });
 export type NutritionState = z.infer<typeof NutritionState>;
 
@@ -55,6 +66,7 @@ const StoredDocument = z.object({
   entries: z.array(CalorieEntry).optional(),
   meals: z.array(Meal).optional(),
   goals: z.array(Goal).optional(),
+  fasts: z.array(Fast).optional(),
   goal: DailyGoal.optional(),
 });
 
@@ -62,6 +74,7 @@ export const emptyState = (): NutritionState => ({
   entries: [],
   meals: [],
   goals: [],
+  fasts: [],
 });
 
 export function normalizeState(
@@ -86,6 +99,7 @@ export function normalizeState(
       entries: parsed.data.entries ?? [],
       meals: parsed.data.meals ?? [],
       goals,
+      fasts: parsed.data.fasts ?? [],
     },
     migrated: migrated || parsed.data.goal !== undefined,
   };

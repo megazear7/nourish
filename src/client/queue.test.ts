@@ -45,6 +45,7 @@ describe("queue", { concurrency: false }, () => {
       ],
       meals: [],
       goals: [],
+      fasts: [],
     });
     const ops = loadQueue().ops;
     assert.equal(ops.length, 2);
@@ -84,12 +85,36 @@ describe("queue", { concurrency: false }, () => {
           day: "2026-10-05",
         },
       ],
+      fasts: [],
     });
     const created = loadQueue().ops.find((item) => item.type === "goal.create");
     assert.ok(created);
     assert.equal(created.count, false);
     assert.equal(created.body.day, "2026-10-05");
     assert.equal(created.body.calories, 1600);
+  });
+
+  it("backfills a local fast as a fast.set op", async () => {
+    const { backfillCreates } = await import("./util.sync.js");
+    const { loadQueue } = await import("./util.queue.js");
+    const id = "99999999-9999-4999-8999-999999999999";
+    const fast = {
+      id,
+      day: "2026-10-05",
+      fasted: true,
+      setAt: "2026-10-05T15:00:00.000Z",
+    };
+    backfillCreates({ entries: [], meals: [], goals: [], fasts: [fast] });
+    backfillCreates({ entries: [], meals: [], goals: [], fasts: [fast] });
+    const ops = loadQueue().ops.filter((item) => item.type === "fast.set");
+    assert.equal(ops.length, 1);
+    assert.equal(ops[0]?.count, false);
+    assert.equal(ops[0]?.occurredAt, fast.setAt);
+    assert.deepEqual(ops[0]?.body, {
+      day: fast.day,
+      fasted: true,
+      setAt: fast.setAt,
+    });
   });
 
   it("restores one account without uploading the other account's queue", async () => {

@@ -97,7 +97,8 @@ export class PostgresStore implements NourishStore {
         ? await query(
             `SELECT id AS entity_id, user_id FROM calorie_entries WHERE id = ANY($1::uuid[])
              UNION ALL SELECT id, user_id FROM meals WHERE id = ANY($1::uuid[])
-             UNION ALL SELECT id, user_id FROM goals WHERE id = ANY($1::uuid[])`,
+             UNION ALL SELECT id, user_id FROM goals WHERE id = ANY($1::uuid[])
+             UNION ALL SELECT id, user_id FROM fasts WHERE id = ANY($1::uuid[])`,
             [entityIds],
           )
         : [];
@@ -138,6 +139,7 @@ export class PostgresStore implements NourishStore {
       await query(`DELETE FROM calorie_entries WHERE user_id = $1`, [userId]);
       await query(`DELETE FROM meals WHERE user_id = $1`, [userId]);
       await query(`DELETE FROM goals WHERE user_id = $1`, [userId]);
+      await query(`DELETE FROM fasts WHERE user_id = $1`, [userId]);
       for (const entry of outcome.state.entries) {
         await query(
           `INSERT INTO calorie_entries
@@ -174,6 +176,13 @@ export class PostgresStore implements NourishStore {
           `INSERT INTO goals (id, user_id, calories, set_at, day, updated_at)
            VALUES ($1::uuid, $2, $3, $4::timestamptz, $5, NOW())`,
           [goal.id, userId, goal.calories, goal.setAt, goal.day ?? null],
+        );
+      }
+      for (const fast of outcome.state.fasts) {
+        await query(
+          `INSERT INTO fasts (id, user_id, day, fasted, set_at, updated_at)
+           VALUES ($1::uuid, $2, $3, $4, $5::timestamptz, NOW())`,
+          [fast.id, userId, fast.day, fast.fasted, fast.setAt],
         );
       }
       return { results: outcome.results, state: outcome.state };
