@@ -2,8 +2,8 @@ import { isFasted } from "./fold.js";
 import { CalorieEntry, Fast } from "./type.nutrition.js";
 import { addDays, dateKey } from "./util.dates.js";
 
-export const YELLOW_OVER = 150;
-export const RED_OVER = 300;
+export const YELLOW_OVER = 300;
+export const RED_OVER = 600;
 
 const WINDOW: { daysAgo: number; weight: number }[] = [
   { daysAgo: 0, weight: 1 },
@@ -45,11 +45,22 @@ export function weightedOver(
   goal: number,
   fasts: Fast[] = [],
 ): number {
-  return WINDOW.reduce((sum, slot) => {
+  const weighted = WINDOW.reduce((sum, slot) => {
     const slotDay = addDays(day, -slot.daysAgo);
     const delta = assumedCalories(entries, slotDay, goal, fasts) - goal;
     return sum + delta * slot.weight;
   }, 0);
+  return clampTone(dayTotal(entries, day), goal, weighted);
+}
+
+export function clampTone(
+  logged: number,
+  goal: number,
+  weighted: number,
+): number {
+  if (logged * 3 < goal) return Math.min(weighted, 0);
+  if (logged * 3 < goal * 2) return Math.min(weighted, YELLOW_OVER);
+  return weighted;
 }
 
 export function toneColor(weighted: number): string {

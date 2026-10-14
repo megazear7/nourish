@@ -408,7 +408,7 @@ Path `/goal`. One form.
 - Check button, `aria-label="Save goal"`.
 - Help text, verbatim:
 
-  > The calorie color looks across the last seven days, not just today. Today counts in full, yesterday half as much, and each older day a little less. At or under this goal the number stays green (On track). A modest surplus fades toward yellow (Drifting). About 150 calories over that blend reads Running hot, and about 300 over turns red.
+  > The calorie color looks across the last seven days, not just today. Today counts in full, yesterday half as much, and each older day a little less. At or under this goal the number stays green (On track). A modest surplus fades toward yellow (Drifting). About 300 calories over that blend reads Running hot, and about 600 over turns red. A day under one third of this goal stays green, and a day under two thirds stays green or yellow.
 
 Save requires an integer greater than 0. It appends a new forward goal `{ id, calories, setAt }` with `setAt` equal to now and no `day`. It does not change older goal rows. It enqueues `goal.create` with `occurredAt` and body `setAt` both set to that timestamp, then `pushState`s `/`. That goal applies to today and every later day that does not have its own day-scoped goal, including today when a one-day goal for today was saved earlier the same calendar day.
 
@@ -445,8 +445,8 @@ Constants in [src/shared/util.score.ts](src/shared/util.score.ts):
 - Green `rgb(111, 191, 132)`
 - Yellow `rgb(224, 184, 74)`
 - Red `rgb(214, 84, 78)`
-- Yellow threshold `150`
-- Red threshold `300`
+- Yellow threshold `300`
+- Red threshold `600`
 
 For a viewed day D and that day’s goal G, look at D, D−1, … D−6. Each slot contributes `(assumed calories that day − G) * weight`, where assumed calories (`assumedCalories` in [src/shared/util.score.ts](src/shared/util.score.ts)) depend on the day’s status:
 
@@ -464,15 +464,17 @@ For a viewed day D and that day’s goal G, look at D, D−1, … D−6. Each sl
 | 5 | 1/6 |
 | 6 | 1/7 |
 
-The same G is subtracted for every slot. Older days do not use their own historical goal inside this sum. A day under goal produces a negative term and can pull a later overage back toward green. Removed entries are excluded. An untracked empty day counts as G, so it contributes 0. A day marked fasted with no food counts as 0, so it contributes `−G * weight`. Example: goal 1800, today 2230, the previous six days untracked, gives a weighted sum of 430, which is Over the window. The big calorie numbers (Today, day pages, history, calendar) stay the logged total, so an untracked or fasted day still shows 0. Only the tone color and status label use assumed calories.
+The same G is subtracted for every slot. Older days do not use their own historical goal inside this sum. A day under goal produces a negative term and can pull a later overage back toward green. Removed entries are excluded. An untracked empty day counts as G, so it contributes 0. A day marked fasted with no food counts as 0, so it contributes `−G * weight`. Example: goal 1800, today 2230, the previous six days untracked, gives a weighted sum of 430, which is Running hot. The big calorie numbers (Today, day pages, history, calendar) stay the logged total, so an untracked or fasted day still shows 0. Only the tone color and status label use assumed calories.
+
+After the sum, the viewed day’s logged total — the number on screen, not the assumed calories — can hold the color back. This applies on Today, a day page, history, and the calendar, using that day’s own logged total and goal. If the logged total is less than one third of G, the value used for the label and color is capped at 0, so the day stays green (On track) even when earlier days would have made it yellow or red. If the logged total is below two thirds of G, the value is capped at the yellow threshold, so the color stays green through solid yellow and the label is at most Running hot, never Over the window. Exactly one third of G uses the two-thirds cap. Exactly two thirds of G uses the uncapped sum. An untracked or fasted day logs 0, which is under one third, so that day stays green.
 
 | Weighted sum | Label | Color |
 | --- | --- | --- |
 | ≤ 0 | On track | Solid green |
-| > 0 and < 150 | Drifting | Linear mix from green to yellow |
-| Exactly 150 | Running hot | Solid yellow. The label flips at 150, the color reaches yellow at 150 |
-| > 150 and < 300 | Running hot | Linear mix from yellow to red |
-| ≥ 300 | Over the window | Solid red |
+| > 0 and < 300 | Drifting | Linear mix from green to yellow |
+| Exactly 300 | Running hot | Solid yellow. The label flips at 300, the color reaches yellow at 300 |
+| > 300 and < 600 | Running hot | Linear mix from yellow to red |
+| ≥ 600 | Over the window | Solid red |
 
 Mixing is per channel, rounded, clamped to 0..1.
 
@@ -784,7 +786,7 @@ API tests against the file store: anonymous GET and POST are 401; an unknown bea
 
 Queue tests: backfill of an already-removed entry orders create then remove, both `count: false`, and folds to `removed: true`; backfill of a day-scoped goal keeps `day` on the `goal.create` body and `count: false`; backfill of a local fast enqueues one `fast.set` with `count: false`; restoring account A after account B was queued does not keep B’s ops; `resetOpenDocument` keeps `deviceId` and clears ops and `syncedUserId`.
 
-Score tests ([src/shared/util.score.test.ts](src/shared/util.score.test.ts)): assumed calories for logged, fasted, untracked, and missing-goal days; goal 1800 with today at 2230 and six untracked days is 430, Over the window; a fasted yesterday contributes −900; a logged day uses its real total.
+Score tests ([src/shared/util.score.test.ts](src/shared/util.score.test.ts)): assumed calories for logged, fasted, untracked, and missing-goal days; goal 1800 with today at 2230 and six untracked days is 430, Running hot; a fasted yesterday contributes −900; a logged day uses its real total; a logged day under one third of the goal stays at or under 0; a logged day under two thirds is capped at the yellow threshold.
 
 There is no browser test and no screenshot test in the repo.
 

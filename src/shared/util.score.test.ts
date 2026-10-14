@@ -8,6 +8,7 @@ import {
   toneLabel,
   UNTRACKED_FALLBACK,
   weightedOver,
+  YELLOW_OVER,
 } from "./util.score.js";
 
 const today = "2026-10-14";
@@ -63,11 +64,12 @@ describe("assumedCalories", () => {
 });
 
 describe("weightedOver with untracked days", () => {
-  it("turns red at 2230 against 1800 when earlier days are untracked", () => {
+  it("is running hot at 2230 against 1800 when earlier days are untracked", () => {
     const weighted = weightedOver([entry(today, 2230)], today, 1800);
     assert.equal(weighted, 430);
-    assert.equal(toneLabel(weighted), "Over the window");
-    assert.ok(weighted >= RED_OVER);
+    assert.equal(toneLabel(weighted), "Running hot");
+    assert.ok(weighted >= YELLOW_OVER);
+    assert.ok(weighted < RED_OVER);
   });
 
   it("counts a fasted yesterday as 0 calories", () => {
@@ -81,5 +83,39 @@ describe("weightedOver with untracked days", () => {
     const yesterday = addDays(today, -1);
     const weighted = weightedOver([entry(yesterday, 1000)], today, 1800);
     assert.equal(Math.round(weighted), -400);
+  });
+});
+
+describe("low days hold the color back", () => {
+  const yesterday = addDays(today, -1);
+
+  it("stays green under one third of the goal", () => {
+    const weighted = weightedOver(
+      [entry(today, 599), entry(yesterday, 10000)],
+      today,
+      1800,
+    );
+    assert.ok(weighted <= 0);
+    assert.equal(toneLabel(weighted), "On track");
+  });
+
+  it("caps a day under two thirds at yellow", () => {
+    const weighted = weightedOver(
+      [entry(today, 1000), entry(yesterday, 10000)],
+      today,
+      1800,
+    );
+    assert.equal(weighted, YELLOW_OVER);
+    assert.equal(toneLabel(weighted), "Running hot");
+  });
+
+  it("lets a day at two thirds of the goal turn red", () => {
+    const weighted = weightedOver(
+      [entry(today, 1200), entry(yesterday, 10000)],
+      today,
+      1800,
+    );
+    assert.ok(weighted >= RED_OVER);
+    assert.equal(toneLabel(weighted), "Over the window");
   });
 });

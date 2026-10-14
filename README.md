@@ -2,7 +2,7 @@
 
 A simple calorie tracker. Three quick-add buttons, saved meals, a daily goal, and a seven-day weighted color.
 
-Today counts fully. Yesterday counts half. Each older day counts a little less, down to one seventh six days back. Eating under the goal pulls the color back toward green. 150 over the weighted window is yellow. 300 over is red.
+Today counts fully. Yesterday counts half. Each older day counts a little less, down to one seventh six days back. Eating under the goal pulls the color back toward green. 300 over the weighted window is yellow. 600 over is red. A day under a third of the goal stays green, and a day under two thirds stays green or yellow.
 
 ## Offline
 

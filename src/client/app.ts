@@ -1724,8 +1724,10 @@ export class NourishApp extends LitElement {
           The calorie color looks across the last seven days, not just today.
           Today counts in full, yesterday half as much, and each older day a
           little less. At or under this goal the number stays green (On track).
-          A modest surplus fades toward yellow (Drifting). About 150 calories
-          over that blend reads Running hot, and about 300 over turns red.
+          A modest surplus fades toward yellow (Drifting). About 300 calories
+          over that blend reads Running hot, and about 600 over turns red. A day
+          under one third of this goal stays green, and a day under two thirds
+          stays green or yellow.
         </p>
       </form>
     </section>`;
