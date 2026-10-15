@@ -131,9 +131,9 @@ Summary block:
 - If a goal applies to today, an em dash and a status label: **On track**, **Drifting**, **Running hot**, or **Over the window**. See [Color](#color).
 - Huge number (`4.4rem`) of today’s calorie total. Color is the tone color when a goal exists, otherwise `--ink` (`#f4efe6`). The total is not formatted with thousands separators.
 - Beside it, a muted button. When a goal applies to today the line reads `/ {goal} calories` and only the number is the button, `aria-label="Change goal"`. The goal number is not formatted with thousands separators. The word **calories** is not a control. When today has no goal the button’s label is exactly `/ no goal set`, `aria-label="Set a goal"`. Either click calls `navigate("goal")`. The button uses `.goal-link`: no border, no background, inherited muted type.
-- When `yellowCalories` for today is a number, a muted line under that calorie line reads **Aim for less than {n} calories today**, where `{n}` is that number with no thousands separators. The line uses `.aim-note`. It is absent when today has no goal, and when the first logged total that leaves solid green is the goal or higher. A day page does not show it.
+- When `yellowCalories` for today is a number, a muted button under that calorie line reads **Aim for less than {n} calories today**, where `{n}` is that number with no thousands separators. The button uses `.aim-note`: no border, no background, inherited type at `0.95rem`, muted, left aligned, gold focus ring. Clicking it opens the [aim modal](#aim-modal). It is absent when today has no goal, and when the first logged total that leaves solid green is the goal or higher. A day page does not show it.
 
-Rows: non-removed entries whose local date is today, passed through the bubble grouper, newest bubble first. Empty copy: **Nothing logged yet. Add a bite when you eat it.** and, as a separate line below it, a link-style button **Or did you fast today?** See [Fast modal](#fast-modal). The button is not part of the paragraph. It uses `.fast-link`: no border, no background, muted, gold focus ring. When today is already marked fasted and has no entries, the button reads **I fasted today.** It is hidden when today has entries.
+Rows: non-removed entries whose local date is today, passed through the bubble grouper, newest bubble first. There is no empty sentence. When today has no entries, the only empty control is a link-style button **Did you fast today?** See [Fast modal](#fast-modal). It uses `.fast-link`: no border, no background, muted, gold focus ring. When today is already marked fasted and has no entries, the button reads **I fasted today.** It is hidden when today has entries.
 
 The bottom action dock is shown on Today and on a day page only.
 
@@ -158,7 +158,7 @@ The modal reuses the edit sheet: dim layer `.edit-sheet`, dialog `.edit-modal`, 
 
 Save requires an integer greater than 0. It appends `{ id, calories, setAt, day }` where `day` is this page’s date key and `setAt` is now. It enqueues `goal.create` with that body and `occurredAt` equal to `setAt`, closes the modal, and stays on this URL. It does not push a history entry. No title, description, nudges, or color paragraph.
 
-Empty copy: **Nothing logged this day.** followed by the same `.fast-link` button, **Or did you fast today?** (**I fasted today.** when that date is marked fasted), including when the date is today. It opens the [Fast modal](#fast-modal) for that page’s date key. It is hidden when the day has entries.
+Empty copy: **Nothing logged this day.** followed by a `.fast-link` button, **Or did you fast today?** (**I fasted today.** when that date is marked fasted), including when the date is today. It opens the [Fast modal](#fast-modal) for that page’s date key. It is hidden when the day has entries. Today uses **Did you fast today?** instead, and has no empty sentence.
 
 The dock is the same four buttons. Calories added here are not stamped “now”. See [When a new row is stamped](#when-a-new-row-is-stamped).
 
@@ -438,6 +438,15 @@ Opened by the empty-state fast link on Today (day key `todayKey()`) or on a day 
 - Under it: **Turn on this toggle if you actually did not eat anything today.**
 
 Flipping the switch commits at once: it appends a `Fast` `{ id, day, fasted, setAt }` with a new UUID and `setAt` now, and enqueues `fast.set` with `occurredAt` now and body `{ day, fasted, setAt }`. The modal stays open and the text updates. Turning it off writes `fasted: false`; older rows are never changed or removed. Logging food later does not clear the mark; the food is scored and the link hides, and if all entries are removed the mark applies again.
+
+### Aim modal
+
+Opened only from the **Aim for less than {n} calories today** button on Today. It reuses the edit sheet: `.edit-sheet` dim layer, `.edit-modal` dialog, `role="dialog"`, `aria-modal="true"`, labelled by `#aim-heading`. Clicking the dim layer closes it. `Escape` while focus is inside closes it. Clicking the dialog does not. No history entry. No check button.
+
+- Heading **Why less than {n}?** `{n}` is `yellowCalories` for today, with no thousands separators.
+- One line: **You ate over your {goal} calorie goal on earlier days. Yesterday still counts half as much, and each older day a little less, so eating {n} today turns the number yellow before you reach {goal}.** `{goal}` is today’s goal from `goalForDay`, also with no thousands separators.
+
+If that button is not on screen, the modal is not rendered.
 
 ### Color
 
@@ -840,7 +849,7 @@ The unused view components can still be typechecked and are part of the repo. Th
 
 ### First visit, no account
 
-Open `/`. Auth becomes `unconfigured`, `signed-out`, or briefly `checking`. Today shows `0` in the ink color, the word calories, and the empty sentence.
+Open `/`. Auth becomes `unconfigured`, `signed-out`, or briefly `checking`. Today shows `0` in the ink color, the word calories, and **Did you fast today?** There is no empty sentence.
 
 Taps still call `enqueue`. The queue is not “local only until login.” `flush` returns immediately unless the status is `signed-in`, so the ops sit in `nourish-queue` and the rows sit in `nourish-state`. Refresh keeps both. Airplane mode shows the offline line; another add still sticks.
 

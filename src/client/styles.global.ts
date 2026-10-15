@@ -219,9 +219,24 @@ export const appStyles = css`
   }
 
   .aim-note {
+    display: block;
+    width: fit-content;
+    max-width: 100%;
+    border: 0;
+    padding: 0;
     margin: 0.35rem 0 0;
+    background: none;
     color: var(--muted);
+    font: inherit;
     font-size: 0.95rem;
+    line-height: 1.35;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .aim-note:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
   }
 
   .goal-link {

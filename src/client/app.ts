@@ -198,6 +198,7 @@ export class NourishApp extends LitElement {
   @state() private dayGoalKey = "";
   @state() private dayGoalCalories = "";
   @state() private fastKey = "";
+  @state() private aimOpen = false;
   private editIds: string[] = [];
   private lastAddClickAt = 0;
   private lastAddStamp = "";
@@ -654,6 +655,7 @@ export class NourishApp extends LitElement {
     this.editIds = [];
     this.dayGoalKey = "";
     this.fastKey = "";
+    this.aimOpen = false;
   }
 
   private beginEdit(shown: ShownEntry): void {
@@ -917,6 +919,15 @@ export class NourishApp extends LitElement {
     this.renderRoot.querySelector<HTMLElement>(":focus")?.blur();
   }
 
+  private openAim(): void {
+    this.kebabKey = "";
+    this.closeMenu();
+    this.mealPickerOpen = false;
+    this.closeEdit();
+    this.aimOpen = true;
+    this.renderRoot.querySelector<HTMLElement>(":focus")?.blur();
+  }
+
   private openFast(key: string): void {
     this.kebabKey = "";
     this.closeMenu();
@@ -1061,9 +1072,13 @@ export class NourishApp extends LitElement {
       this.state.fasts,
     );
     if (limit === undefined) return "";
-    return html`<p class="aim-note">
+    return html`<button
+      class="aim-note"
+      type="button"
+      @click=${() => this.openAim()}
+    >
       Aim for less than ${limit} calories today
-    </p>`;
+    </button>`;
   }
 
   private renderActionDock() {
@@ -1119,10 +1134,7 @@ export class NourishApp extends LitElement {
           ? html`<ul class="entry-list">
               ${shownEntries(this.todayEntries()).map((entry) => this.renderEntry(entry))}
             </ul>`
-          : html`<p class="empty-note">
-                Nothing logged yet. Add a bite when you eat it.
-              </p>
-              ${this.renderFastLink(today, "Or did you fast today?")}`
+          : this.renderFastLink(today, "Did you fast today?")
       }
       ${this.renderActionDock()}
     `;
@@ -1914,6 +1926,42 @@ export class NourishApp extends LitElement {
           : ""
       }
       ${this.renderEdit()} ${this.renderDayGoal()} ${this.renderFast()}
+      ${this.renderAim()}
+    </div>`;
+  }
+
+  private renderAim() {
+    if (!this.aimOpen) return "";
+    const today = todayKey();
+    const goal = this.caloriesFor(today);
+    const limit = goal
+      ? yellowCalories(this.state.entries, today, goal, this.state.fasts)
+      : undefined;
+    if (!goal || limit === undefined) return "";
+    const close = () => {
+      this.aimOpen = false;
+    };
+    return html`<div
+      class="edit-sheet"
+      @click=${close}
+      @keydown=${(event: KeyboardEvent) => {
+        if (event.key === "Escape") close();
+      }}
+    >
+      <div
+        class="edit-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="aim-heading"
+        @click=${(event: Event) => event.stopPropagation()}
+      >
+        <h2 id="aim-heading" class="edit-heading">Why less than ${limit}?</h2>
+        <p class="tone-note">
+          You ate over your ${goal} calorie goal on earlier days. Yesterday
+          still counts half as much, and each older day a little less, so eating
+          ${limit} today turns the number yellow before you reach ${goal}.
+        </p>
+      </div>
     </div>`;
   }
 
