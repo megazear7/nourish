@@ -218,6 +218,12 @@ export const appStyles = css`
     font-size: 1rem;
   }
 
+  .aim-note {
+    margin: 0.35rem 0 0;
+    color: var(--muted);
+    font-size: 0.95rem;
+  }
+
   .goal-link {
     border: 0;
     padding: 0;

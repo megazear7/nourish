@@ -63,6 +63,29 @@ export function clampTone(
   return weighted;
 }
 
+const PRIOR_SCALE = 420;
+
+export function yellowCalories(
+  entries: CalorieEntry[],
+  day: string,
+  goal: number,
+  fasts: Fast[] = [],
+): number | undefined {
+  if (!(goal > 0)) return undefined;
+  let prior = 0;
+  for (let daysAgo = 1; daysAgo <= 6; daysAgo += 1) {
+    const delta =
+      assumedCalories(entries, addDays(day, -daysAgo), goal, fasts) - goal;
+    prior += delta * (PRIOR_SCALE / (daysAgo + 1));
+  }
+  const leavesGreen =
+    Math.floor((goal * PRIOR_SCALE - prior) / PRIOR_SCALE) + 1;
+  const aboveThird = Math.floor((goal + 2) / 3);
+  const yellowAt = Math.max(leavesGreen, aboveThird);
+  if (yellowAt < goal) return yellowAt;
+  return undefined;
+}
+
 export function toneColor(weighted: number): string {
   if (weighted <= 0) return "rgb(111, 191, 132)";
   if (weighted >= RED_OVER) return "rgb(214, 84, 78)";

@@ -23,6 +23,7 @@ import {
   weightedOver,
   UNTRACKED_FALLBACK,
   dayTotal,
+  yellowCalories,
 } from "../shared/util.score.js";
 import { goalForDay, isFasted } from "../shared/fold.js";
 import { loadState, saveState } from "./util.storage.js";
@@ -1048,6 +1049,23 @@ export class NourishApp extends LitElement {
     `;
   }
 
+  private renderAimNote(
+    goal: number | undefined,
+    day: string,
+  ): TemplateResult | "" {
+    if (!goal) return "";
+    const limit = yellowCalories(
+      this.state.entries,
+      day,
+      goal,
+      this.state.fasts,
+    );
+    if (limit === undefined) return "";
+    return html`<p class="aim-note">
+      Aim for less than ${limit} calories today
+    </p>`;
+  }
+
   private renderActionDock() {
     return html`
       <div class="action-dock">
@@ -1094,6 +1112,7 @@ export class NourishApp extends LitElement {
           <span class="calorie-total" style="color: ${color}">${total}</span>
           ${this.renderGoalControl(goal, () => this.navigate("goal"))}
         </p>
+        ${this.renderAimNote(goal, today)}
       </section>
       ${
         this.todayEntries().length

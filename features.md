@@ -131,6 +131,7 @@ Summary block:
 - If a goal applies to today, an em dash and a status label: **On track**, **Drifting**, **Running hot**, or **Over the window**. See [Color](#color).
 - Huge number (`4.4rem`) of today’s calorie total. Color is the tone color when a goal exists, otherwise `--ink` (`#f4efe6`). The total is not formatted with thousands separators.
 - Beside it, a muted button. When a goal applies to today the line reads `/ {goal} calories` and only the number is the button, `aria-label="Change goal"`. The goal number is not formatted with thousands separators. The word **calories** is not a control. When today has no goal the button’s label is exactly `/ no goal set`, `aria-label="Set a goal"`. Either click calls `navigate("goal")`. The button uses `.goal-link`: no border, no background, inherited muted type.
+- When `yellowCalories` for today is a number, a muted line under that calorie line reads **Aim for less than {n} calories today**, where `{n}` is that number with no thousands separators. The line uses `.aim-note`. It is absent when today has no goal, and when the first logged total that leaves solid green is the goal or higher. A day page does not show it.
 
 Rows: non-removed entries whose local date is today, passed through the bubble grouper, newest bubble first. Empty copy: **Nothing logged yet. Add a bite when you eat it.** and, as a separate line below it, a link-style button **Or did you fast today?** See [Fast modal](#fast-modal). The button is not part of the paragraph. It uses `.fast-link`: no border, no background, muted, gold focus ring. When today is already marked fasted and has no entries, the button reads **I fasted today.** It is hidden when today has entries.
 
@@ -480,6 +481,8 @@ Mixing is per channel, rounded, clamped to 0..1.
 
 The big number on Today and on a day page uses this color. History list totals use it whenever that day has a goal. Calendar counts use it only for in-month cells that have a goal.
 
+`yellowCalories` in [src/shared/util.score.ts](src/shared/util.score.ts) is the smallest logged total that would leave solid green on that day, or nothing when that total is not strictly below the goal. Prior days use the same assumed calories and weights as the color, scaled by 420 so the fractions stay exact. Today’s own logged total is the unknown: it leaves green when the raw weighted sum is greater than 0 and the total is no longer under one third of the goal. The one-third hold still applies, so a large earlier surplus cannot push the number below `ceil(goal / 3)`. A day under the goal on an earlier slot, or a fasted earlier day, can pull the line back up to the goal or past it, and then the function returns nothing. Untracked earlier days contribute 0, so the line is the goal plus one and the hint stays hidden.
+
 ## Account
 
 Auth0 SPA via `@auth0/auth0-spa-js`, built into the bundle. No client secret.
@@ -786,7 +789,7 @@ API tests against the file store: anonymous GET and POST are 401; an unknown bea
 
 Queue tests: backfill of an already-removed entry orders create then remove, both `count: false`, and folds to `removed: true`; backfill of a day-scoped goal keeps `day` on the `goal.create` body and `count: false`; backfill of a local fast enqueues one `fast.set` with `count: false`; restoring account A after account B was queued does not keep B’s ops; `resetOpenDocument` keeps `deviceId` and clears ops and `syncedUserId`.
 
-Score tests ([src/shared/util.score.test.ts](src/shared/util.score.test.ts)): assumed calories for logged, fasted, untracked, and missing-goal days; goal 1800 with today at 2230 and six untracked days is 430, Running hot; a fasted yesterday contributes −900; a logged day uses its real total; a logged day under one third of the goal stays at or under 0; a logged day under two thirds is capped at the yellow threshold.
+Score tests ([src/shared/util.score.test.ts](src/shared/util.score.test.ts)): assumed calories for logged, fasted, untracked, and missing-goal days; goal 1800 with today at 2230 and six untracked days is 430, Running hot; a fasted yesterday contributes −900; a logged day uses its real total; a logged day under one third of the goal stays at or under 0; a logged day under two thirds is capped at the yellow threshold. `yellowCalories` is hidden when earlier days sit on the goal, when they were under, when yesterday was fasted, and when yesterday was one calorie over (yellow starts at the goal). Yesterday at 2000 against a goal of 1800 makes it 1701. Yesterday at 10000 keeps the one-third floor, so it is 600.
 
 There is no browser test and no screenshot test in the repo.
 

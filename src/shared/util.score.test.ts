@@ -9,6 +9,7 @@ import {
   UNTRACKED_FALLBACK,
   weightedOver,
   YELLOW_OVER,
+  yellowCalories,
 } from "./util.score.js";
 
 const today = "2026-10-14";
@@ -117,5 +118,43 @@ describe("low days hold the color back", () => {
     );
     assert.ok(weighted >= RED_OVER);
     assert.equal(toneLabel(weighted), "Over the window");
+  });
+});
+
+describe("yellowCalories", () => {
+  it("is hidden when earlier days sit on the goal", () => {
+    assert.equal(yellowCalories([], today, 1800), undefined);
+  });
+
+  it("is the first calorie over the pulled-down green line", () => {
+    const yesterday = addDays(today, -1);
+    assert.equal(yellowCalories([entry(yesterday, 2000)], today, 1800), 1701);
+  });
+
+  it("does not drop below the one-third floor", () => {
+    const yesterday = addDays(today, -1);
+    assert.equal(yellowCalories([entry(yesterday, 10000)], today, 1800), 600);
+  });
+
+  it("stays hidden when earlier days were under", () => {
+    const yesterday = addDays(today, -1);
+    assert.equal(
+      yellowCalories([entry(yesterday, 1000)], today, 1800),
+      undefined,
+    );
+  });
+
+  it("stays hidden when yellow starts exactly at the goal", () => {
+    const yesterday = addDays(today, -1);
+    assert.equal(
+      yellowCalories([entry(yesterday, 1801)], today, 1800),
+      undefined,
+    );
+  });
+
+  it("counts a fasted earlier day as zero", () => {
+    const yesterday = addDays(today, -1);
+    const fasts = [fast(yesterday, true, "2026-10-13T08:00:00.000Z")];
+    assert.equal(yellowCalories([], today, 1800, fasts), undefined);
   });
 });
