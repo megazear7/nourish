@@ -137,7 +137,7 @@ Rows: non-removed entries whose local date is today, passed through the bubble g
 
 The bottom action dock is shown on Today and on a day page only.
 
-Once today has at least one non-removed entry and a goal applies, the dock shows a muted centered line just above the four buttons: **{n} calories remaining**. `{n}` is that day’s goal minus today’s logged total, with no thousands separators. When the total is over the goal the line reads **{n} calories over**, using the positive difference. The line is absent when today has no entries, when today has no goal, and on every day page.
+Once today has at least one non-removed entry and a goal applies, the dock shows a muted left-aligned line just above the four buttons, shifted up `6px`: **{n} calories remaining**. `{n}` is that day’s goal minus today’s logged total, with no thousands separators. When the total is over the goal the line reads **{n} calories over**, using the positive difference. The line is absent when today has no entries, when today has no goal, and on every day page.
 
 ## A past or current day (`/day/YYYY-MM-DD`)
 
@@ -168,7 +168,7 @@ Future dates can be opened from the address bar. The summary still renders. Adds
 
 ## Bottom dock
 
-Fixed to the bottom, centered, max `45rem`. The four buttons are one row, equal columns, gap `0.55rem`. A gradient from the canvas covers the bottom so rows can scroll underneath. Main content has `7.5rem` of bottom padding, or `9.25rem` when the remaining line is showing. That line is a centered `.remaining-note` above the button row, muted, `0.95rem`. It is only rendered from Today, and only when today has a goal and at least one non-removed entry. See [Today](#today).
+Fixed to the bottom, centered, max `45rem`. The four buttons are one row, equal columns, gap `0.55rem`. A gradient from the canvas covers the bottom so rows can scroll underneath. Main content has `7.5rem` of bottom padding, or `9.25rem` when the remaining line is showing. That line is a left-aligned `.remaining-note` above the button row, muted, `0.95rem`, shifted up `6px`. It is only rendered from Today, and only when today has a goal and at least one non-removed entry. See [Today](#today).
 
 | Button | Label | Style | Action |
 | --- | --- | --- | --- |

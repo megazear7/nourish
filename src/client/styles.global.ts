@@ -651,11 +651,11 @@ export const appStyles = css`
   }
 
   .remaining-note {
-    margin: 0;
+    margin: -6px 0 0;
     color: var(--muted);
     font-size: 0.95rem;
     line-height: 1.35;
-    text-align: center;
+    text-align: left;
   }
 
   .dock-actions {
