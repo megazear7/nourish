@@ -651,7 +651,7 @@ export const appStyles = css`
   }
 
   .remaining-note {
-    margin: -6px 0 0;
+    margin: -12px 0 0;
     color: var(--muted);
     font-size: 0.95rem;
     line-height: 1.35;
