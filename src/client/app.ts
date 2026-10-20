@@ -1081,29 +1081,40 @@ export class NourishApp extends LitElement {
     </button>`;
   }
 
-  private renderActionDock() {
+  private renderActionDock(remaining?: number) {
+    const over = remaining !== undefined && remaining < 0;
+    const left = remaining === undefined ? 0 : over ? -remaining : remaining;
     return html`
       <div class="action-dock">
-        <button class="calorie-button" @click=${() => this.addCalories(50)}>
-          +50
-        </button>
-        <button class="calorie-button" @click=${() => this.addCalories(100)}>
-          +100
-        </button>
-        <button class="calorie-button" @click=${() => this.addCalories(500)}>
-          +500
-        </button>
-        <button
-          class="meal-button"
-          aria-haspopup="menu"
-          aria-expanded=${this.mealPickerOpen ? "true" : "false"}
-          @click=${() => {
-            this.kebabKey = "";
-            this.mealPickerOpen = !this.mealPickerOpen;
-          }}
-        >
-          Meals
-        </button>
+        ${
+          remaining === undefined
+            ? ""
+            : html`<p class="remaining-note">
+                ${left} calories ${over ? "over" : "remaining"}
+              </p>`
+        }
+        <div class="dock-actions">
+          <button class="calorie-button" @click=${() => this.addCalories(50)}>
+            +50
+          </button>
+          <button class="calorie-button" @click=${() => this.addCalories(100)}>
+            +100
+          </button>
+          <button class="calorie-button" @click=${() => this.addCalories(500)}>
+            +500
+          </button>
+          <button
+            class="meal-button"
+            aria-haspopup="menu"
+            aria-expanded=${this.mealPickerOpen ? "true" : "false"}
+            @click=${() => {
+              this.kebabKey = "";
+              this.mealPickerOpen = !this.mealPickerOpen;
+            }}
+          >
+            Meals
+          </button>
+        </div>
       </div>
       ${this.mealPickerOpen ? this.renderMealPicker() : ""}
     `;
@@ -1141,7 +1152,9 @@ export class NourishApp extends LitElement {
             </ul>`
           : this.renderFastLink(today, "Did you fast today?")
       }
-      ${this.renderActionDock()}
+      ${this.renderActionDock(
+        this.todayEntries().length > 0 && goal ? goal - total : undefined,
+      )}
     `;
   }
 

@@ -137,6 +137,8 @@ Rows: non-removed entries whose local date is today, passed through the bubble g
 
 The bottom action dock is shown on Today and on a day page only.
 
+Once today has at least one non-removed entry and a goal applies, the dock shows a muted centered line just above the four buttons: **{n} calories remaining**. `{n}` is that day’s goal minus today’s logged total, with no thousands separators. When the total is over the goal the line reads **{n} calories over**, using the positive difference. The line is absent when today has no entries, when today has no goal, and on every day page.
+
 ## A past or current day (`/day/YYYY-MM-DD`)
 
 Same summary as Today, except the kicker is `formatDayLabel`:
@@ -166,7 +168,7 @@ Future dates can be opened from the address bar. The summary still renders. Adds
 
 ## Bottom dock
 
-Fixed to the bottom, centered, max `45rem`, four equal columns, gap `0.55rem`. A gradient from the canvas covers the bottom so rows can scroll underneath. Main content has `7.5rem` of bottom padding.
+Fixed to the bottom, centered, max `45rem`. The four buttons are one row, equal columns, gap `0.55rem`. A gradient from the canvas covers the bottom so rows can scroll underneath. Main content has `7.5rem` of bottom padding, or `9.25rem` when the remaining line is showing. That line is a centered `.remaining-note` above the button row, muted, `0.95rem`. It is only rendered from Today, and only when today has a goal and at least one non-removed entry. See [Today](#today).
 
 | Button | Label | Style | Action |
 | --- | --- | --- | --- |
@@ -179,7 +181,7 @@ There is no custom-calorie field on this dock.
 
 ### Meal picker
 
-Opens above the Meals button (`bottom: 5.6rem`, right-aligned, max width `18rem`, max height `min(58vh, 26rem)`, scrolls). A transparent full-screen backdrop click closes it. Bubbles are pills.
+Opens above the Meals button (`bottom: 5.6rem`, or `7.4rem` when the remaining line is showing, right-aligned, max width `18rem`, max height `min(58vh, 26rem)`, scrolls). A transparent full-screen backdrop click closes it. Bubbles are pills.
 
 1. **Create a new meal** — quieter styling, no shadow. Goes to `/meals/new`.
 2. One bubble per saved meal that is not removed, in stored array order. A new meal is unshifted to the front. Dragging a card on the Meals page rewrites that order, and the picker follows it. Each bubble shows the title in title case and the calorie number. No unit word. Click logs `meal.calories` with `mealId`, and copies `title` and `description` onto the new entry. The picker closes.

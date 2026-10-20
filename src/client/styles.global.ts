@@ -152,6 +152,10 @@ export const appStyles = css`
     padding: 0.5rem 1.25rem 7.5rem;
   }
 
+  .app-main:has(.remaining-note) {
+    padding-bottom: 9.25rem;
+  }
+
   .offline-note {
     margin: 0.15rem 0 0;
     color: var(--gold);
@@ -633,13 +637,31 @@ export const appStyles = css`
     left: 50%;
     bottom: 0;
     z-index: 5;
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 0.55rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
     width: min(100%, var(--content));
     padding: 0.85rem 1rem 1.15rem;
     background: linear-gradient(to top, var(--canvas) 70%, transparent);
     transform: translateX(-50%);
+  }
+
+  .action-dock:has(.remaining-note) {
+    background: linear-gradient(to top, var(--canvas) 88%, transparent);
+  }
+
+  .remaining-note {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.95rem;
+    line-height: 1.35;
+    text-align: center;
+  }
+
+  .dock-actions {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.55rem;
   }
 
   .calorie-button,
@@ -676,6 +698,10 @@ export const appStyles = css`
     max-height: min(58vh, 26rem);
     overflow: auto;
     padding: 0.15rem 0.1rem 0.15rem 0;
+  }
+
+  .action-dock:has(.remaining-note) ~ .meal-bubbles {
+    bottom: 7.4rem;
   }
 
   .meal-bubble {
