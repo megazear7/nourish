@@ -1118,16 +1118,16 @@ export class NourishApp extends LitElement {
       : 0;
     const color = goal ? toneColor(weighted) : "var(--ink)";
     const label = goal ? toneLabel(weighted) : "";
+    const warn = label && label !== "On track";
     return html`
       <section class="day-summary">
-        <p class="day-status">
-          <span class="day-kicker">Today</span>
-          ${
-            label && label !== "On track"
-              ? html`<span class="status-label">— ${label}</span>`
-              : ""
-          }
-        </p>
+        ${
+          warn
+            ? html`<p class="day-status">
+                <span class="status-label">${label}</span>
+              </p>`
+            : ""
+        }
         <p class="calorie-line">
           <span class="calorie-total" style="color: ${color}">${total}</span>
           ${this.renderGoalControl(goal, () => this.navigate("goal"))}

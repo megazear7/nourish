@@ -127,8 +127,8 @@ Rendered for page `today`.
 
 Summary block:
 
-- Kicker **Today** (uppercase, muted, tracked).
-- If a goal applies to today and the status is **Drifting**, **Running hot**, or **Over the window**, an em dash and that status label. **On track** is omitted, so the line is only the kicker **Today**. See [Color](#color).
+- No kicker. The header already says **Today**. When the day is **On track**, or has no goal, that line is absent.
+- If a goal applies to today and the status is **Drifting**, **Running hot**, or **Over the window**, that label appears alone (uppercase, muted, tracked). No em dash and no **Today**. See [Color](#color).
 - Huge number (`4.4rem`) of today’s calorie total. Color is the tone color when a goal exists, otherwise `--ink` (`#f4efe6`). The total is not formatted with thousands separators.
 - Beside it, a muted button. When a goal applies to today the line reads `/ {goal} calories` and only the number is the button, `aria-label="Change goal"`. The goal number is not formatted with thousands separators. The word **calories** is not a control. When today has no goal the button’s label is exactly `/ no goal set`, `aria-label="Set a goal"`. Either click calls `navigate("goal")`. The button uses `.goal-link`: no border, no background, inherited muted type.
 - When `yellowCalories` for today is a number, a muted button under that calorie line reads **Aim for less than {n} calories today**, where `{n}` is that number with no thousands separators. The button uses `.aim-note`: no border, no background, inherited type at `0.95rem`, muted, left aligned, gold focus ring. Clicking it opens the [aim modal](#aim-modal). It is absent when today has no goal, and when the first logged total that leaves solid green is the goal or higher. A day page does not show it.
@@ -145,7 +145,7 @@ Same summary as Today, except the kicker is `formatDayLabel`:
 - Yesterday: **Yesterday**
 - Otherwise the runtime locale’s short weekday, short month, and numeric day (for example `Tue, Oct 6`).
 
-Status label and tone color use that day’s goal and a weighted window that ends on that day, not on today. When a goal applies, the em dash and status label always appear, including **On track**. That includes this page when the date is today. Only the main Today page (`/`) hides the label while the status is **On track**.
+Status label and tone color use that day’s goal and a weighted window that ends on that day, not on today. When a goal applies, the kicker, em dash, and status label always appear, including **On track**. That includes this page when the date is today. Only the main Today page (`/`) drops the line while the status is **On track** or there is no goal, and shows a warning label alone when the status is **Drifting**, **Running hot**, or **Over the window**.
 
 The goal control is the same button as Today. Clicking it does not navigate. It opens a modal, including when this URL is today’s date. Only the main Today page goes to `/goal`.
 
@@ -488,7 +488,7 @@ After the sum, the viewed day’s logged total — the number on screen, not the
 
 Mixing is per channel, rounded, clamped to 0..1.
 
-The main Today page shows the em dash and label only for **Drifting**, **Running hot**, and **Over the window**. A day page always shows the label when that day has a goal, including **On track**.
+The main Today page shows no status line for **On track** or when today has no goal. The header already says **Today**. **Drifting**, **Running hot**, and **Over the window** appear alone, with no kicker and no em dash. A day page always shows the kicker, em dash, and label when that day has a goal, including **On track**.
 
 The big number on Today and on a day page uses this color. History list totals use it whenever that day has a goal. Calendar counts use it only for in-month cells that have a goal.
 
