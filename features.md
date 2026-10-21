@@ -92,7 +92,7 @@ Both use class `offline-note` (gold, `0.85rem`) and `role="status"`.
 
 `syncNote` is set to:
 
-- `Sign in again to sync.` when the access token cannot be refreshed, or the API returns 401. That line is a button (`.sync-reauth`): the same gold type, underlined, no chrome. It closes the menu if it is open and calls the same redirect as **Log in**. It does not log out first. Every other note stays plain text.
+- `Sign in again to sync.` when `getTokenSilently` fails with `login_required`, `missing_refresh_token`, or `invalid_grant`, or the API returns 401. Any other token failure, including a network error, sets `Sync failed.` instead. That line is a button (`.sync-reauth`): the same gold type, underlined, no chrome. It closes the menu if it is open and calls the same redirect as **Log in**. It does not log out first. Every other note stays plain text.
 - `Sync failed.` or `Sync failed (NNN).` on other failures.
 - `N change could not sync.` / `N changes could not sync.` when one or more ops in the batch are `rejected`. Applied and duplicate ops are still dropped from the queue.
 - `Food log synced. Activity totals could not be saved.` when `/api/ops` or `/api/state` succeeded and the identity PUT failed, and no other note was set.
@@ -515,10 +515,11 @@ When configured, the client is created with:
 
 - `cacheLocation: "localstorage"`
 - `useRefreshTokens: true`
+- `useRefreshTokensFallback: true`
 - `authorizationParams.audience` from the table
 - `redirect_uri: window.location.origin`
 
-On load, if the query has both `code` and `state`, `handleRedirectCallback` runs, then `replaceState` leaves only `pathname` + `hash`. That path is the only time `recordLogin` runs. A silent `getTokenSilently` refresh does not increment the login count.
+On load, if the query has both `code` and `state`, `handleRedirectCallback` runs, then `replaceState` leaves only `pathname` + `hash`. That path is the only time `recordLogin` runs. A silent `getTokenSilently` refresh does not increment the login count. If the refresh token is missing, fallback uses the Auth0 session cookie before giving up. `accessToken` returns null only for `login_required`, `missing_refresh_token`, and `invalid_grant`. Any other failure is thrown, and flush records `Sync failed.`
 
 If Auth0 says the user is authenticated and `getUser()` has a `sub`, status is `signed-in` with `sub`, `name`, `email`, and `picture` (missing strings become empty). Otherwise signed out.
 

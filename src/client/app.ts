@@ -372,7 +372,13 @@ export class NourishApp extends LitElement {
 
   private async flush(): Promise<void> {
     if (this.account.status !== "signed-in") return;
-    const token = await accessToken();
+    let token: string | null;
+    try {
+      token = await accessToken();
+    } catch {
+      this.syncNote = "Sync failed.";
+      return;
+    }
     if (!token) {
       this.syncNote = signInAgainNote;
       return;

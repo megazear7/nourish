@@ -66,6 +66,7 @@ export async function initAuth(onLogin: () => void): Promise<Account> {
     clientId: authConfig().clientId,
     cacheLocation: "localstorage",
     useRefreshTokens: true,
+    useRefreshTokensFallback: true,
     authorizationParams: {
       audience: authConfig().audience,
       redirect_uri: window.location.origin,
@@ -99,12 +100,25 @@ export async function logout(): Promise<void> {
   await client.logout({ logoutParams: { returnTo: window.location.origin } });
 }
 
+const reauthErrors = new Set([
+  "login_required",
+  "missing_refresh_token",
+  "invalid_grant",
+]);
+
+function reauthError(error: unknown): boolean {
+  if (!error || typeof error !== "object" || !("error" in error)) return false;
+  const code = (error as { error?: unknown }).error;
+  return typeof code === "string" && reauthErrors.has(code);
+}
+
 export async function accessToken(): Promise<string | null> {
   if (!client) return null;
   try {
     return (await client.getTokenSilently()) ?? null;
-  } catch {
-    return null;
+  } catch (error) {
+    if (reauthError(error)) return null;
+    throw error;
   }
 }
 
