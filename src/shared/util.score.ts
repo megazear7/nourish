@@ -86,6 +86,17 @@ export function yellowCalories(
   return undefined;
 }
 
+/** Calories remaining is measured against this. Earlier overages pull it
+ * under the goal; otherwise it is the goal. */
+export function dayCalorieTarget(
+  entries: CalorieEntry[],
+  day: string,
+  goal: number,
+  fasts: Fast[] = [],
+): number {
+  return yellowCalories(entries, day, goal, fasts) ?? goal;
+}
+
 export function toneColor(weighted: number): string {
   if (weighted <= 0) return "rgb(111, 191, 132)";
   if (weighted >= RED_OVER) return "rgb(214, 84, 78)";

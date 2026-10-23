@@ -22,6 +22,7 @@ import {
   toneLabel,
   weightedOver,
   UNTRACKED_FALLBACK,
+  dayCalorieTarget,
   dayTotal,
   yellowCalories,
 } from "../shared/util.score.js";
@@ -1159,7 +1160,14 @@ export class NourishApp extends LitElement {
           : this.renderFastLink(today, "Did you fast today?")
       }
       ${this.renderActionDock(
-        this.todayEntries().length > 0 && goal ? goal - total : undefined,
+        this.todayEntries().length > 0 && goal
+          ? dayCalorieTarget(
+              this.state.entries,
+              today,
+              goal,
+              this.state.fasts,
+            ) - total
+          : undefined,
       )}
     `;
   }

@@ -4,6 +4,7 @@ import type { CalorieEntry, Fast } from "./type.nutrition.js";
 import { addDays, parseDateKey } from "./util.dates.js";
 import {
   assumedCalories,
+  dayCalorieTarget,
   RED_OVER,
   toneLabel,
   UNTRACKED_FALLBACK,
@@ -156,5 +157,19 @@ describe("yellowCalories", () => {
     const yesterday = addDays(today, -1);
     const fasts = [fast(yesterday, true, "2026-10-13T08:00:00.000Z")];
     assert.equal(yellowCalories([], today, 1800, fasts), undefined);
+  });
+});
+
+describe("dayCalorieTarget", () => {
+  it("is the goal when the green line is not lower", () => {
+    assert.equal(dayCalorieTarget([], today, 1800), 1800);
+    const yesterday = addDays(today, -1);
+    assert.equal(dayCalorieTarget([entry(yesterday, 1000)], today, 1800), 1800);
+  });
+
+  it("is the pulled-down line when earlier days were over", () => {
+    const yesterday = addDays(today, -1);
+    assert.equal(dayCalorieTarget([entry(yesterday, 2000)], today, 1800), 1701);
+    assert.equal(dayCalorieTarget([entry(yesterday, 10000)], today, 1800), 600);
   });
 });
