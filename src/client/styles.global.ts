@@ -918,6 +918,14 @@ export const appStyles = css`
     margin-top: 1.1rem;
   }
 
+  .save-note {
+    min-height: 1.2em;
+    margin: 0.75rem 0 0;
+    color: var(--gold);
+    font-size: 0.85rem;
+    text-align: center;
+  }
+
   .account-copy {
     margin: 0;
     color: var(--muted);

@@ -210,7 +210,9 @@ export class NourishApp extends LitElement {
   @state() private aimOpen = false;
   @state() private nameOverride = "";
   @state() private profileDraft = "";
+  @state() private profileSaved = false;
   private profileDirty = false;
+  private profileSavedTimer = 0;
   private editIds: string[] = [];
   private lastAddClickAt = 0;
   private lastAddStamp = "";
@@ -230,6 +232,7 @@ export class NourishApp extends LitElement {
   override disconnectedCallback(): void {
     window.clearTimeout(this.menuTimer);
     window.clearTimeout(this.shareTimer);
+    window.clearTimeout(this.profileSavedTimer);
     this.endMealPointer();
     window.removeEventListener("popstate", this.syncRoute);
     window.removeEventListener("online", this.onOnline);
@@ -320,6 +323,8 @@ export class NourishApp extends LitElement {
     if (page === "profile") {
       this.profileDirty = false;
       this.profileDraft = this.nameOverride || this.account.name;
+      this.profileSaved = false;
+      window.clearTimeout(this.profileSavedTimer);
     }
   }
 
@@ -1839,6 +1844,18 @@ export class NourishApp extends LitElement {
     );
     this.profileDirty = false;
     this.profileDraft = this.nameOverride || this.account.name;
+    this.confirmSaved();
+  }
+
+  private confirmSaved(): void {
+    window.clearTimeout(this.profileSavedTimer);
+    this.profileSaved = false;
+    this.profileSavedTimer = window.setTimeout(() => {
+      this.profileSaved = true;
+      this.profileSavedTimer = window.setTimeout(() => {
+        this.profileSaved = false;
+      }, 1600);
+    }, 20);
   }
 
   private renderProfilePhoto(): TemplateResult {
@@ -1888,6 +1905,9 @@ export class NourishApp extends LitElement {
             <path d="M5 12.5 10 17.5 19 7.5"></path>
           </svg>
         </button>
+        <p class="save-note" role="status">
+          ${this.profileSaved ? "Saved" : ""}
+        </p>
       </form>
     </section>`;
   }

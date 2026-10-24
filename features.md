@@ -132,7 +132,8 @@ Header title **Profile**. No dock. The bottom action buttons stay on Today and o
   - Photo, `5.5rem` circle, centered, class `profile-photo`. The same picture rules as the header button. When there is no Auth0 `picture`, the initials use the menu’s name. Empty alt on the image.
   - The email, centered and muted, class `profile-email`. The line is absent when the account has no email. It is not a control.
   - Label **Display name**, input `#profile-name`, class `text-input`, `type="text"`, `autocomplete="name"`, `maxlength="80"`. The value starts as the local override, or as the Auth0 display name when this `sub` has no override. It does not start as the email. Typing does not change the menu until the form is saved. A re-render keeps the caret because the value is bound with Lit `live`.
-  - Gold check button, centered, `aria-label="Save display name"`, the same check icon as the goal form.
+  - Gold check button, centered, `aria-label="Save display name"`, the same check icon as the goal form. The page stays put.
+  - Under the button, a centered gold line, class `save-note`, `role="status"`, `0.85rem`, keeps a one-line gap so the card does not jump. After a successful save it reads **Saved** for 1.6 seconds, the same duration as the menu’s **Copied**, then goes blank. Saving again clears it for a frame and shows it again, so a second save is announced. Opening Profile from the menu clears it. There is no toast.
   - Save trims the field. An empty value, or a value equal to the Auth0 display name, removes this `sub` from `nourish-display-name`. Any other trimmed value is stored for this `sub` only, up to 80 characters. The menu label and the header initials update on that save. Nothing is sent to Auth0 or to the food API. Another account on this device keeps its own name.
 
 ## Today
