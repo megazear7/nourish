@@ -854,6 +854,70 @@ export const appStyles = css`
     font-size: 1.05rem;
   }
 
+  .account-link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .account-link .account-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .account-link svg.chevron {
+    width: 1.15rem;
+    height: 1.15rem;
+    flex-shrink: 0;
+    fill: none;
+    color: var(--muted);
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .account-link:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+  }
+
+  .profile-photo {
+    width: 5.5rem;
+    height: 5.5rem;
+    margin: 0.15rem auto 0.85rem;
+    border-radius: 999px;
+    overflow: hidden;
+    background: var(--field);
+  }
+
+  .profile-photo .avatar {
+    font-size: 1.35rem;
+  }
+
+  .profile-email {
+    margin: 0;
+    color: var(--muted);
+    text-align: center;
+    word-break: break-all;
+  }
+
+  .profile-card .field-label {
+    margin-top: 1.1rem;
+  }
+
   .account-copy {
     margin: 0;
     color: var(--muted);

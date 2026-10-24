@@ -6,13 +6,13 @@ Today counts fully. Yesterday counts half. Each older day counts a little less, 
 
 ## Offline
 
-Nourish is an installable PWA. The first visit stores the app shell on the device. After that, today, history, meals, and the goal all open with no connection, including a refresh on `/history`, `/meals`, or `/goal`. The open log stays in `localStorage` (`nourish-state`). Unsent changes stay in `nourish-queue`. Fonts and icons are part of the app.
+Nourish is an installable PWA. The first visit stores the app shell on the device. After that, today, history, meals, the goal, and profile all open with no connection, including a refresh on `/history`, `/meals`, `/goal`, or `/profile`. The open log stays in `localStorage` (`nourish-state`). Unsent changes stay in `nourish-queue`. A display name you set on this device stays in `nourish-display-name`. Fonts and icons are part of the app.
 
 Sign-out does not wipe the device. Switching accounts stashes the previous account on this device and never uploads that account's queue to the new one.
 
 ## Account
 
-The header icon opens the menu. Signed out, the top offers Log in and Sign up. Signed in, your name stays at the top and Sign out sits at the bottom of the menu. If the session has expired, the gold line **Sign in again to sync.** opens Log in, and that bottom button says **Re-authenticate** instead of Sign out.
+The header icon opens the menu. Signed out, the top offers Log in and Sign up. Signed in, your name stays at the top, with a right arrow that opens Profile. Sign out sits at the bottom of the menu. Profile shows the Auth0 picture and email, and the display name starts as the Auth0 name. Saving a different name overrides it on this device only. If the session has expired, the gold line **Sign in again to sync.** opens Log in, and that bottom button says **Re-authenticate** instead of Sign out.
 
 Auth0 is a bundled SPA (`@auth0/auth0-spa-js`), with refresh tokens in localStorage. The access token is sent as `Authorization`. The ID token is sent only as `X-ID-Token` when saving activity. Login count increments on an interactive login (the redirect callback), not when a silent token refresh opens the app.
 

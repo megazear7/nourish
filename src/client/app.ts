@@ -52,9 +52,17 @@ import {
 } from "./util.auth.js";
 import { backfillCreates, flushSync, signInAgainNote } from "./util.sync.js";
 import { appStyles } from "./styles.global.js";
+import { localDisplayName, setLocalDisplayName } from "./util.profile.js";
 
 type PageName =
-  "today" | "history" | "meals" | "goal" | "meal" | "new-meal" | "day";
+  | "today"
+  | "history"
+  | "meals"
+  | "goal"
+  | "profile"
+  | "meal"
+  | "new-meal"
+  | "day";
 
 const QUICK_WINDOW_MS = 60_000;
 const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
@@ -200,6 +208,9 @@ export class NourishApp extends LitElement {
   @state() private dayGoalCalories = "";
   @state() private fastKey = "";
   @state() private aimOpen = false;
+  @state() private nameOverride = "";
+  @state() private profileDraft = "";
+  private profileDirty = false;
   private editIds: string[] = [];
   private lastAddClickAt = 0;
   private lastAddStamp = "";
@@ -291,7 +302,11 @@ export class NourishApp extends LitElement {
       this.page = "new-meal";
     else if (path.startsWith("/meals")) this.page = "meals";
     else if (path.startsWith("/goal")) this.page = "goal";
-    else this.page = "today";
+    else if (path.startsWith("/profile")) {
+      if (!this.profileDirty)
+        this.profileDraft = this.nameOverride || this.account.name;
+      this.page = "profile";
+    } else this.page = "today";
   };
 
   private navigate(page: PageName): void {
@@ -302,6 +317,10 @@ export class NourishApp extends LitElement {
     this.mealPickerOpen = false;
     this.kebabKey = "";
     this.closeEdit();
+    if (page === "profile") {
+      this.profileDirty = false;
+      this.profileDraft = this.nameOverride || this.account.name;
+    }
   }
 
   private openMeal(id: string): void {
@@ -349,12 +368,19 @@ export class NourishApp extends LitElement {
     try {
       const account = await initAuth(() => recordLogin());
       this.account = account;
+      this.nameOverride =
+        account.status === "signed-in"
+          ? (localDisplayName(account.sub) ?? "")
+          : "";
+      if (!this.profileDirty)
+        this.profileDraft = this.nameOverride || account.name;
       if (account.status === "signed-in") this.bindAccount(account.sub);
       await this.flush();
     } catch {
       this.account = authConfigured()
         ? signedOut()
         : { ...signedOut(), status: "unconfigured" };
+      this.nameOverride = "";
     }
   }
 
@@ -527,10 +553,16 @@ export class NourishApp extends LitElement {
     this.closeMenu();
     await logout();
     this.account = signedOut();
+    this.nameOverride = "";
+    this.profileDirty = false;
+  }
+
+  private shownName(): string {
+    return this.nameOverride || this.account.name || this.account.email;
   }
 
   private initials(): string {
-    const source = this.account.name || this.account.email || "?";
+    const source = this.shownName() || "?";
     const parts = source.split(/\s+|@/).filter(Boolean);
     const first = parts[0]?.[0] ?? "?";
     const second = parts[1]?.[0] ?? "";
@@ -1761,6 +1793,7 @@ export class NourishApp extends LitElement {
     if (this.page === "meals") return "Meals";
     if (this.page === "new-meal") return "New meal";
     if (this.page === "goal") return "Goal";
+    if (this.page === "profile") return "Profile";
     return "Edit meal";
   }
 
@@ -1796,6 +1829,69 @@ export class NourishApp extends LitElement {
     </section>`;
   }
 
+  private saveProfile(event: Event): void {
+    event.preventDefault();
+    if (this.account.status !== "signed-in") return;
+    this.nameOverride = setLocalDisplayName(
+      this.account.sub,
+      this.profileDraft,
+      this.account.name,
+    );
+    this.profileDirty = false;
+    this.profileDraft = this.nameOverride || this.account.name;
+  }
+
+  private renderProfilePhoto(): TemplateResult {
+    if (this.account.picture) {
+      return html`<img class="avatar" src=${this.account.picture} alt="" />`;
+    }
+    return html`<span class="avatar">${this.initials()}</span>`;
+  }
+
+  private renderProfile() {
+    if (this.account.status === "checking") {
+      return html`<p class="empty-note">Checking account…</p>`;
+    }
+    if (this.account.status !== "signed-in") {
+      return html`<p class="empty-note">
+        Sign in from the menu to see your profile.
+      </p>`;
+    }
+    return html`<section>
+      <form class="goal-card profile-card" @submit=${this.saveProfile}>
+        <div class="profile-photo">${this.renderProfilePhoto()}</div>
+        ${
+          this.account.email
+            ? html`<p class="profile-email">${this.account.email}</p>`
+            : ""
+        }
+        <label class="field-label" for="profile-name">Display name</label>
+        <input
+          class="text-input"
+          id="profile-name"
+          name="name"
+          type="text"
+          autocomplete="name"
+          maxlength="80"
+          .value=${live(this.profileDraft)}
+          @input=${(event: Event) => {
+            this.profileDirty = true;
+            this.profileDraft = (event.currentTarget as HTMLInputElement).value;
+          }}
+        />
+        <button
+          class="check-button"
+          type="submit"
+          aria-label="Save display name"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M5 12.5 10 17.5 19 7.5"></path>
+          </svg>
+        </button>
+      </form>
+    </section>`;
+  }
+
   private renderAccount() {
     if (this.account.status === "checking") {
       return html`<div class="account-block">
@@ -1803,9 +1899,19 @@ export class NourishApp extends LitElement {
       </div>`;
     }
     if (this.account.status === "signed-in") {
-      const label = this.account.name || this.account.email || "Signed in";
+      const label = this.shownName() || "Signed in";
       return html`<div class="account-block">
-        <p class="account-name">${label}</p>
+        <button
+          class="account-link"
+          type="button"
+          aria-label=${`Profile, ${label}`}
+          @click=${() => this.navigate("profile")}
+        >
+          <span class="account-name">${label}</span>
+          <svg class="chevron" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M9.5 6.5l6 5.5-6 5.5"></path>
+          </svg>
+        </button>
       </div>`;
     }
     return html`<div class="account-block">
@@ -1899,6 +2005,7 @@ export class NourishApp extends LitElement {
         ${this.page === "new-meal" ? this.renderNewMeal() : ""}
         ${this.page === "meal" ? this.renderMealEdit() : ""}
         ${this.page === "goal" ? this.renderGoal() : ""}
+        ${this.page === "profile" ? this.renderProfile() : ""}
       </main>
       ${
         this.menuMounted

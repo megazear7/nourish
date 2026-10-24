@@ -59,12 +59,13 @@ Navigation is `history.pushState` plus a `popstate` listener. There is no router
 | `/meals/new` and `/meals/new/…` | `new-meal` | New meal | Create-meal form |
 | `/meal/{id}` | `meal` | Edit meal | Edit form, or “That meal is no longer here.” |
 | `/goal` and `/goal/…` | `goal` | Goal | Goal form |
+| `/profile` and `/profile/…` | `profile` | Profile | Profile picture, email, and display name |
 
 `/meal` with no id does not match the meal pattern, so it renders Today while the address bar still says `/meal`. The same is true of any unknown path such as `/settings`.
 
 The word **Nourish** in the header is a link. Clicking it calls `preventDefault` and navigates to `/`.
 
-The service worker answers document navigations from the cached `index.html`, including a refresh on `/history`, `/meals`, `/goal`, `/day/…`, or `/meal/…`.
+The service worker answers document navigations from the cached `index.html`, including a refresh on `/history`, `/meals`, `/goal`, `/profile`, `/day/…`, or `/meal/…`.
 
 ## Shell
 
@@ -79,7 +80,7 @@ The host is at least one viewport tall. Background is `#0c0d18` with a soft gold
 - Round menu button, top right, `2.75rem`, panel color `#171924`, `aria-label="Account and menu"`, `aria-haspopup="dialog"`, `aria-expanded` follows whether the sheet is open.
   - Signed out, or still checking, or auth not configured: stroke icon of a person in a circle. This is not a hamburger. The `.hamburger` CSS rules are unused.
   - Signed in with an Auth0 `picture`: that image, `object-fit: cover`, empty alt.
-  - Signed in without a picture: initials. Source is the display name, else `email`, else `?`. Split on whitespace or `@`. First character of the first two parts, uppercased. One word yields one letter.
+  - Signed in without a picture: initials. Source is the name shown in the menu: the local display name, else the Auth0 display name, else `email`, else `?`. Split on whitespace or `@`. First character of the first two parts, uppercased. One word yields one letter.
 
 On viewports `54rem` and narrower, header text is padded on the right so it does not run under the button.
 
@@ -109,17 +110,30 @@ Opening the menu closes any kebab and the edit sheet. The sheet is mounted first
 - Panel slides from the right, 280ms, `cubic-bezier(0.22, 1, 0.36, 1)`, width `min(22rem, 88vw)`, background `#171924`, padding `1.4rem`. Reduced motion disables both transitions.
 - Top block, under a hairline:
   - `checking`: **Checking account…**
-  - `signed-in`: the display name when one exists, else the email, else **Signed in**. No email line under the name. No avatar in the panel. The display name is Auth0 `name` when that value is set and is not the email address (comparison ignores case and surrounding space). If `name` is missing or is the email, `given_name` and `family_name` are joined with a space and used on the same rule. If that is also missing, `nickname` is used unless it is the email or the email’s local part, which is what Auth0 fills in automatically.
+  - `signed-in`: one button, class `account-link`, no border, no background, full width of the block. The label is left aligned and a muted chevron sits on the right (the same right-pointing path as the calendar’s next month). The label is the local display name for this Auth0 `sub` when [nourish-display-name](#localstorage-keys) has one, else the Auth0 display name, else the email, else **Signed in**. The Auth0 display name is `name` when that value is set and is not the email address (comparison ignores case and surrounding space). If `name` is missing or is the email, `given_name` and `family_name` are joined with a space and used on the same rule. If that is also missing, `nickname` is used unless it is the email or the email’s local part, which is what Auth0 fills in automatically. Long labels ellipsize. The button’s accessible name is `Profile, {label}`. Clicking it calls `navigate("profile")`, which closes the menu. No second line. No avatar in the panel.
   - otherwise: **Log in** (gold pill) and **Sign up** (transparent pill, light border).
 - Nav buttons, left aligned, `1.15rem`, no icons: **Today**, **History**, **Meals**, **Goal**, then **Share**. Today, History, Meals, and Goal each navigate and close the menu. Share is the next row in that list, not a separate footer.
   - The URL is the app root: `origin + "/"`, not the page you are on.
   - A phone or tablet (`pointer: coarse` and `hover: none`) with `navigator.share` opens the system share sheet. Title is **Nourish**, and the URL is that root. Dismissing the sheet does nothing else. A successful share closes the menu. If the sheet fails for another reason, it falls through to copy.
   - Desktop, and any device without the share sheet, copies that URL. The button label becomes **Copied** for 1.6 seconds. The menu stays open. If the clipboard API refuses, it falls back to selecting a hidden textarea and `document.execCommand("copy")`.
 - Bottom button only when signed in. It sits at the bottom of the panel (`margin-top: auto`), below Share, outline pill, muted text.
-  - Usually **Sign out**. It closes the menu, calls Auth0 logout back to this origin, and sets the in-memory account to signed out. It does not clear `nourish-state`, the queue, or the activity document.
+  - Usually **Sign out**. It closes the menu, calls Auth0 logout back to this origin, and sets the in-memory account to signed out. It does not clear `nourish-state`, the queue, the activity document, or `nourish-display-name`.
   - When the status line is **Sign in again to sync.**, that button reads **Re-authenticate**. It closes the menu and calls the same `loginWithRedirect` as **Log in**. It does not log out.
 
-There is no close button. There is no link to a day, a meal, or new-meal.
+There is no close button. There is no link to a day, a meal, or new-meal. Profile is not a row in that list. It is only the account button.
+
+## Profile (`/profile`)
+
+Header title **Profile**. No dock. The bottom action buttons stay on Today and on a day page only.
+
+- `checking`: **Checking account…** in `.empty-note`.
+- Not signed in, including when auth is not configured: **Sign in from the menu to see your profile.** in `.empty-note`. No login buttons on this page.
+- Signed in: a `form.goal-card.profile-card`.
+  - Photo, `5.5rem` circle, centered, class `profile-photo`. The same picture rules as the header button. When there is no Auth0 `picture`, the initials use the menu’s name. Empty alt on the image.
+  - The email, centered and muted, class `profile-email`. The line is absent when the account has no email. It is not a control.
+  - Label **Display name**, input `#profile-name`, class `text-input`, `type="text"`, `autocomplete="name"`, `maxlength="80"`. The value starts as the local override, or as the Auth0 display name when this `sub` has no override. It does not start as the email. Typing does not change the menu until the form is saved. A re-render keeps the caret because the value is bound with Lit `live`.
+  - Gold check button, centered, `aria-label="Save display name"`, the same check icon as the goal form.
+  - Save trims the field. An empty value, or a value equal to the Auth0 display name, removes this `sub` from `nourish-display-name`. Any other trimmed value is stored for this `sub` only, up to 80 characters. The menu label and the header initials update on that save. Nothing is sent to Auth0 or to the food API. Another account on this device keeps its own name.
 
 ## Today
 
@@ -521,7 +535,7 @@ When configured, the client is created with:
 
 On load, if the query has both `code` and `state`, `handleRedirectCallback` runs, then `replaceState` leaves only `pathname` + `hash`. That path is the only time `recordLogin` runs. A silent `getTokenSilently` refresh does not increment the login count. If the refresh token is missing, fallback uses the Auth0 session cookie before giving up. `accessToken` returns null only for `login_required`, `missing_refresh_token`, and `invalid_grant`. Any other failure is thrown, and flush records `Sync failed.`
 
-If Auth0 says the user is authenticated and `getUser()` has a `sub`, status is `signed-in` with `sub`, `email`, `picture`, and `name` (missing strings become empty). `name` here is the display name from the rule in the side menu, not the raw Auth0 `name` when that raw value is only the email. Otherwise signed out.
+If Auth0 says the user is authenticated and `getUser()` has a `sub`, status is `signed-in` with `sub`, `email`, `picture`, and `name` (missing strings become empty). `name` here is the Auth0 display name from the rule in the side menu, not a local override and not the raw Auth0 `name` when that raw value is only the email. The menu and the header initials prefer `nourish-display-name` for this `sub` when it has an entry. Otherwise signed out.
 
 **Log in** calls `loginWithRedirect` with the same audience and redirect. **Sign up** adds `screen_hint: "signup"`. The **Sign in again to sync.** status button and the menu’s **Re-authenticate** button both call **Log in**.
 
@@ -591,6 +605,7 @@ Netlify headers: `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Re
 | `nourish-queue` | `{ deviceId, syncedUserId, ops }` |
 | `nourish-account:{userId}` | Stash `{ state, queue }` for a previous signed-in user on this device |
 | `nourish-activity` | Activity counters. One document for the browser profile, not keyed by user |
+| `nourish-display-name` | JSON object of Auth0 `sub` to a trimmed display name. Missing, corrupt, or empty reads as no overrides. Not part of the food document, not queued, and not stashed on an account switch |
 
 Corrupt JSON or a document that fails the Zod shape yields an empty state or an empty queue. A queue without a string `deviceId` is replaced with a new queue and a new `deviceId`.
 
@@ -801,7 +816,7 @@ Accept tests: a fractional calorie is rejected and a sibling op in the same batc
 
 API tests against the file store: anonymous GET and POST are 401; an unknown bearer is 401; ops survive a new `FileStore` on the same file; a later patch beats an earlier one; a second user’s patch of the first user’s entry is `conflict`; missing `ops` is 400; `public/sw.js` contains the `/api/` bypass.
 
-Queue tests: backfill of an already-removed entry orders create then remove, both `count: false`, and folds to `removed: true`; backfill of a day-scoped goal keeps `day` on the `goal.create` body and `count: false`; backfill of a local fast enqueues one `fast.set` with `count: false`; restoring account A after account B was queued does not keep B’s ops; `resetOpenDocument` keeps `deviceId` and clears ops and `syncedUserId`. Display name ([src/client/util.display-name.test.ts](src/client/util.display-name.test.ts)): Auth0 `name` is used when it is not the email; a name that is only the email is ignored; `given_name` and `family_name` are joined when `name` is the email; a real nickname is used; the email’s local part is not.
+Queue tests: backfill of an already-removed entry orders create then remove, both `count: false`, and folds to `removed: true`; backfill of a day-scoped goal keeps `day` on the `goal.create` body and `count: false`; backfill of a local fast enqueues one `fast.set` with `count: false`; restoring account A after account B was queued does not keep B’s ops; `resetOpenDocument` keeps `deviceId` and clears ops and `syncedUserId`. Display name ([src/client/util.display-name.test.ts](src/client/util.display-name.test.ts)): Auth0 `name` is used when it is not the email; a name that is only the email is ignored; `given_name` and `family_name` are joined when `name` is the email; a real nickname is used; the email’s local part is not. Local display name ([src/client/util.profile.test.ts](src/client/util.profile.test.ts)): nothing is stored until a name is saved; a saved name belongs to that `sub` only; a blank value or a value equal to the Auth0 display name removes the key when it was the last entry; a corrupt document is ignored.
 
 Score tests ([src/shared/util.score.test.ts](src/shared/util.score.test.ts)): assumed calories for logged, fasted, untracked, and missing-goal days; goal 1800 with today at 2230 and six untracked days is 430, Running hot; a fasted yesterday contributes −900; a logged day uses its real total; a logged day under one third of the goal stays at or under 0; a logged day under two thirds is capped at the yellow threshold. `yellowCalories` is hidden when earlier days sit on the goal, when they were under, when yesterday was fasted, and when yesterday was one calorie over (yellow starts at the goal). Yesterday at 2000 against a goal of 1800 makes it 1701. Yesterday at 10000 keeps the one-third floor, so it is 600. `dayCalorieTarget` is that lower line when it exists, and the goal when it does not.
 
@@ -816,6 +831,7 @@ Every file, and whether the running app uses it.
 | [src/client/app.ts](src/client/app.ts) | Yes. Bundle entry | All pages, dock, menus, edit sheet, routing, session |
 | [src/client/styles.global.ts](src/client/styles.global.ts) | Yes | All shadow CSS. Includes unused `.hamburger`, `.save-button`, `.text-button`, `.meal-description`, `.calorie-unit`, `.goal-note` rules |
 | [src/client/util.auth.ts](src/client/util.auth.ts) | Yes | Auth0 client |
+| [src/client/util.profile.ts](src/client/util.profile.ts) | Yes | Local display-name override in `nourish-display-name` |
 | [src/client/util.sync.ts](src/client/util.sync.ts) | Yes | Flush and backfill |
 | [src/client/util.queue.ts](src/client/util.queue.ts) | Yes | Queue and account stash |
 | [src/client/util.storage.ts](src/client/util.storage.ts) | Yes | `nourish-state` load/save and legacy goal migration |
