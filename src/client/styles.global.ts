@@ -918,20 +918,6 @@ export const appStyles = css`
     margin-top: 1.1rem;
   }
 
-  .save-note {
-    min-height: 1.2em;
-    margin: 0.75rem 0 0;
-    color: rgb(111, 191, 132);
-    font-size: 0.85rem;
-    text-align: center;
-    opacity: 0;
-    transition: opacity 180ms ease;
-  }
-
-  .save-note.is-on {
-    opacity: 1;
-  }
-
   .profile-card .check-button {
     position: relative;
     transition:
@@ -1002,7 +988,6 @@ export const appStyles = css`
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .save-note,
     .profile-card .check-button,
     .profile-card .check-button.is-saved,
     .profile-card .check-button.is-saved::after,
