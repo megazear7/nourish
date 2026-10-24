@@ -44,16 +44,48 @@ export function authConfigured(): boolean {
   return Boolean(config.domain && config.clientId);
 }
 
+export function displayName(profile: {
+  name?: string;
+  given_name?: string;
+  family_name?: string;
+  nickname?: string;
+  email?: string;
+}): string {
+  const email = (profile.email ?? "").trim();
+  const local = email.split("@")[0]?.toLowerCase() ?? "";
+  const combined = [profile.given_name, profile.family_name]
+    .map((part) => (part ?? "").trim())
+    .filter(Boolean)
+    .join(" ");
+  const candidates: { value: string | undefined; rejectLocal: boolean }[] = [
+    { value: profile.name, rejectLocal: false },
+    { value: combined, rejectLocal: false },
+    { value: profile.nickname, rejectLocal: true },
+  ];
+  for (const candidate of candidates) {
+    const value = (candidate.value ?? "").trim();
+    if (!value) continue;
+    const folded = value.toLowerCase();
+    if (email && folded === email.toLowerCase()) continue;
+    if (candidate.rejectLocal && local && folded === local) continue;
+    return value;
+  }
+  return "";
+}
+
 function accountFromUser(user: {
   sub?: string;
   name?: string;
+  given_name?: string;
+  family_name?: string;
+  nickname?: string;
   email?: string;
   picture?: string;
 }): Account {
   return {
     status: "signed-in",
     sub: user.sub ?? "",
-    name: user.name ?? "",
+    name: displayName(user),
     email: user.email ?? "",
     picture: user.picture ?? "",
   };

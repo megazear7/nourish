@@ -79,7 +79,7 @@ The host is at least one viewport tall. Background is `#0c0d18` with a soft gold
 - Round menu button, top right, `2.75rem`, panel color `#171924`, `aria-label="Account and menu"`, `aria-haspopup="dialog"`, `aria-expanded` follows whether the sheet is open.
   - Signed out, or still checking, or auth not configured: stroke icon of a person in a circle. This is not a hamburger. The `.hamburger` CSS rules are unused.
   - Signed in with an Auth0 `picture`: that image, `object-fit: cover`, empty alt.
-  - Signed in without a picture: initials. Source is `name`, else `email`, else `?`. Split on whitespace or `@`. First character of the first two parts, uppercased. One word yields one letter.
+  - Signed in without a picture: initials. Source is the display name, else `email`, else `?`. Split on whitespace or `@`. First character of the first two parts, uppercased. One word yields one letter.
 
 On viewports `54rem` and narrower, header text is padded on the right so it does not run under the button.
 
@@ -109,7 +109,7 @@ Opening the menu closes any kebab and the edit sheet. The sheet is mounted first
 - Panel slides from the right, 280ms, `cubic-bezier(0.22, 1, 0.36, 1)`, width `min(22rem, 88vw)`, background `#171924`, padding `1.4rem`. Reduced motion disables both transitions.
 - Top block, under a hairline:
   - `checking`: **Checking account…**
-  - `signed-in`: display name, else email, else **Signed in**. No email line under the name. No avatar in the panel.
+  - `signed-in`: the display name when one exists, else the email, else **Signed in**. No email line under the name. No avatar in the panel. The display name is Auth0 `name` when that value is set and is not the email address (comparison ignores case and surrounding space). If `name` is missing or is the email, `given_name` and `family_name` are joined with a space and used on the same rule. If that is also missing, `nickname` is used unless it is the email or the email’s local part, which is what Auth0 fills in automatically.
   - otherwise: **Log in** (gold pill) and **Sign up** (transparent pill, light border).
 - Nav buttons, left aligned, `1.15rem`, no icons: **Today**, **History**, **Meals**, **Goal**, then **Share**. Today, History, Meals, and Goal each navigate and close the menu. Share is the next row in that list, not a separate footer.
   - The URL is the app root: `origin + "/"`, not the page you are on.
@@ -521,7 +521,7 @@ When configured, the client is created with:
 
 On load, if the query has both `code` and `state`, `handleRedirectCallback` runs, then `replaceState` leaves only `pathname` + `hash`. That path is the only time `recordLogin` runs. A silent `getTokenSilently` refresh does not increment the login count. If the refresh token is missing, fallback uses the Auth0 session cookie before giving up. `accessToken` returns null only for `login_required`, `missing_refresh_token`, and `invalid_grant`. Any other failure is thrown, and flush records `Sync failed.`
 
-If Auth0 says the user is authenticated and `getUser()` has a `sub`, status is `signed-in` with `sub`, `name`, `email`, and `picture` (missing strings become empty). Otherwise signed out.
+If Auth0 says the user is authenticated and `getUser()` has a `sub`, status is `signed-in` with `sub`, `email`, `picture`, and `name` (missing strings become empty). `name` here is the display name from the rule in the side menu, not the raw Auth0 `name` when that raw value is only the email. Otherwise signed out.
 
 **Log in** calls `loginWithRedirect` with the same audience and redirect. **Sign up** adds `screen_hint: "signup"`. The **Sign in again to sync.** status button and the menu’s **Re-authenticate** button both call **Log in**.
 
@@ -801,7 +801,7 @@ Accept tests: a fractional calorie is rejected and a sibling op in the same batc
 
 API tests against the file store: anonymous GET and POST are 401; an unknown bearer is 401; ops survive a new `FileStore` on the same file; a later patch beats an earlier one; a second user’s patch of the first user’s entry is `conflict`; missing `ops` is 400; `public/sw.js` contains the `/api/` bypass.
 
-Queue tests: backfill of an already-removed entry orders create then remove, both `count: false`, and folds to `removed: true`; backfill of a day-scoped goal keeps `day` on the `goal.create` body and `count: false`; backfill of a local fast enqueues one `fast.set` with `count: false`; restoring account A after account B was queued does not keep B’s ops; `resetOpenDocument` keeps `deviceId` and clears ops and `syncedUserId`.
+Queue tests: backfill of an already-removed entry orders create then remove, both `count: false`, and folds to `removed: true`; backfill of a day-scoped goal keeps `day` on the `goal.create` body and `count: false`; backfill of a local fast enqueues one `fast.set` with `count: false`; restoring account A after account B was queued does not keep B’s ops; `resetOpenDocument` keeps `deviceId` and clears ops and `syncedUserId`. Display name ([src/client/util.display-name.test.ts](src/client/util.display-name.test.ts)): Auth0 `name` is used when it is not the email; a name that is only the email is ignored; `given_name` and `family_name` are joined when `name` is the email; a real nickname is used; the email’s local part is not.
 
 Score tests ([src/shared/util.score.test.ts](src/shared/util.score.test.ts)): assumed calories for logged, fasted, untracked, and missing-goal days; goal 1800 with today at 2230 and six untracked days is 430, Running hot; a fasted yesterday contributes −900; a logged day uses its real total; a logged day under one third of the goal stays at or under 0; a logged day under two thirds is capped at the yellow threshold. `yellowCalories` is hidden when earlier days sit on the goal, when they were under, when yesterday was fasted, and when yesterday was one calorie over (yellow starts at the goal). Yesterday at 2000 against a goal of 1800 makes it 1701. Yesterday at 10000 keeps the one-third floor, so it is 600. `dayCalorieTarget` is that lower line when it exists, and the goal when it does not.
 
