@@ -1884,7 +1884,7 @@ export class NourishApp extends LitElement {
         }
         <label class="field-label" for="profile-name">Display name</label>
         <input
-          class="text-input"
+          class="text-input profile-name"
           id="profile-name"
           name="name"
           type="text"

@@ -915,7 +915,15 @@ export const appStyles = css`
   }
 
   .profile-card .field-label {
-    margin-top: 1.1rem;
+    max-width: 400px;
+    margin: 1.1rem auto 0.35rem;
+    text-align: center;
+  }
+
+  .profile-name {
+    max-width: 400px;
+    margin-right: auto;
+    margin-left: auto;
   }
 
   .profile-card .check-button {
