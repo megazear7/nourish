@@ -921,9 +921,100 @@ export const appStyles = css`
   .save-note {
     min-height: 1.2em;
     margin: 0.75rem 0 0;
-    color: var(--gold);
+    color: rgb(111, 191, 132);
     font-size: 0.85rem;
     text-align: center;
+    opacity: 0;
+    transition: opacity 180ms ease;
+  }
+
+  .save-note.is-on {
+    opacity: 1;
+  }
+
+  .profile-card .check-button {
+    position: relative;
+    transition:
+      transform 140ms cubic-bezier(0.22, 1, 0.36, 1),
+      background 320ms cubic-bezier(0.22, 1, 0.36, 1),
+      color 320ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .profile-card .check-button:active {
+    transform: scale(0.92);
+  }
+
+  .profile-card .check-button.is-saved {
+    background: rgb(111, 191, 132);
+    color: #102116;
+    animation: check-pop 420ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .profile-card .check-button.is-saved::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    border: 2px solid rgb(111, 191, 132);
+    pointer-events: none;
+    animation: check-ring 640ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+
+  .profile-card .check-button svg path {
+    stroke-dasharray: 24;
+    stroke-dashoffset: 0;
+  }
+
+  .profile-card .check-button.is-saved svg path {
+    animation: check-draw 360ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  @keyframes check-pop {
+    0% {
+      transform: scale(0.92);
+    }
+    55% {
+      transform: scale(1.08);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+
+  @keyframes check-ring {
+    0% {
+      transform: scale(1);
+      opacity: 0.9;
+    }
+    100% {
+      transform: scale(1.65);
+      opacity: 0;
+    }
+  }
+
+  @keyframes check-draw {
+    from {
+      stroke-dashoffset: 24;
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .save-note,
+    .profile-card .check-button,
+    .profile-card .check-button.is-saved,
+    .profile-card .check-button.is-saved::after,
+    .profile-card .check-button svg path,
+    .profile-card .check-button.is-saved svg path {
+      animation: none;
+      transition: none;
+    }
+
+    .profile-card .check-button:active {
+      transform: none;
+    }
   }
 
   .account-copy {

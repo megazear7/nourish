@@ -1897,7 +1897,7 @@ export class NourishApp extends LitElement {
           }}
         />
         <button
-          class="check-button"
+          class=${this.profileSaved ? "check-button is-saved" : "check-button"}
           type="submit"
           aria-label="Save display name"
         >
@@ -1905,7 +1905,10 @@ export class NourishApp extends LitElement {
             <path d="M5 12.5 10 17.5 19 7.5"></path>
           </svg>
         </button>
-        <p class="save-note" role="status">
+        <p
+          class=${this.profileSaved ? "save-note is-on" : "save-note"}
+          role="status"
+        >
           ${this.profileSaved ? "Saved" : ""}
         </p>
       </form>
