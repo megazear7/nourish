@@ -13,6 +13,12 @@ export default async function handler(req: Request): Promise<Response> {
 }
 
 export const config: Config = {
-  path: ["/api/ops", "/api/state"],
-  method: ["GET", "POST", "OPTIONS"],
+  path: [
+    "/api/ops",
+    "/api/state",
+    "/api/competitions",
+    "/api/competitions/*",
+    "/api/competitions/*/*",
+  ],
+  method: ["GET", "POST", "DELETE", "OPTIONS"],
 };

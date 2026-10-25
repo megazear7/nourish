@@ -53,16 +53,68 @@ import {
 import { backfillCreates, flushSync, signInAgainNote } from "./util.sync.js";
 import { appStyles } from "./styles.global.js";
 import { localDisplayName, setLocalDisplayName } from "./util.profile.js";
+import {
+  CompetitionKind,
+  CompetitionList,
+  CompetitionView,
+  type DayCall,
+} from "../shared/type.competition.js";
 
 type PageName =
   | "today"
   | "history"
   | "meals"
   | "goal"
+  | "competitions"
+  | "new-competition"
+  | "competition"
   | "profile"
   | "meal"
   | "new-meal"
   | "day";
+
+const COMPETITION_ID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function browserZone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  } catch {
+    return "UTC";
+  }
+}
+
+function kindLabel(kind: CompetitionKind): string {
+  return kind === "last_one_standing"
+    ? "Last one standing"
+    : "Best of the month";
+}
+
+function phaseLabel(phase: CompetitionView["phase"]): string {
+  if (phase === "waiting") return "Waiting";
+  if (phase === "active") return "Active";
+  return "Completed";
+}
+
+function callLabel(call: DayCall): string {
+  if (call === "on-track") return "On track";
+  if (call === "drifting") return "Drifting";
+  if (call === "running-hot") return "Running hot";
+  if (call === "over") return "Over the window";
+  return "No log";
+}
+
+function monthDay(key: string): string {
+  return parseDateKey(key).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function pointsLabel(points: number): string {
+  const value = `${points} ${Math.abs(points) === 1 ? "point" : "points"}`;
+  return value;
+}
 
 const QUICK_WINDOW_MS = 60_000;
 const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
@@ -211,6 +263,18 @@ export class NourishApp extends LitElement {
   @state() private nameOverride = "";
   @state() private profileDraft = "";
   @state() private profileSaved = false;
+  @state() private competitions: CompetitionView[] = [];
+  @state() private competitionSuggestions: string[] = [];
+  @state() private competitionDetail: CompetitionView | null = null;
+  @state() private competitionId = "";
+  @state() private competitionKind: CompetitionKind = "last_one_standing";
+  @state() private competitionEmails: string[] = [];
+  @state() private competitionEmailDraft = "";
+  @state() private competitionNote = "";
+  @state() private competitionLoading = false;
+  @state() private competitionBusy = false;
+  private listTicket = 0;
+  private detailTicket = 0;
   private profileDirty = false;
   private profileSavedTimer = 0;
   private editIds: string[] = [];
@@ -305,7 +369,27 @@ export class NourishApp extends LitElement {
       this.page = "new-meal";
     else if (path.startsWith("/meals")) this.page = "meals";
     else if (path.startsWith("/goal")) this.page = "goal";
-    else if (path.startsWith("/profile")) {
+    else if (
+      path === "/competitions/new" ||
+      path.startsWith("/competitions/new/")
+    )
+      this.page = "new-competition";
+    else if (path.startsWith("/competitions")) {
+      const match = path.match(/^\/competitions\/([^/]+)\/?$/);
+      const id = match ? decodeURIComponent(match[1] ?? "") : "";
+      if (id && COMPETITION_ID.test(id)) {
+        const changed =
+          this.page !== "competition" || this.competitionId !== id;
+        this.page = "competition";
+        this.competitionId = id;
+        if (changed) void this.loadCompetition(id);
+      } else if (id) this.page = "competitions";
+      else {
+        const changed = this.page !== "competitions";
+        this.page = "competitions";
+        if (changed) void this.loadCompetitions();
+      }
+    } else if (path.startsWith("/profile")) {
       if (!this.profileDirty)
         this.profileDraft = this.nameOverride || this.account.name;
       this.page = "profile";
@@ -313,6 +397,7 @@ export class NourishApp extends LitElement {
   };
 
   private navigate(page: PageName): void {
+    if (page === "new-competition" || page === "competition") return;
     const path = page === "today" ? "/" : `/${page}`;
     window.history.pushState({}, "", path);
     this.page = page;
@@ -326,6 +411,7 @@ export class NourishApp extends LitElement {
       this.profileSaved = false;
       window.clearTimeout(this.profileSavedTimer);
     }
+    if (page === "competitions") void this.loadCompetitions();
   }
 
   private openMeal(id: string): void {
@@ -429,6 +515,7 @@ export class NourishApp extends LitElement {
       this.syncNote = error instanceof Error ? error.message : "Sync failed.";
       return;
     }
+    this.refreshCompetitions();
     try {
       const client = new UserDataClient(
         authConfig().identityUrl,
@@ -1804,6 +1891,631 @@ export class NourishApp extends LitElement {
     </section>`;
   }
 
+  private refreshCompetitions(): void {
+    if (this.page === "competitions" || this.page === "new-competition") {
+      void this.loadCompetitions();
+    } else if (this.page === "competition" && this.competitionId) {
+      void this.loadCompetition(this.competitionId);
+    }
+  }
+
+  private competitionsReady(): boolean {
+    return this.account.status === "signed-in" && !this.offline;
+  }
+
+  private async competitionRequest(
+    path: string,
+    method: "GET" | "POST" | "DELETE",
+    body?: Record<string, unknown>,
+  ): Promise<Response> {
+    const token = await accessToken();
+    if (!token) {
+      this.syncNote = signInAgainNote;
+      throw new Error(signInAgainNote);
+    }
+    let url = path;
+    if (method === "GET" || method === "DELETE") {
+      const params = new URLSearchParams();
+      params.set("timezone", browserZone());
+      if (method === "DELETE" && typeof body?.email === "string") {
+        params.set("email", body.email);
+      }
+      url = `${path}?${params.toString()}`;
+    }
+    const response = await fetch(url, {
+      method,
+      headers: {
+        authorization: `Bearer ${token}`,
+        ...(method === "GET" || method === "DELETE"
+          ? {}
+          : { "content-type": "application/json" }),
+      },
+      body:
+        method === "GET" || method === "DELETE"
+          ? undefined
+          : JSON.stringify({ ...body, timezone: browserZone() }),
+    });
+    if (response.status === 401) this.syncNote = signInAgainNote;
+    return response;
+  }
+
+  private async readError(response: Response): Promise<string> {
+    try {
+      const body = (await response.json()) as { error?: unknown };
+      if (typeof body.error === "string" && body.error.trim())
+        return body.error;
+    } catch {
+      /* The body was empty or not JSON. */
+    }
+    return "That did not work.";
+  }
+
+  private async loadCompetitions(): Promise<void> {
+    if (!this.competitionsReady()) return;
+    const ticket = ++this.listTicket;
+    const owns =
+      this.page === "competitions" || this.page === "new-competition";
+    if (owns) this.competitionLoading = true;
+    try {
+      const response = await this.competitionRequest(
+        "/api/competitions",
+        "GET",
+      );
+      if (ticket !== this.listTicket) return;
+      if (response.status === 401) return;
+      if (!response.ok) {
+        if (owns) this.competitionNote = await this.readError(response);
+        return;
+      }
+      const parsed = CompetitionList.safeParse(await response.json());
+      if (!parsed.success) {
+        if (owns) this.competitionNote = "Competitions could not be read.";
+        return;
+      }
+      this.competitions = parsed.data.competitions;
+      this.competitionSuggestions = parsed.data.suggestions;
+      if (owns) this.competitionNote = "";
+    } catch (error) {
+      if (ticket !== this.listTicket) return;
+      if (error instanceof Error && error.message === signInAgainNote) return;
+      if (owns) this.competitionNote = "Competitions need a connection.";
+    } finally {
+      if (ticket === this.listTicket && owns) this.competitionLoading = false;
+    }
+  }
+
+  private async loadCompetition(id: string): Promise<void> {
+    if (!this.competitionsReady()) return;
+    const ticket = ++this.detailTicket;
+    this.competitionLoading = this.competitionDetail?.id !== id;
+    try {
+      const response = await this.competitionRequest(
+        `/api/competitions/${id}`,
+        "GET",
+      );
+      if (ticket !== this.detailTicket) return;
+      if (response.status === 401) return;
+      if (!response.ok) {
+        this.competitionDetail = null;
+        this.competitionNote = await this.readError(response);
+        return;
+      }
+      const parsed = CompetitionView.safeParse(await response.json());
+      if (!parsed.success) {
+        this.competitionNote = "That competition could not be read.";
+        return;
+      }
+      this.competitionDetail = parsed.data;
+      this.competitionNote = "";
+      if (parsed.data.host && parsed.data.phase === "waiting") {
+        void this.loadCompetitions();
+      }
+    } catch (error) {
+      if (ticket !== this.detailTicket) return;
+      if (error instanceof Error && error.message === signInAgainNote) return;
+      this.competitionNote = "Competitions need a connection.";
+    } finally {
+      if (ticket === this.detailTicket) this.competitionLoading = false;
+    }
+  }
+
+  private openNewCompetition(): void {
+    window.history.pushState({}, "", "/competitions/new");
+    this.page = "new-competition";
+    this.competitionKind = "last_one_standing";
+    this.competitionEmails = [];
+    this.competitionEmailDraft = "";
+    this.competitionNote = "";
+    this.closeMenu();
+    this.mealPickerOpen = false;
+    this.kebabKey = "";
+    this.closeEdit();
+    void this.loadCompetitions();
+  }
+
+  private openCompetition(id: string): void {
+    window.history.pushState({}, "", `/competitions/${id}`);
+    this.page = "competition";
+    this.competitionId = id;
+    this.competitionNote = "";
+    this.competitionDetail =
+      this.competitions.find((item) => item.id === id) ??
+      this.competitionDetail;
+    this.closeMenu();
+    this.mealPickerOpen = false;
+    this.kebabKey = "";
+    this.closeEdit();
+    void this.loadCompetition(id);
+  }
+
+  private addDraftEmail(event: Event): void {
+    event.preventDefault();
+    const email = this.competitionEmailDraft.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      this.competitionNote = "Enter an email address.";
+      return;
+    }
+    const mine = this.account.email.trim().toLowerCase();
+    if (mine && email === mine) {
+      this.competitionNote = "You are already in this competition.";
+      return;
+    }
+    if (this.competitionEmails.includes(email)) {
+      this.competitionNote = "That email is already on the list.";
+      return;
+    }
+    this.competitionEmails = [...this.competitionEmails, email];
+    this.competitionEmailDraft = "";
+    this.competitionNote = "";
+  }
+
+  private async createCompetition(event: Event): Promise<void> {
+    event.preventDefault();
+    if (this.competitionBusy) return;
+    if (!this.competitionEmails.length) {
+      this.competitionNote = "Add at least one email.";
+      return;
+    }
+    this.competitionBusy = true;
+    this.competitionNote = "";
+    try {
+      const response = await this.competitionRequest(
+        "/api/competitions",
+        "POST",
+        {
+          kind: this.competitionKind,
+          emails: this.competitionEmails,
+        },
+      );
+      if (response.status === 401) return;
+      if (!response.ok) {
+        this.competitionNote = await this.readError(response);
+        return;
+      }
+      const parsed = CompetitionView.safeParse(await response.json());
+      if (!parsed.success) {
+        this.competitionNote = "That competition could not be read.";
+        return;
+      }
+      this.competitionDetail = parsed.data;
+      this.openCompetition(parsed.data.id);
+    } catch (error) {
+      if (error instanceof Error && error.message === signInAgainNote) return;
+      this.competitionNote = "Competitions need a connection.";
+    } finally {
+      this.competitionBusy = false;
+    }
+  }
+
+  private async mutateCompetition(
+    path: string,
+    method: "POST" | "DELETE",
+    body?: Record<string, unknown>,
+    after?: "list" | "stay",
+  ): Promise<void> {
+    if (this.competitionBusy) return;
+    this.competitionBusy = true;
+    this.competitionNote = "";
+    try {
+      const response = await this.competitionRequest(path, method, body);
+      if (response.status === 401) return;
+      if (response.status === 204) {
+        window.history.replaceState({}, "", "/competitions");
+        this.page = "competitions";
+        this.closeMenu();
+        this.mealPickerOpen = false;
+        this.kebabKey = "";
+        this.closeEdit();
+        void this.loadCompetitions();
+        return;
+      }
+      if (!response.ok) {
+        this.competitionNote = await this.readError(response);
+        return;
+      }
+      const parsed = CompetitionView.safeParse(await response.json());
+      if (!parsed.success) {
+        this.competitionNote = "That competition could not be read.";
+        return;
+      }
+      this.competitionDetail = parsed.data;
+      if (after === "list") this.navigate("competitions");
+    } catch (error) {
+      if (error instanceof Error && error.message === signInAgainNote) return;
+      this.competitionNote = "Competitions need a connection.";
+    } finally {
+      this.competitionBusy = false;
+    }
+  }
+
+  private renderCompetitionGate(): TemplateResult | "" {
+    if (this.account.status === "checking") {
+      return html`<p class="empty-note">Checking account…</p>`;
+    }
+    if (this.account.status !== "signed-in") {
+      return html`<p class="empty-note">
+        Sign in from the menu to see competitions.
+      </p>`;
+    }
+    if (this.offline) {
+      return html`<p class="empty-note">Competitions need a connection.</p>`;
+    }
+    return "";
+  }
+
+  private renderCompetitions() {
+    const gate = this.renderCompetitionGate();
+    if (gate) return gate;
+    return html`<section class="competition-page">
+      ${
+        this.competitionNote
+          ? html`<p class="offline-note" role="status">
+              ${this.competitionNote}
+            </p>`
+          : ""
+      }
+      ${
+        this.competitionLoading && !this.competitions.length
+          ? html`<p class="empty-note">Loading competitions…</p>`
+          : ""
+      }
+      ${
+        !this.competitionLoading &&
+        !this.competitions.length &&
+        !this.competitionNote
+          ? html`<p class="empty-note">No competitions yet.</p>`
+          : ""
+      }
+      <ul class="competition-list">
+        ${this.competitions.map(
+          (item) =>
+            html`<li>
+              <button
+                class="competition-row"
+                type="button"
+                @click=${() => this.openCompetition(item.id)}
+              >
+                <span class="competition-kind">${kindLabel(item.kind)}</span>
+                <span class="competition-meta"
+                  >${phaseLabel(item.phase)} · ${item.members.length}
+                  ${item.members.length === 1 ? "person" : "people"}</span
+                >
+              </button>
+            </li>`,
+        )}
+      </ul>
+      <button
+        class="competition-add"
+        type="button"
+        aria-label="New competition"
+        @click=${() => this.openNewCompetition()}
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 5v14M5 12h14"></path>
+        </svg>
+      </button>
+    </section>`;
+  }
+
+  private renderNewCompetition() {
+    const gate = this.renderCompetitionGate();
+    if (gate) return gate;
+    const suggestions = this.competitionSuggestions.filter(
+      (email) => !this.competitionEmails.includes(email),
+    );
+    return html`<section>
+      <form
+        class="composer-card"
+        @submit=${(event: Event) => void this.createCompetition(event)}
+      >
+        <p class="field-label">Type</p>
+        <div class="kind-choices">
+          ${CompetitionKind.options.map(
+            (kind) =>
+              html`<button
+                class="kind-choice ${this.competitionKind === kind ? "is-on" : ""}"
+                type="button"
+                aria-pressed=${this.competitionKind === kind ? "true" : "false"}
+                @click=${() => {
+                  this.competitionKind = kind;
+                }}
+              >
+                <span class="competition-kind">${kindLabel(kind)}</span>
+                <span class="competition-meta">
+                  ${
+                    kind === "last_one_standing"
+                      ? "The first day that is not On track knocks you out."
+                      : "On track +1, drifting 0, a hot day or no log −1, through the end of the start month."
+                  }
+                </span>
+              </button>`,
+          )}
+        </div>
+        <label class="field-label" for="competition-email">Email</label>
+        <div class="email-row">
+          <input
+            class="text-input"
+            id="competition-email"
+            name="email"
+            type="email"
+            autocomplete="off"
+            list="competition-suggestions"
+            .value=${live(this.competitionEmailDraft)}
+            @input=${(event: Event) => {
+              this.competitionEmailDraft = (
+                event.currentTarget as HTMLInputElement
+              ).value;
+            }}
+          />
+          <button
+            class="account-button"
+            type="button"
+            @click=${(event: Event) => this.addDraftEmail(event)}
+          >
+            Add
+          </button>
+        </div>
+        <datalist id="competition-suggestions">
+          ${suggestions.map((email) => html`<option value=${email}></option>`)}
+        </datalist>
+        ${
+          this.competitionEmails.length
+            ? html`<ul class="email-chips">
+                ${this.competitionEmails.map(
+                  (email) =>
+                    html`<li class="email-chip">
+                      <span>${email}</span>
+                      <button
+                        class="chip-remove"
+                        type="button"
+                        aria-label=${`Remove ${email}`}
+                        @click=${() => {
+                          this.competitionEmails =
+                            this.competitionEmails.filter(
+                              (item) => item !== email,
+                            );
+                        }}
+                      >
+                        Remove
+                      </button>
+                    </li>`,
+                )}
+              </ul>`
+            : ""
+        }
+        ${
+          this.competitionNote
+            ? html`<p class="offline-note" role="status">
+                ${this.competitionNote}
+              </p>`
+            : ""
+        }
+        <button
+          class="check-button"
+          type="submit"
+          aria-label="Create competition"
+          ?disabled=${this.competitionBusy}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M5 12.5 10 17.5 19 7.5"></path>
+          </svg>
+        </button>
+      </form>
+    </section>`;
+  }
+
+  private renderCompetition() {
+    const gate = this.renderCompetitionGate();
+    if (gate) return gate;
+    const item = this.competitionDetail;
+    if (!item || item.id !== this.competitionId) {
+      return html`<p class="empty-note">
+        ${this.competitionNote || "Loading competition…"}
+      </p>`;
+    }
+    const you = item.members.find((member) => member.you);
+    return html`<section>
+      <p class="competition-meta competition-phase">
+        ${phaseLabel(item.phase)}
+        ${
+          item.startDay
+            ? html` ·
+              ${monthDay(item.startDay)}${
+                item.monthEnd ? html`–${monthDay(item.monthEnd)}` : ""
+              }`
+            : ""
+        }
+      </p>
+      ${
+        item.phase === "completed"
+          ? html`<p class="competition-kind">
+              ${
+                item.winners.length
+                  ? item.winners.length === 1
+                    ? `${item.winners[0] === you?.email ? "You" : item.winners[0]} won.`
+                    : `${item.winners.join(", ")} share the win.`
+                  : "Completed."
+              }
+            </p>`
+          : ""
+      }
+      <ul class="competition-list">
+        ${item.members.map((member) => {
+          const bits: string[] = [];
+          if (member.host) bits.push("Host");
+          if (member.you) bits.push("You");
+          if (member.invite === "pending") bits.push("Pending");
+          else if (member.standing === "winner") bits.push("Winner");
+          else if (member.standing === "out" && !member.knockedOutOn)
+            bits.push("Out");
+          else if (member.standing === "in") bits.push("In");
+          return html`<li class="member-card">
+            <div class="member-top">
+              <p class="entry-calories">${member.email}</p>
+              ${
+                item.host && item.phase === "waiting" && !member.host
+                  ? html`<button
+                      class="text-button member-remove"
+                      type="button"
+                      @click=${() =>
+                        void this.mutateCompetition(
+                          `/api/competitions/${item.id}/emails`,
+                          "DELETE",
+                          { email: member.email },
+                        )}
+                    >
+                      Remove
+                    </button>`
+                  : ""
+              }
+            </div>
+            <p class="entry-meta">${bits.join(" · ") || "In"}</p>
+            ${
+              member.points !== null
+                ? html`<p class="entry-meta">${pointsLabel(member.points)}</p>`
+                : ""
+            }
+            ${
+              member.knockedOutOn
+                ? html`<p class="entry-meta">
+                    Out ${formatDayLabel(member.knockedOutOn, todayKey())}
+                  </p>`
+                : ""
+            }
+            ${
+              member.today
+                ? html`<p class="entry-meta ${`call-${member.today}`}">
+                    Today, not locked · ${callLabel(member.today)}
+                  </p>`
+                : ""
+            }
+          </li>`;
+        })}
+      </ul>
+      ${
+        you?.invite === "pending"
+          ? html`<div class="account-actions competition-actions">
+              <button
+                class="account-button"
+                type="button"
+                ?disabled=${this.competitionBusy}
+                @click=${() =>
+                  void this.mutateCompetition(
+                    `/api/competitions/${item.id}/accept`,
+                    "POST",
+                  )}
+              >
+                Accept
+              </button>
+              <button
+                class="account-button account-secondary"
+                type="button"
+                ?disabled=${this.competitionBusy}
+                @click=${() =>
+                  void this.mutateCompetition(
+                    `/api/competitions/${item.id}/decline`,
+                    "POST",
+                  )}
+              >
+                Decline
+              </button>
+            </div>`
+          : ""
+      }
+      ${
+        item.canStart
+          ? html`<button
+              class="account-button competition-start"
+              type="button"
+              ?disabled=${this.competitionBusy}
+              @click=${() =>
+                void this.mutateCompetition(
+                  `/api/competitions/${item.id}/start`,
+                  "POST",
+                )}
+            >
+              Start
+            </button>`
+          : ""
+      }
+      ${
+        item.host && item.phase === "waiting"
+          ? html`<form
+                class="email-row competition-invite"
+                @submit=${(event: Event) => {
+                  event.preventDefault();
+                  const email = this.competitionEmailDraft.trim().toLowerCase();
+                  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                    this.competitionNote = "Enter an email address.";
+                    return;
+                  }
+                  void this.mutateCompetition(
+                    `/api/competitions/${item.id}/emails`,
+                    "POST",
+                    { email },
+                  ).then(() => {
+                    if (!this.competitionNote) this.competitionEmailDraft = "";
+                  });
+                }}
+              >
+                <input
+                  class="text-input"
+                  id="invite-email"
+                  name="email"
+                  type="email"
+                  aria-label="Email"
+                  autocomplete="off"
+                  list="competition-suggestions"
+                  placeholder="Add an email"
+                  .value=${live(this.competitionEmailDraft)}
+                  @input=${(event: Event) => {
+                    this.competitionEmailDraft = (
+                      event.currentTarget as HTMLInputElement
+                    ).value;
+                  }}
+                />
+                <button class="account-button" type="submit">Add</button>
+              </form>
+              <datalist id="competition-suggestions">
+                ${this.competitionSuggestions
+                  .filter(
+                    (email) =>
+                      !item.members.some((member) => member.email === email),
+                  )
+                  .map((email) => html`<option value=${email}></option>`)}
+              </datalist>`
+          : ""
+      }
+      ${
+        this.competitionNote
+          ? html`<p class="offline-note" role="status">
+              ${this.competitionNote}
+            </p>`
+          : ""
+      }
+    </section>`;
+  }
+
   private heading(): string {
     if (this.page === "today") return "Today";
     if (this.page === "history") return "History";
@@ -1812,6 +2524,13 @@ export class NourishApp extends LitElement {
     if (this.page === "meals") return "Meals";
     if (this.page === "new-meal") return "New meal";
     if (this.page === "goal") return "Goal";
+    if (this.page === "competitions") return "Competitions";
+    if (this.page === "new-competition") return "New competition";
+    if (this.page === "competition") {
+      const item = this.competitionDetail;
+      if (item && item.id === this.competitionId) return kindLabel(item.kind);
+      return "Competition";
+    }
     if (this.page === "profile") return "Profile";
     return "Edit meal";
   }
@@ -2036,6 +2755,9 @@ export class NourishApp extends LitElement {
         ${this.page === "new-meal" ? this.renderNewMeal() : ""}
         ${this.page === "meal" ? this.renderMealEdit() : ""}
         ${this.page === "goal" ? this.renderGoal() : ""}
+        ${this.page === "competitions" ? this.renderCompetitions() : ""}
+        ${this.page === "new-competition" ? this.renderNewCompetition() : ""}
+        ${this.page === "competition" ? this.renderCompetition() : ""}
         ${this.page === "profile" ? this.renderProfile() : ""}
       </main>
       ${
@@ -2069,6 +2791,12 @@ export class NourishApp extends LitElement {
                 </button>
                 <button class="menu-link" @click=${() => this.navigate("goal")}>
                   Goal
+                </button>
+                <button
+                  class="menu-link"
+                  @click=${() => this.navigate("competitions")}
+                >
+                  Competitions
                 </button>
                 <button
                   class="menu-link"

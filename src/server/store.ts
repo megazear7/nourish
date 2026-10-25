@@ -1,3 +1,4 @@
+import type { CompetitionRecord } from "../shared/type.competition.js";
 import { acceptOps, type OwnedOp } from "../shared/apply.js";
 import type { NutritionState } from "../shared/type.nutrition.js";
 import { emptyState } from "../shared/type.nutrition.js";
@@ -22,6 +23,8 @@ export type Persisted = {
   users: { userId: string; email: string | null }[];
   ops: OwnedOp[];
   owners: { entityId: string; userId: string }[];
+  competitions?: CompetitionRecord[];
+  suggestions?: { hostUserId: string; email: string }[];
 };
 
 export function applyPersisted(
@@ -42,7 +45,13 @@ export function applyPersisted(
     existing: data.ops,
     entityOwners: data.owners,
   });
-  for (const op of outcome.accepted) data.ops.push({ userId, op });
+  for (const op of outcome.accepted) {
+    data.ops.push({
+      userId,
+      op,
+      receivedAt: new Date().toISOString(),
+    });
+  }
   const ids = new Set<string>();
   for (const entry of outcome.state.entries) ids.add(entry.id);
   for (const meal of outcome.state.meals) ids.add(meal.id);

@@ -28,9 +28,19 @@ Goals are their own rows. Today uses the newest `setAt`. A history day uses the 
 
 The first login for a device backfills creates (and removes, for rows already deleted) with `count: false`, so activity totals do not jump. Activity is a private identity document at `activity/{deviceId}`: `loginCount`, `lastLoginAt`, `mealsCreated`, `entriesCreated`, `goalUpdates`, `currentGoal`, `updatedAt`.
 
+## Competitions
+
+Competitions are a separate shared board. The food log stays private. Other players see the day label, points, and who is out. They do not see meals or calorie totals.
+
+The menu row **Competitions** sits after Goal. The list has a gold plus (**New competition**). A competition needs a type and at least one other email. Types are **Last one standing** and **Best of the month**. The host is in it and already accepted. Invites stay pending until that exact email signs in and accepts. A positive goal is required to create one and to accept one. Pending invites block Start. After Start the roster is frozen.
+
+Scoring uses the existing seven-day label, in each player’s own timezone. On track is +1. Drifting is 0. Running hot and Over the window are −1. No log is a miss (−1, and a knockout). A fast with nothing logged is On track, because a day under one third of the goal stays green. A scored day with no goal is a miss. Today stays provisional until that player’s local midnight. A change that arrives after midnight does not rewrite the locked day.
+
+Last one standing knocks a player out on the first locked day that is not On track. The last player in wins. If everyone still in drops on the same locked day, they share the win. A day is not applied until it has locked for every player still in, so a faster timezone cannot finish the day first. Best of the month scores from the day the host presses Start through the end of that month in the host’s timezone. The highest total wins, even if it is negative. Ties share the win.
+
 ## Stack
 
-TypeScript, Zod, and Lit. Netlify serves `dist/client` and the `/api/ops` and `/api/state` function. SQL is Netlify Database / Neon. Local `npm start` uses a JSON file in `data/` so sync can be exercised without a database.
+TypeScript, Zod, and Lit. Netlify serves `dist/client` and the `/api/ops`, `/api/state`, and `/api/competitions` function. SQL is Netlify Database / Neon. Local `npm start` uses a JSON file in `data/` so sync can be exercised without a database.
 
 ## Run
 
@@ -53,7 +63,7 @@ Open http://localhost:3000
 Local UI:
 
 1. Open `/`. Today renders with no account. The header is a profile icon, not a hamburger.
-2. Open the menu. Log in and Sign up are at the top. Today, History, Meals, Goal, and Share follow, in that order. Share copies the app URL on desktop and opens the share sheet on a phone. Signed in, Sign out stays at the bottom of the panel, under Share.
+2. Open the menu. Log in and Sign up are at the top. Today, History, Meals, Goal, Competitions, and Share follow, in that order. Share copies the app URL on desktop and opens the share sheet on a phone. Signed in, Sign out stays at the bottom of the panel, under Share.
 3. Add 50, 100, and 500. They stay after refresh. Signed in, they also survive a second browser pointed at the same API (the second device pulls `GET /api/state`).
 4. Change a group's time from the clock. Delete with the trash control. Edit by tapping the calorie total. Five quick adds inside a minute are one bubble; saving that edit keeps one row and removes the others.
 5. Create a meal from Meals. The row appears only after the check. Updating a meal does not rewrite entries already logged. History opens on the calendar. Days before the first log, and future days, are blank. The goal form check saves a new goal row; an older day keeps the older goal.

@@ -2,7 +2,7 @@ import { fold } from "./fold.js";
 import type { NutritionState } from "./type.nutrition.js";
 import { Op, type OpResult } from "./type.op.js";
 
-export type OwnedOp = { userId: string; op: Op };
+export type OwnedOp = { userId: string; op: Op; receivedAt?: string };
 
 export function acceptOps(input: {
   userId: string;
