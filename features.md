@@ -288,8 +288,8 @@ Fields:
 
 Nudge buttons, not submitted:
 
-- Left, field-colored: **−100**, **−25**
-- Right, gold: **+25**, **+100**
+- Left, field-colored: **−100**, **−25**, **−5**
+- Right, gold: **+5**, **+25**, **+100**
 
 The current field is parsed as a number. A non-finite value is treated as 0. The result is rounded and floored at 1. Nudges do not save by themselves.
 

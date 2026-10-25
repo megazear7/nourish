@@ -1241,7 +1241,9 @@ export const appStyles = css`
 
   .nudge-side {
     display: flex;
-    gap: 0.4rem;
+    flex: 1;
+    gap: 0.35rem;
+    min-width: 0;
   }
 
   .nudge-button,
@@ -1252,13 +1254,17 @@ export const appStyles = css`
   }
 
   .nudge-button {
-    min-width: 3.35rem;
+    flex: 1;
+    min-width: 0;
     min-height: 2.7rem;
-    padding: 0 0.55rem;
+    padding: 0 0.2rem;
     border-radius: 0.85rem;
     background: var(--field);
     color: var(--ink);
+    font-size: 0.95rem;
     font-weight: 620;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
   }
 
   .nudge-button.nudge-plus {

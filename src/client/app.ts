@@ -1443,8 +1443,22 @@ export class NourishApp extends LitElement {
             >
               −25
             </button>
+            <button
+              class="nudge-button"
+              type="button"
+              @click=${() => this.nudgeCalories(-5)}
+            >
+              −5
+            </button>
           </div>
           <div class="nudge-side">
+            <button
+              class="nudge-button nudge-plus"
+              type="button"
+              @click=${() => this.nudgeCalories(5)}
+            >
+              +5
+            </button>
             <button
               class="nudge-button nudge-plus"
               type="button"
