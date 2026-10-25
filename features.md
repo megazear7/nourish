@@ -529,7 +529,7 @@ A day with a positive goal and no log and no fast is a miss. A fast with no log 
 
 ### Who can do what
 
-The creator is the host, is a player, and is already accepted. At least one other email is required. Emails are trimmed and lowercased. The host cannot add their own email. Duplicate emails are rejected. Any address can be invited. An unknown account stays pending until someone signs in with that exact email (comparison ignores case) and accepts. A person can be in more than one competition.
+The creator is the host, is a player, and is already accepted. At least one other email is required. Emails are trimmed and lowercased. The host cannot add their own email. Duplicate emails are rejected. Any address can be invited. An unknown account stays pending until someone signs in with that exact email (comparison ignores case) and accepts. Once accepted, the seat belongs to that account’s user id. A second login with the same email does not see, accept, or decline it. A person can be in more than one competition.
 
 A positive calorie goal for the viewer’s current local day is required to create and to accept. The copy is **Set a goal before you start a competition.** and **Set a goal before you join.** Changing the goal number later is fine. Start does not check the goal again. The next locked day with no goal is a miss.
 

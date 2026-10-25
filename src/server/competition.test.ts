@@ -33,6 +33,8 @@ describe("competitions api", { concurrency: false }, () => {
       return { userId: "auth0|guest", email: "guest@example.com" };
     if (token === "other")
       return { userId: "auth0|other", email: "other@example.com" };
+    if (token === "twin")
+      return { userId: "google|twin", email: "guest@example.com" };
     return null;
   };
 
@@ -256,5 +258,69 @@ describe("competitions api", { concurrency: false }, () => {
     );
     const hostList = (await suggestions.json()) as { suggestions: string[] };
     assert.deepEqual(hostList.suggestions, ["guest@example.com"]);
+  });
+
+  it("keeps an accepted seat bound to the account that accepted it", async () => {
+    const created = await call(
+      "POST",
+      "/api/competitions",
+      {
+        kind: "last_one_standing",
+        emails: ["guest@example.com"],
+        timezone: ZONE,
+      },
+      "host",
+    );
+    const competition = (await created.json()) as CompetitionView;
+    const accepted = await call(
+      "POST",
+      `/api/competitions/${competition.id}/accept`,
+      { timezone: ZONE },
+      "guest",
+    );
+    assert.equal(accepted.status, 200);
+
+    const twinRead = await call(
+      "GET",
+      `/api/competitions/${competition.id}`,
+      undefined,
+      "twin",
+    );
+    assert.equal(twinRead.status, 404);
+    const twinAccept = await call(
+      "POST",
+      `/api/competitions/${competition.id}/accept`,
+      { timezone: ZONE },
+      "twin",
+    );
+    assert.equal(twinAccept.status, 404);
+    const twinDecline = await call(
+      "POST",
+      `/api/competitions/${competition.id}/decline`,
+      { timezone: ZONE },
+      "twin",
+    );
+    assert.equal(twinDecline.status, 404);
+    const guestDecline = await call(
+      "POST",
+      `/api/competitions/${competition.id}/decline`,
+      { timezone: ZONE },
+      "guest",
+    );
+    assert.equal(guestDecline.status, 404);
+
+    const guestRead = await call(
+      "GET",
+      `/api/competitions/${competition.id}`,
+      undefined,
+      "guest",
+    );
+    assert.equal(guestRead.status, 200);
+    const view = (await guestRead.json()) as CompetitionView;
+    const seat = view.members.find(
+      (member) => member.email === "guest@example.com",
+    );
+    assert.equal(seat?.invite, "accepted");
+    assert.equal(seat?.you, true);
   });
 });

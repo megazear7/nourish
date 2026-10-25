@@ -63,16 +63,24 @@ async function goalToday(
   return hasPositiveGoal(state.goals, dateKeyInZone(now, timeZone), timeZone);
 }
 
+/** Accepted seats are bound to a user id. Only a pending invite matches by email. */
+function isViewer(
+  member: MemberRecord,
+  viewer: Viewer,
+  email: string | null,
+): boolean {
+  if (member.userId === viewer.userId) return true;
+  return (
+    member.status === "pending" && email !== null && member.email === email
+  );
+}
+
 function visible(
   record: CompetitionRecord,
   viewer: Viewer,
   email: string | null,
 ) {
-  return record.members.some(
-    (member) =>
-      member.userId === viewer.userId ||
-      (email !== null && member.email === email),
-  );
+  return record.members.some((member) => isViewer(member, viewer, email));
 }
 
 function linkViewer(
@@ -83,7 +91,11 @@ function linkViewer(
   if (!email) return false;
   let changed = false;
   for (const member of record.members) {
-    if (member.email === email && member.userId !== viewer.userId) {
+    if (
+      member.status === "pending" &&
+      member.email === email &&
+      member.userId !== viewer.userId
+    ) {
       member.userId = viewer.userId;
       changed = true;
     }
@@ -137,7 +149,7 @@ async function toView(
       email: member.email,
       host: member.role === "host",
       invite: member.status,
-      you: member.userId === viewer.userId || member.email === email,
+      you: isViewer(member, viewer, email),
       standing,
       points: row?.points ?? null,
       knockedOutOn: row?.knockedOutOn ?? null,
@@ -416,7 +428,7 @@ export async function acceptCompetition(
     const record = await requireRecord(tx, id, viewer, email);
     assertWaiting(record);
     const member = record.members.find((item) => item.email === email);
-    if (!member || member.role === "host") {
+    if (!member || member.role === "host" || member.status !== "pending") {
       throw new CompetitionError("There is no invite to accept.", 404);
     }
     if (!(await goalToday(tx, viewer.userId, zone, now))) {
@@ -443,7 +455,7 @@ export async function declineCompetition(
     const record = await requireRecord(tx, id, viewer, email);
     assertWaiting(record);
     const member = record.members.find((item) => item.email === email);
-    if (!member || member.role === "host") {
+    if (!member || member.role === "host" || member.status !== "pending") {
       throw new CompetitionError("There is no invite to decline.", 404);
     }
     record.members = record.members.filter((item) => item.email !== email);
