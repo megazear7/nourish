@@ -39,11 +39,11 @@ A person can:
 - Sign in and sync that log across browsers. Offline edits queue and upload later.
 - Install it as a standalone portrait PWA. After the first visit, the shell, fonts, and icons open with no network. The food API is never cached by the service worker.
 
-Production is a static site on Netlify (`dist/client`) plus two JSON endpoints, `GET /api/state` and `POST /api/ops`, backed by Netlify Database / Neon. Local `npm start` uses the same API against a JSON file in `data/`.
+Production is a static site on Netlify (`dist/client`) plus the food JSON endpoints `GET /api/state` and `POST /api/ops`, and the competitions endpoints under `/api/competitions`, backed by Netlify Database / Neon. Local `npm start` uses the same API against a JSON file in `data/`.
 
 ## What it does not do
 
-There is no barcode scan, photo estimate, food search, USDA lookup, protein, fat, carb, fiber, water, weight, or fasting clock. There is no household, no shared log, no export button, no import, no undo toast, and no confirm dialog before remove. There is no settings screen. Sign-out does not delete the device log. Deleting the Nourish activity document in the Megazear identity console does not delete the food log. The app does not edit a goal in place and does not rewrite log rows when a saved meal later changes.
+There is no barcode scan, photo estimate, food search, USDA lookup, protein, fat, carb, fiber, water, weight, or fasting clock. There is no household and no shared food log. Competitions share a standing only: the day label, points, and who is still in. They do not share meals or calorie totals. There is no export button, no import, no undo toast, and no confirm dialog before remove. There is no settings screen. Sign-out does not delete the device log. Deleting the Nourish activity document in the Megazear identity console does not delete the food log. The app does not edit a goal in place and does not rewrite log rows when a saved meal later changes.
 
 ## Routes
 
@@ -59,13 +59,17 @@ Navigation is `history.pushState` plus a `popstate` listener. There is no router
 | `/meals/new` and `/meals/new/…` | `new-meal` | New meal | Create-meal form |
 | `/meal/{id}` | `meal` | Edit meal | Edit form, or “That meal is no longer here.” |
 | `/goal` and `/goal/…` | `goal` | Goal | Goal form |
+| `/competitions` | `competitions` | Competitions | Competition list, or the signed-out / offline note |
+| `/competitions/new` and `/competitions/new/…` | `new-competition` | New competition | Create form |
+| `/competitions/{uuid}` | `competition` | Last one standing or Best of the month | That competition |
+| `/competitions/{not-a-uuid}` | `competitions` | Competitions | The list. The bad URL is left as-is |
 | `/profile` and `/profile/…` | `profile` | Profile | Profile picture, email, and display name |
 
 `/meal` with no id does not match the meal pattern, so it renders Today while the address bar still says `/meal`. The same is true of any unknown path such as `/settings`.
 
 The word **Nourish** in the header is a link. Clicking it calls `preventDefault` and navigates to `/`.
 
-The service worker answers document navigations from the cached `index.html`, including a refresh on `/history`, `/meals`, `/goal`, `/profile`, `/day/…`, or `/meal/…`.
+The service worker answers document navigations from the cached `index.html`, including a refresh on `/history`, `/meals`, `/goal`, `/profile`, `/competitions`, `/day/…`, or `/meal/…`. `/api/` is never cached.
 
 ## Shell
 
@@ -112,7 +116,7 @@ Opening the menu closes any kebab and the edit sheet. The sheet is mounted first
   - `checking`: **Checking account…**
   - `signed-in`: one button, class `account-link`, no border, no background, full width of the block. The label is left aligned and a muted chevron sits on the right (the same right-pointing path as the calendar’s next month). The label is the local display name for this Auth0 `sub` when [nourish-display-name](#localstorage-keys) has one, else the Auth0 display name, else the email, else **Signed in**. The Auth0 display name is `name` when that value is set and is not the email address (comparison ignores case and surrounding space). If `name` is missing or is the email, `given_name` and `family_name` are joined with a space and used on the same rule. If that is also missing, `nickname` is used unless it is the email or the email’s local part, which is what Auth0 fills in automatically. Long labels ellipsize. The button’s accessible name is `Profile, {label}`. Clicking it calls `navigate("profile")`, which closes the menu. No second line. No avatar in the panel.
   - otherwise: **Log in** (gold pill) and **Sign up** (transparent pill, light border).
-- Nav buttons, left aligned, `1.15rem`, no icons: **Today**, **History**, **Meals**, **Goal**, then **Share**. Today, History, Meals, and Goal each navigate and close the menu. Share is the next row in that list, not a separate footer.
+- Nav buttons, left aligned, `1.15rem`, no icons: **Today**, **History**, **Meals**, **Goal**, **Competitions**, then **Share**. Today, History, Meals, Goal, and Competitions each navigate and close the menu. Share is the next row in that list, not a separate footer.
   - The URL is the app root: `origin + "/"`, not the page you are on.
   - A phone or tablet (`pointer: coarse` and `hover: none`) with `navigator.share` opens the system share sheet. Title is **Nourish**, and the URL is that root. Dismissing the sheet does nothing else. A successful share closes the menu. If the sheet fails for another reason, it falls through to copy.
   - Desktop, and any device without the share sheet, copies that URL. The button label becomes **Copied** for 1.6 seconds. The menu stays open. If the clipboard API refuses, it falls back to selecting a hidden textarea and `document.execCommand("copy")`.
@@ -510,6 +514,106 @@ The big number on Today and on a day page uses this color. History list totals u
 
 `yellowCalories` in [src/shared/util.score.ts](src/shared/util.score.ts) is the smallest logged total that would leave solid green on that day, or nothing when that total is not strictly below the goal. Prior days use the same assumed calories and weights as the color, scaled by 420 so the fractions stay exact. Today’s own logged total is the unknown: it leaves green when the raw weighted sum is greater than 0 and the total is no longer under one third of the goal. The one-third hold still applies, so a large earlier surplus cannot push the number below `ceil(goal / 3)`. A day under the goal on an earlier slot, or a fasted earlier day, can pull the line back up to the goal or past it, and then the function returns nothing. Untracked earlier days contribute 0, so the line is the goal plus one and the hint stays hidden. `dayCalorieTarget` is that number when it exists, and the goal otherwise. Today’s remaining line subtracts the logged total from it.
 
+## Competitions
+
+Competitions are shared server state. They are not operations and they are not part of `NutritionState`. The food log stays on the user’s own ops. A competition payload never includes calories, meals, or entries.
+
+Two types, chosen at create and never changed:
+
+- **Last one standing** (`last_one_standing`). The first locked day that is not On track knocks that player out. When one player is left, they win and the competition is completed. If every player still in drops on the same locked day, they share the win. There is no month end.
+- **Best of the month** (`best_of_month`). On track is +1. Drifting is 0. Running hot, Over the window, and a miss are −1. Only days from Start through the end of that month count. The highest total wins, even when it is negative. Ties share the win.
+
+The label is the existing seven-day weighted label from [src/shared/util.score.ts](src/shared/util.score.ts), not “calories today versus the goal.” The same weights, `clampTone`, and `toneLabel` are used. The window is bucketed in the player’s timezone ([src/shared/util.competition.ts](src/shared/util.competition.ts)), not with `dateKey()`, because the server process is UTC.
+
+A day with a positive goal and no log and no fast is a miss. A fast with no log is On track, because logged 0 is under one third of the goal and `clampTone` forces it to green. A scored day with no positive goal in effect is a miss. Empty lookback days are still assumed equal to that day’s goal. Days before Start are not scored, but they can still tint a scored day through the seven-day window.
+
+### Who can do what
+
+The creator is the host, is a player, and is already accepted. At least one other email is required. Emails are trimmed and lowercased. The host cannot add their own email. Duplicate emails are rejected. Any address can be invited. An unknown account stays pending until someone signs in with that exact email (comparison ignores case) and accepts. A person can be in more than one competition.
+
+A positive calorie goal for the viewer’s current local day is required to create and to accept. The copy is **Set a goal before you start a competition.** and **Set a goal before you join.** Changing the goal number later is fine. Start does not check the goal again. The next locked day with no goal is a miss.
+
+Only the host adds or removes emails, and only while the phase is waiting. Decline deletes that member row (204, empty body) and is only available to a pending non-host while waiting. After Start the roster is frozen: add, remove, and decline fail with **This competition has already started.** Pending members block Start (**Everyone has to accept before you can start.**). Start is a host action. It sets `startDay` to the host’s calendar date at that instant and, for best of the month, `monthEnd` to the last calendar day of that month. The host timezone captured at create is what those dates use. Each accepted player’s timezone is captured at accept and is not updated later.
+
+Someone who is not a member gets **That competition is not here.** (404), including another signed-in user.
+
+### When a day locks
+
+Each player’s calendar day locks at the next local midnight in that player’s timezone. The fold for a locked day keeps ops whose `receivedAt` is strictly before that instant. An op with no `receivedAt` uses `occurredAt`. An edit that reaches the server after midnight does not change the locked day. A log that never arrives by midnight locks as a miss.
+
+Today stays provisional. It is shown and it does not award points or knock anyone out. The detail line is **Today, not locked ·** plus the label.
+
+Last one standing does not apply a day’s eliminations until that calendar day has locked for every player still in. A player in an earlier timezone cannot win a day that a later timezone has not locked yet. Best of the month adds points for a player as soon as that player’s own day locks. It completes only once `monthEnd` has locked for every accepted player.
+
+### Pages
+
+Header titles: **Competitions**, **New competition**, and on a competition the type name (**Last one standing** or **Best of the month**). No dock.
+
+Signed out, including auth not configured: **Sign in from the menu to see competitions.** While the account is still `checking`: **Checking account…** Offline: **Competitions need a connection.** Those three replace the page. Competitions are not stored on the device.
+
+List, when signed in and online:
+
+- Empty, after a load: **No competitions yet.**
+- While the first load has no rows yet: **Loading competitions…**
+- Each row is a button. First line is the type. Second line is the phase (**Waiting**, **Active**, or **Completed**), a middot, and **1 person** or **N people**. Order from the server is active, then waiting, then completed.
+- A fixed gold plus, `3.25rem`, `z-index: 4` (under the menu at 12 and the edit sheet at 20), `aria-label="New competition"`. The list has bottom padding so the last row can clear it.
+
+Create:
+
+- Two type buttons, `aria-pressed`. **Last one standing** — “The first day that is not On track knocks you out.” **Best of the month** — “On track +1, drifting 0, a hot day or no log −1, through the end of the start month.” Default is last one standing.
+- Email field with a datalist of suggestions, and **Add**. A chip list follows. Each chip has **Remove** (`aria-label="Remove {email}"`). At least one other email is required (**Add at least one email.**). Adding yourself says **You are already in this competition.** A duplicate on the form says **That email is already on the list.**
+- The check submits, `aria-label="Create competition"`. Success opens that competition.
+
+Detail:
+
+- Phase, and once started the start day, and for best of the month an en dash and the month-end day. Example shape: `Active · Oct 25–Oct 31`.
+- When completed, one winner is `{email} won.` or **You won.** More than one is `{emails} share the win.`
+- One card per member, host first in insertion order. The email, then a muted line of **Host**, **You**, **Pending**, **Winner**, **In**, or **Out**. Best of the month adds **N points** / **1 point**. A knockout adds **Out {day label}**. A provisional call uses the tone color: On track `rgb(111, 191, 132)`, Drifting `rgb(168, 188, 103)`, Running hot `rgb(224, 184, 74)`, Over the window `rgb(214, 84, 78)`, No log muted.
+- A pending viewer gets **Accept** and **Decline**. Decline returns to the list and replaces the history entry.
+- The host sees **Start** only when `canStart` is true (host, not started, at least two members, every member accepted).
+- While waiting, the host can remove any non-host member and can add another email. The field’s placeholder is **Add an email**. Suggestions are the same datalist.
+
+Server errors render in an `offline-note` under the form or under the member list. A 401 sets the existing **Sign in again to sync.** line and does not add a second competition note. The list and the open competition reload after a successful food sync, and when the page is opened.
+
+### Suggestions
+
+`GET /api/competitions` returns `suggestions`: email addresses this viewer has added as a host, sorted, unique. Removing a member or a decline does not forget the address. They are not a directory of every Nourish user. Only addresses this viewer has added are included.
+
+### HTTP
+
+Timezone is required on every competitions call. The browser sends `Intl.DateTimeFormat().resolvedOptions().timeZone` as `timezone` in the JSON body, or as a query parameter on GET and DELETE. An unknown zone is 400 **Unknown timezone.** A token with no email is 400 **Sign in with an email address.**
+
+| Request | Result |
+| --- | --- |
+| `GET /api/competitions?timezone=` | 200 `{ suggestions, competitions }` |
+| `POST /api/competitions` `{ kind, emails, timezone }` | 201 the new competition |
+| `GET /api/competitions/{id}?timezone=` | 200 the competition, or 404 |
+| `POST /api/competitions/{id}/emails` `{ email, timezone }` | 200 the competition |
+| `DELETE /api/competitions/{id}/emails?email=&timezone=` | 200 the competition |
+| `POST /api/competitions/{id}/accept` `{ timezone }` | 200 the competition |
+| `POST /api/competitions/{id}/decline` `{ timezone }` | 204 empty |
+| `POST /api/competitions/{id}/start` `{ timezone }` | 200 the competition |
+
+`kind` must be `last_one_standing` or `best_of_month` or the error is **Pick a competition type.** `emails` must be an array or the error is **Add at least one email.** A non-host who tries a host action gets **Only the host can do that.** (403). Other host-only failures use the sentences above.
+
+Competition JSON (`CompetitionView`): `id`, `kind`, `phase` (`waiting`, `active`, `completed`), `startDay`, `monthEnd`, `host`, `canStart`, `winners` (emails), `members`. Each member: `email`, `host`, `invite` (`accepted` or `pending`), `you`, `standing` (`in`, `out`, `winner`, or null while waiting), `points` (integer, or null for last one standing), `knockedOutOn`, `today` (`on-track`, `drifting`, `running-hot`, `over`, `miss`, or null).
+
+### Storage
+
+Migration [netlify/database/migrations/20261025180000_competitions.sql](netlify/database/migrations/20261025180000_competitions.sql).
+
+| Table | Role |
+| --- | --- |
+| `competitions` | `id` UUID primary key, `host_user_id` FK to `nourish_users`, `kind` check, `host_timezone`, `created_at`, nullable `started_at`, nullable `start_day` and `month_end` as text so a UTC session cannot shift the calendar date |
+| `competition_members` | Primary key `(competition_id, email)`. `user_id` nullable, `role` `host` or `player`, `status` `accepted` or `pending`, nullable `timezone`. Cascade delete with the competition. Indexes on `email` and `user_id` |
+| `competition_suggestions` | Primary key `(host_user_id, email)`. One row per address that host has added. Not deleted when the seat is removed |
+
+Competition writes take `pg_advisory_xact_lock(hashtext('nourish-competitions'))` so two hosts cannot interleave a read-modify-write. Food sync keeps its own per-user lock.
+
+The file store keeps `competitions` and `suggestions` on the same `data/nourish.json` document, on the same exclusive chain as food sync. A transaction saves only if the work resolves.
+
+Linking: when a member’s email matches the viewer, `userId` is filled in if it was empty or different. That write happens on list and on read.
+
 ## Account
 
 Auth0 SPA via `@auth0/auth0-spa-js`, built into the bundle. No client secret.
@@ -706,7 +810,7 @@ Response JSON: `{ results: [{ opId, status, reason? }], state }`. `state` is the
 
 **Fast:** `id` (min 1), `day` (a real local date key), `fasted` (boolean), `setAt` (min 1). Per day, the greatest `setAt` wins; on a tie the greater `id`; no mark means not fasted (`fastForDay`, `isFasted` in [src/shared/fold.ts](src/shared/fold.ts)).
 
-**NutritionState:** `entries`, `meals`, `goals`, `fasts`.
+**NutritionState:** `entries`, `meals`, `goals`, `fasts`. Competitions are not in this document.
 
 **DaySummary** (`date`, `totalCalories`, optional `goal`) is defined and not used by the UI.
 
@@ -761,17 +865,18 @@ Connection string, first hit wins: `NETLIFY_DB_URL`, `NETLIFY_DATABASE_URL`, `DA
 
 ### File store
 
-Local server only. [src/server/file-store.ts](src/server/file-store.ts) writes `data/nourish.json` (gitignored). Shape is `{ users, ops, owners }`. Writes are serialized on one promise chain. `read` can insert the user when an email is present. `deviceId` is ignored. Same `acceptOps` rules as Postgres.
+Local server only. [src/server/file-store.ts](src/server/file-store.ts) writes `data/nourish.json` (gitignored). Shape is `{ users, ops, owners, competitions, suggestions }`. Writes are serialized on one promise chain. `read` can insert the user when an email is present. `deviceId` is ignored. Same `acceptOps` rules as Postgres. Competition transactions share that chain and save only when the work resolves.
 
 ## HTTP surface
 
-[src/server/handle.ts](src/server/handle.ts). Paths match `/api/state` and `/api/ops` with or without a trailing slash, including the Netlify form `/.netlify/functions/api/state` and `/.netlify/functions/api/ops`.
+[src/server/handle.ts](src/server/handle.ts). Paths match `/api/state`, `/api/ops`, and `/api/competitions` (plus `/{uuid}`, `/emails`, `/accept`, `/decline`, and `/start`) with or without a trailing slash, including the Netlify form `/.netlify/functions/api/…`.
 
 | Request | Auth | Result |
 | --- | --- | --- |
 | `OPTIONS` any | no | 204 empty |
 | `GET /api/state` | bearer | 200 nutrition state. Creates the user row if needed. Empty log is `{ entries: [], meals: [], goals: [], fasts: [] }` |
 | `POST /api/ops` | bearer | 200 `{ results, state }` |
+| `/api/competitions…` | bearer | See [Competitions](#competitions). `CompetitionError` keeps its status. A JSON body that is not an object is 400 `invalid body`. Invalid JSON is 500 |
 | anything else under the function | bearer | 404 JSON |
 | missing or bad token | | 401 JSON, not the HTML shell |
 
@@ -802,7 +907,7 @@ Local static server [scripts/serve.mjs](scripts/serve.mjs): binds `127.0.0.1` an
 
 TypeScript is strict: no implicit any, no unused locals, no implicit returns, decorators on, target ES2021, `outDir` `dist/tsc`. ESLint bans explicit `any`. Unused arguments may start with `_`.
 
-Netlify [netlify.toml](netlify.toml): build command `npm run build`, publish `dist/client`, functions bundler esbuild. Redirect `/api/*` to `/.netlify/functions/api/:splat` status 200 force. Redirect `/*` to `/index.html` status 200. The function exports paths `/api/ops` and `/api/state` and methods GET, POST, OPTIONS.
+Netlify [netlify.toml](netlify.toml): build command `npm run build`, publish `dist/client`, functions bundler esbuild. Redirect `/api/*` to `/.netlify/functions/api/:splat` status 200 force. Redirect `/*` to `/index.html` status 200. The function exports paths `/api/ops`, `/api/state`, `/api/competitions`, `/api/competitions/*`, and `/api/competitions/*/*` (a Netlify `*` does not cross a slash, so accept, decline, start, and emails need the second star), and methods GET, POST, DELETE, OPTIONS.
 
 `.env.example` lists every variable. `.env` is gitignored, along with `node_modules/`, `dist/`, `data/`, and logs.
 
@@ -819,6 +924,10 @@ API tests against the file store: anonymous GET and POST are 401; an unknown bea
 Queue tests: backfill of an already-removed entry orders create then remove, both `count: false`, and folds to `removed: true`; backfill of a day-scoped goal keeps `day` on the `goal.create` body and `count: false`; backfill of a local fast enqueues one `fast.set` with `count: false`; restoring account A after account B was queued does not keep B’s ops; `resetOpenDocument` keeps `deviceId` and clears ops and `syncedUserId`. Display name ([src/client/util.display-name.test.ts](src/client/util.display-name.test.ts)): Auth0 `name` is used when it is not the email; a name that is only the email is ignored; `given_name` and `family_name` are joined when `name` is the email; a real nickname is used; the email’s local part is not. Local display name ([src/client/util.profile.test.ts](src/client/util.profile.test.ts)): nothing is stored until a name is saved; a saved name belongs to that `sub` only; a blank value or a value equal to the Auth0 display name removes the key when it was the last entry; a corrupt document is ignored.
 
 Score tests ([src/shared/util.score.test.ts](src/shared/util.score.test.ts)): assumed calories for logged, fasted, untracked, and missing-goal days; goal 1800 with today at 2230 and six untracked days is 430, Running hot; a fasted yesterday contributes −900; a logged day uses its real total; a logged day under one third of the goal stays at or under 0; a logged day under two thirds is capped at the yellow threshold. `yellowCalories` is hidden when earlier days sit on the goal, when they were under, when yesterday was fasted, and when yesterday was one calorie over (yellow starts at the goal). Yesterday at 2000 against a goal of 1800 makes it 1701. Yesterday at 10000 keeps the one-third floor, so it is 600. `dayCalorieTarget` is that lower line when it exists, and the goal when it does not.
+
+Competition score tests ([src/shared/util.competition.test.ts](src/shared/util.competition.test.ts)): an October day in `America/New_York` ends at 04:00 UTC; spring-forward and fall-back midnights stay on that calendar date. 1800/2000 is On track, 2100 is Drifting, 2400 is Running hot, 2800 is Over the window. No log is a miss. A fast with no log is On track. No goal is a miss. An entry patched after midnight is ignored by the locked fold and present in the live fold. Last one standing names the last player in, shares a win when the last players miss together, does not knock anyone out while the New York day is still open, and does not finish while a Honolulu player has not locked a day Tokyo already has. Best of the month scores from the start day through month end, leaves the open day provisional, and does not score a day before start.
+
+Competition API tests ([src/server/competition.test.ts](src/server/competition.test.ts)), file store, one shared file, not concurrent: anonymous list is 401; create without a goal, with no emails, or with the host’s own email is 400; a created last-one-standing competition is 201, waiting, and its JSON has neither `calories` nor `entries`; a stranger gets 404; the guest sees the invite; accept without a goal is 400; after a goal, accept is 200; the guest cannot start (403); the host can start, every member then has a standing, and the JSON still has no calories; adding an email after start is 400; the host’s suggestions are `guest@example.com`. A second test creates best of the month, the guest declines (204), the host no longer sees that member, and the suggestion remains.
 
 There is no browser test and no screenshot test in the repo.
 
@@ -852,6 +961,11 @@ Every file, and whether the running app uses it.
 | [src/shared/apply.ts](src/shared/apply.ts) | Yes, on the server | Accept, reject, duplicate |
 | [src/shared/util.score.ts](src/shared/util.score.ts) | Yes | Totals, weights, tone |
 | [src/shared/util.dates.ts](src/shared/util.dates.ts) | Yes | Date keys, labels, clock math, backfill stamp |
+| [src/shared/util.zone.ts](src/shared/util.zone.ts) | Yes | IANA calendar dates, zoned midnight, month end. Competitions only |
+| [src/shared/util.competition.ts](src/shared/util.competition.ts) | Yes, scoring | Timezone-aware day call and competition board |
+| [src/shared/type.competition.ts](src/shared/type.competition.ts) | Yes | Competition Zod views and stored record types |
+| [src/server/competitions.ts](src/server/competitions.ts) | Yes, API | Create, invite, accept, decline, start, list |
+| [src/server/competition-db.ts](src/server/competition-db.ts) | Yes, API | Store port for competitions |
 | [src/shared/util.route-params.ts](src/shared/util.route-params.ts) | No | `:param` pattern matcher. The app uses a meal regex and `startsWith` instead |
 | [src/shared/util.wait.ts](src/shared/util.wait.ts) | No | `wait(ms)` promise. Unused |
 | [src/server/handle.ts](src/server/handle.ts) | Yes, API | HTTP adapter |

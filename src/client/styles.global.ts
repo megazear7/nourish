@@ -1400,4 +1400,188 @@ export const appStyles = css`
     outline: 2px solid var(--gold);
     outline-offset: 3px;
   }
+
+  .competition-page {
+    padding-bottom: 5rem;
+  }
+
+  .competition-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin: 0.75rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  button.competition-row,
+  .member-card {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: var(--panel);
+    color: inherit;
+    border: 0;
+    border-radius: 1.25rem;
+    padding: 1rem 1rem 0.9rem;
+    font: inherit;
+  }
+
+  button.competition-row {
+    cursor: pointer;
+  }
+
+  button.competition-row:focus-visible,
+  button.kind-choice:focus-visible,
+  button.competition-add:focus-visible,
+  .chip-remove:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 3px;
+  }
+
+  .competition-kind {
+    display: block;
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 620;
+  }
+
+  .competition-meta,
+  .member-card .entry-meta,
+  .member-card .entry-calories {
+    margin: 0.2rem 0 0;
+  }
+
+  .competition-phase {
+    margin: 0 0 0.85rem;
+  }
+
+  .member-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .member-top .entry-calories {
+    margin: 0;
+    min-width: 0;
+  }
+
+  .member-remove {
+    margin: 0;
+    padding: 0;
+  }
+
+  .kind-choices {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  button.kind-choice {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: var(--field);
+    color: inherit;
+    border: 1px solid transparent;
+    border-radius: 1rem;
+    padding: 0.85rem 0.9rem;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  button.kind-choice.is-on {
+    border-color: var(--gold);
+  }
+
+  .email-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .email-row .text-input {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .email-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin: 0.85rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .email-chip {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: var(--field);
+    border-radius: 999px;
+    padding: 0.3rem 0.35rem 0.3rem 0.75rem;
+  }
+
+  .chip-remove {
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .competition-actions,
+  .competition-start,
+  .competition-invite {
+    margin-top: 1rem;
+  }
+
+  .call-on-track {
+    color: rgb(111, 191, 132);
+  }
+
+  .call-drifting {
+    color: rgb(168, 188, 103);
+  }
+
+  .call-running-hot {
+    color: rgb(224, 184, 74);
+  }
+
+  .call-over {
+    color: rgb(214, 84, 78);
+  }
+
+  .call-miss {
+    color: var(--muted);
+  }
+
+  button.competition-add {
+    position: fixed;
+    right: max(1rem, calc((100% - var(--content)) / 2 + 1rem));
+    bottom: 1.25rem;
+    z-index: 4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 3.25rem;
+    height: 3.25rem;
+    border: 0;
+    border-radius: 999px;
+    background: var(--gold);
+    color: #1b140c;
+    cursor: pointer;
+  }
+
+  button.competition-add svg {
+    width: 1.35rem;
+    height: 1.35rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.4;
+    stroke-linecap: round;
+  }
 `;

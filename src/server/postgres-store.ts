@@ -1,8 +1,15 @@
 import { Pool, neonConfig } from "@neondatabase/serverless";
 import { getConnectionString } from "@netlify/database";
 import { acceptOps } from "../shared/apply.js";
+import type {
+  CompetitionKind,
+  CompetitionRecord,
+  MemberRecord,
+} from "../shared/type.competition.js";
 import { emptyState, type NutritionState } from "../shared/type.nutrition.js";
 import type { Op } from "../shared/type.op.js";
+import type { TimedOp } from "../shared/util.competition.js";
+import type { CompetitionDb, CompetitionTx } from "./competition-db.js";
 import type { NourishStore, SyncOutcome } from "./store.js";
 
 type Query = (text: string, params?: unknown[]) => Promise<unknown>;
@@ -70,7 +77,7 @@ function connectionString(): string | null {
   }
 }
 
-export class PostgresStore implements NourishStore {
+export class PostgresStore implements NourishStore, CompetitionDb {
   constructor(private readonly pool: DbPool) {}
 
   async sync(
@@ -216,6 +223,15 @@ export class PostgresStore implements NourishStore {
     }
   }
 
+  async transaction<T>(work: (tx: CompetitionTx) => Promise<T>): Promise<T> {
+    return this.withTx(async (query) => {
+      await query(`SELECT pg_advisory_xact_lock(hashtext($1)::bigint)`, [
+        "nourish-competitions",
+      ]);
+      return work(postgresTx(query));
+    });
+  }
+
   private async withTx<T>(work: (query: Query) => Promise<T>): Promise<T> {
     const client = await this.pool.connect();
     try {
@@ -236,9 +252,172 @@ export class PostgresStore implements NourishStore {
   }
 }
 
+function textOrNull(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  return String(value);
+}
+
+function postgresTx(query: Query): CompetitionTx {
+  return {
+    async upsertUser(userId, email) {
+      await query(
+        `INSERT INTO nourish_users (user_id, email, created_at, updated_at)
+         VALUES ($1, $2, NOW(), NOW())
+         ON CONFLICT (user_id) DO UPDATE SET
+           email = COALESCE(EXCLUDED.email, nourish_users.email),
+           updated_at = NOW()`,
+        [userId, email],
+      );
+    },
+    async userIdForEmail(email) {
+      const result = await query(
+        `SELECT user_id FROM nourish_users
+         WHERE lower(email) = $1
+         ORDER BY updated_at DESC
+         LIMIT 1`,
+        [email],
+      );
+      const row = rowsOf(result)[0];
+      return row ? String(row.user_id) : null;
+    },
+    async timedOps(userId): Promise<TimedOp[]> {
+      const result = await query(
+        `SELECT op_id, entity_id, op_type, occurred_at, received_at, body
+         FROM operations WHERE user_id = $1`,
+        [userId],
+      );
+      return rowsOf(result).map((row) => {
+        const body =
+          typeof row.body === "string" ? JSON.parse(row.body) : row.body;
+        const owned = {
+          opId: String(row.op_id),
+          type: String(row.op_type),
+          entityId: String(row.entity_id),
+          occurredAt: asIso(row.occurred_at),
+          body,
+        } as Op;
+        return { op: owned, receivedAt: asIso(row.received_at) };
+      });
+    },
+    async loadAll() {
+      const competitions = rowsOf(
+        await query(
+          `SELECT id, host_user_id, kind, host_timezone, created_at, started_at, start_day, month_end
+           FROM competitions
+           ORDER BY created_at`,
+        ),
+      );
+      const members = rowsOf(
+        await query(
+          `SELECT competition_id, email, user_id, role, status, timezone
+           FROM competition_members`,
+        ),
+      );
+      return competitions.map((row) => {
+        const id = String(row.id);
+        const people: MemberRecord[] = members
+          .filter((member) => String(member.competition_id) === id)
+          .map((member) => ({
+            email: String(member.email),
+            userId: textOrNull(member.user_id),
+            role: String(member.role) as MemberRecord["role"],
+            status: String(member.status) as MemberRecord["status"],
+            timezone: textOrNull(member.timezone),
+          }));
+        return {
+          id,
+          kind: String(row.kind) as CompetitionKind,
+          hostUserId: String(row.host_user_id),
+          hostTimezone: String(row.host_timezone),
+          createdAt: asIso(row.created_at),
+          startedAt: row.started_at ? asIso(row.started_at) : null,
+          startDay: textOrNull(row.start_day),
+          monthEnd: textOrNull(row.month_end),
+          members: people,
+        } satisfies CompetitionRecord;
+      });
+    },
+    async insert(record) {
+      await writeCompetition(query, record, false);
+    },
+    async replace(record) {
+      await writeCompetition(query, record, true);
+    },
+    async rememberEmails(hostUserId, emails) {
+      for (const email of emails) {
+        await query(
+          `INSERT INTO competition_suggestions (host_user_id, email)
+           VALUES ($1, $2)
+           ON CONFLICT DO NOTHING`,
+          [hostUserId, email],
+        );
+      }
+    },
+    async suggestionEmails(hostUserId) {
+      const result = await query(
+        `SELECT email FROM competition_suggestions
+         WHERE host_user_id = $1
+         ORDER BY email`,
+        [hostUserId],
+      );
+      return rowsOf(result).map((row) => String(row.email));
+    },
+  };
+}
+
+async function writeCompetition(
+  query: Query,
+  record: CompetitionRecord,
+  replace: boolean,
+): Promise<void> {
+  if (replace) {
+    await query(
+      `UPDATE competitions
+       SET started_at = $2::timestamptz, start_day = $3, month_end = $4
+       WHERE id = $1::uuid`,
+      [record.id, record.startedAt, record.startDay, record.monthEnd],
+    );
+    await query(
+      `DELETE FROM competition_members WHERE competition_id = $1::uuid`,
+      [record.id],
+    );
+  } else {
+    await query(
+      `INSERT INTO competitions
+         (id, host_user_id, kind, host_timezone, created_at, started_at, start_day, month_end)
+       VALUES ($1::uuid, $2, $3, $4, $5::timestamptz, $6::timestamptz, $7, $8)`,
+      [
+        record.id,
+        record.hostUserId,
+        record.kind,
+        record.hostTimezone,
+        record.createdAt,
+        record.startedAt,
+        record.startDay,
+        record.monthEnd,
+      ],
+    );
+  }
+  for (const member of record.members) {
+    await query(
+      `INSERT INTO competition_members
+         (competition_id, email, user_id, role, status, timezone)
+       VALUES ($1::uuid, $2, $3, $4, $5, $6)`,
+      [
+        record.id,
+        member.email,
+        member.userId,
+        member.role,
+        member.status,
+        member.timezone,
+      ],
+    );
+  }
+}
+
 let cached: PostgresStore | null = null;
 
-export function liveStore(): NourishStore {
+export function liveStore(): NourishStore & CompetitionDb {
   if (cached) return cached;
   const url = connectionString();
   if (!url) throw new Error("NETLIFY_DB_URL is not set");
