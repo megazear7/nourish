@@ -24,6 +24,8 @@ export const signedOut = (): Account => ({
   picture: "",
 });
 
+const AUTH_SCOPE = "openid profile email";
+
 let client: Auth0Client | null = null;
 
 export function authConfig() {
@@ -119,6 +121,7 @@ export async function initAuth(
     authorizationParams: {
       audience: authConfig().audience,
       redirect_uri: window.location.origin,
+      scope: AUTH_SCOPE,
     },
   });
   const params = new URLSearchParams(window.location.search);
@@ -150,6 +153,7 @@ export async function login(signup: boolean): Promise<void> {
     authorizationParams: {
       audience: authConfig().audience,
       redirect_uri: window.location.origin,
+      scope: AUTH_SCOPE,
       ...(signup ? { screen_hint: "signup" } : {}),
     },
   });
@@ -182,8 +186,41 @@ export async function accessToken(): Promise<string | null> {
   }
 }
 
+function idTokenStillValid(raw: string): boolean {
+  const part = raw.split(".")[1];
+  if (!part) return false;
+  try {
+    const json = atob(part.replace(/-/g, "+").replace(/_/g, "/"));
+    const payload = JSON.parse(json) as { exp?: unknown };
+    return (
+      typeof payload.exp !== "number" ||
+      payload.exp * 1000 > Date.now() + 60_000
+    );
+  } catch {
+    return false;
+  }
+}
+
 export async function idToken(): Promise<string | null> {
   if (!client) return null;
   const claims = await client.getIdTokenClaims();
-  return claims?.__raw ?? null;
+  const cached = claims?.__raw ?? null;
+  if (cached && idTokenStillValid(cached) && claims?.email?.trim())
+    return cached;
+  try {
+    const fresh = await client.getTokenSilently({
+      cacheMode: "off",
+      detailedResponse: true,
+      authorizationParams: {
+        audience: authConfig().audience,
+        scope: AUTH_SCOPE,
+      },
+    });
+    return (
+      fresh?.id_token ?? (cached && idTokenStillValid(cached) ? cached : null)
+    );
+  } catch (error) {
+    if (reauthError(error)) return null;
+    return cached && idTokenStillValid(cached) ? cached : null;
+  }
 }

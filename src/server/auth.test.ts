@@ -29,6 +29,19 @@ describe("emailFromClaims", () => {
     );
   });
 
+  it("reads a namespaced email claim", () => {
+    assert.equal(
+      emailFromClaims(
+        {
+          sub: "auth0|a",
+          "https://identity.megazear7.com/email": "a@example.com",
+        },
+        null,
+      ),
+      "a@example.com",
+    );
+  });
+
   it("ignores a blank email", () => {
     assert.equal(
       emailFromClaims(claims("auth0|a", "  "), claims("auth0|a", " ")),

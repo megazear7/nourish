@@ -652,6 +652,7 @@ When configured, the client is created with:
 - `useRefreshTokens: true`
 - `useRefreshTokensFallback: true`
 - `authorizationParams.audience` from the table
+- `authorizationParams.scope` is `openid profile email`
 - `redirect_uri: window.location.origin`
 
 On load, if the query has both `code` and `state`, `handleRedirectCallback` runs, then `replaceState` leaves only `pathname` + `hash`. **Log in** and **Sign up** store the current path as `appState.returnTo`. After the callback, if that path is a safe in-app path (`/` plus no scheme, no `//`, no backslash, no whitespace, at most 200 characters) and it is not the path Auth0 returned to, another `replaceState` opens it and the route syncs. That is how an invite link comes back to `/competitions/{id}`. `redirect_uri` stays the origin, so the Auth0 callback URL list does not need each competition. That callback is the only time `recordLogin` runs. A silent `getTokenSilently` refresh does not increment the login count. If the refresh token is missing, fallback uses the Auth0 session cookie before giving up. `accessToken` returns null only for `login_required`, `missing_refresh_token`, and `invalid_grant`. Any other failure is thrown, and flush records `Sync failed.`
@@ -662,7 +663,7 @@ If Auth0 says the user is authenticated and `getUser()` has a `sub`, status is `
 
 **Sign out** calls `logout` with `returnTo` set to this origin. Auth0 leaves the page. The food log remains on the device. **Re-authenticate** does not call this.
 
-Access tokens are sent as `Authorization: Bearer`. The raw ID token is sent as `X-ID-Token` on the identity activity PUT and on every competitions request. Access tokens do not include email unless an Auth0 Action adds it. The food-log server stores a null email in that case. Competitions need an email, so they also read `X-ID-Token` when the access token has none.
+Access tokens are sent as `Authorization: Bearer`. The raw ID token is sent as `X-ID-Token` on the identity activity PUT and on every competitions request. The client asks Auth0 for `openid profile email`. A cached ID token is reused only while it is still valid and has an email. Otherwise the client refreshes and sends the new ID token. Access tokens do not include email unless an Auth0 Action adds it. The food-log server stores a null email in that case. Competitions need an email, so they also read `X-ID-Token` when the access token has none.
 
 Server JWT check ([src/server/auth.ts](src/server/auth.ts)):
 
@@ -671,7 +672,7 @@ Server JWT check ([src/server/auth.ts](src/server/auth.ts)):
 - JWKS is fetched from the first of those hosts.
 - Audience defaults to `https://identity.megazear7.com`.
 - `sub` is required and must be at most 128 characters.
-- Email is `email` on the access token when that claim is a non-blank string. Otherwise it is `email` on `X-ID-Token`, but only after that token verifies with the same issuer and JWKS, and only when its `sub` matches the access token. When `AUTH0_CLIENT_ID` is set, the ID token audience must be that client id. A different subject, a failed verify, or a blank email leaves the viewer email null. The ID token is not accepted as the bearer credential.
+- Email is `email` on the access token when that claim is a non-blank string, including a claim whose name ends in `/email`. Otherwise it is the same claim on `X-ID-Token`, but only after that token verifies with the same issuer and JWKS, and only when its `sub` matches the access token. When `AUTH0_CLIENT_ID` is set, the ID token audience must be that client id. If both tokens still have no email, the server calls Auth0 `/userinfo` with the access token and uses `email` from that response. A different subject, a failed verify, a blank email, or a userinfo miss leaves the viewer email null. The ID token is not accepted as the bearer credential.
 - Any access-token verify failure is 401 `{ "error": "unauthorized" }`. A competitions call whose viewer still has no email is 400 **Your account has no email address.**
 
 Changing `AUTH0_DOMAIN` or `AUTH0_CLIENT_ID` requires a new client build. A deploy preview built before those variables existed must be rebuilt. The Netlify secrets scanner is told to ignore the auth and test variable names so the public SPA values can sit in the build environment.

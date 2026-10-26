@@ -11,16 +11,25 @@ function domainHost(raw: string): string {
     .replace(/\/+$/, "");
 }
 
+function claimEmail(payload: JWTPayload): string | null {
+  if (typeof payload.email === "string" && payload.email.trim()) {
+    return payload.email.trim();
+  }
+  for (const [key, value] of Object.entries(payload)) {
+    if (!key.endsWith("/email")) continue;
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return null;
+}
+
 export function emailFromClaims(
   access: JWTPayload,
   idToken: JWTPayload | null,
 ): string | null {
-  if (typeof access.email === "string" && access.email.trim()) {
-    return access.email;
-  }
+  const accessEmail = claimEmail(access);
+  if (accessEmail) return accessEmail;
   if (!idToken || idToken.sub !== access.sub) return null;
-  if (typeof idToken.email !== "string" || !idToken.email.trim()) return null;
-  return idToken.email;
+  return claimEmail(idToken);
 }
 
 export function liveAuth(): Authenticator {
@@ -53,7 +62,12 @@ export function liveAuth(): Authenticator {
       });
       if (!payload.sub || payload.sub.length > 128) return null;
       const idToken = await verifiedIdToken(req, jwks, issuers);
-      return { userId: payload.sub, email: emailFromClaims(payload, idToken) };
+      let email = emailFromClaims(payload, idToken);
+      if (!email) {
+        const host = issuerHost(payload) ?? hosts[0];
+        email = await emailFromUserInfo(token, host);
+      }
+      return { userId: payload.sub, email };
     } catch {
       return null;
     }
@@ -74,6 +88,34 @@ async function verifiedIdToken(
       ...(clientId ? { audience: clientId } : {}),
     });
     return payload;
+  } catch {
+    return null;
+  }
+}
+
+function issuerHost(payload: JWTPayload): string | null {
+  if (typeof payload.iss !== "string") return null;
+  try {
+    return new URL(payload.iss).host;
+  } catch {
+    return null;
+  }
+}
+
+async function emailFromUserInfo(
+  token: string,
+  host: string,
+): Promise<string | null> {
+  try {
+    const response = await fetch(`https://${host}/userinfo`, {
+      headers: { authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(4000),
+    });
+    if (!response.ok) return null;
+    const body = (await response.json()) as { email?: unknown };
+    return typeof body.email === "string" && body.email.trim()
+      ? body.email.trim()
+      : null;
   } catch {
     return null;
   }
