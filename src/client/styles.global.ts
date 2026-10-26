@@ -1836,6 +1836,7 @@ export const appStyles = css`
   }
 
   .life-dot {
+    flex: none;
     width: 0.7rem;
     height: 0.7rem;
     border-radius: 999px;

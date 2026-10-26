@@ -2909,7 +2909,6 @@ export class NourishApp extends LitElement {
     if (item.kind === "last_one_standing") {
       return this.renderStandingRow(item, member);
     }
-    const tone = member.today ?? "miss";
     const status = boardStatus(item, member);
     return html`<li
       class="board-row ${member.you ? "is-you" : ""} ${
@@ -2922,25 +2921,8 @@ export class NourishApp extends LitElement {
           <p class="board-name">${memberName(member.email, member.you)}</p>
           ${status ? html`<p class="board-sub">${status}</p>` : ""}
         </div>
-        ${
-          member.caloriesToday !== null
-            ? html`<p class="board-calories call-${tone}">
-                ${calorieText(member.caloriesToday)}
-                <span class="sr-only"> calories</span>
-              </p>`
-            : ""
-        }
+        <span class="life-dot" aria-hidden="true"></span>
       </div>
-      ${
-        member.caloriesToday !== null
-          ? html`<div class="board-track" aria-hidden="true">
-              <span
-                class="board-fill call-fill-${tone}"
-                style="width: ${barWidth(item, member)}%"
-              ></span>
-            </div>`
-          : ""
-      }
     </li>`;
   }
 
