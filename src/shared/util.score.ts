@@ -82,7 +82,9 @@ export function yellowCalories(
     Math.floor((goal * PRIOR_SCALE - prior) / PRIOR_SCALE) + 1;
   const aboveThird = Math.floor((goal + 2) / 3);
   const yellowAt = Math.max(leavesGreen, aboveThird);
-  if (yellowAt < goal) return yellowAt;
+  if (!(yellowAt < goal)) return undefined;
+  const rounded = Math.round(yellowAt / 10) * 10;
+  if (rounded > 0 && rounded < goal) return rounded;
   return undefined;
 }
 

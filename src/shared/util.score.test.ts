@@ -127,9 +127,10 @@ describe("yellowCalories", () => {
     assert.equal(yellowCalories([], today, 1800), undefined);
   });
 
-  it("is the first calorie over the pulled-down green line", () => {
+  it("rounds the pulled-down green line to the nearest 10", () => {
     const yesterday = addDays(today, -1);
-    assert.equal(yellowCalories([entry(yesterday, 2000)], today, 1800), 1701);
+    assert.equal(yellowCalories([entry(yesterday, 2000)], today, 1800), 1700);
+    assert.equal(yellowCalories([entry(yesterday, 1991)], today, 1800), 1710);
   });
 
   it("does not drop below the one-third floor", () => {
@@ -153,6 +154,14 @@ describe("yellowCalories", () => {
     );
   });
 
+  it("stays hidden when rounding reaches the goal", () => {
+    const yesterday = addDays(today, -1);
+    assert.equal(
+      yellowCalories([entry(yesterday, 1809)], today, 1800),
+      undefined,
+    );
+  });
+
   it("counts a fasted earlier day as zero", () => {
     const yesterday = addDays(today, -1);
     const fasts = [fast(yesterday, true, "2026-10-13T08:00:00.000Z")];
@@ -169,7 +178,7 @@ describe("dayCalorieTarget", () => {
 
   it("is the pulled-down line when earlier days were over", () => {
     const yesterday = addDays(today, -1);
-    assert.equal(dayCalorieTarget([entry(yesterday, 2000)], today, 1800), 1701);
+    assert.equal(dayCalorieTarget([entry(yesterday, 2000)], today, 1800), 1700);
     assert.equal(dayCalorieTarget([entry(yesterday, 10000)], today, 1800), 600);
   });
 });
