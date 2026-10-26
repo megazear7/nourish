@@ -555,7 +555,7 @@ List, when signed in and online:
 
 - Empty, after a load: **No competitions yet.**
 - While the first load has no rows yet: **Loading competitions…**
-- Each row is a button. The first line is the type and a phase label (**Waiting**, **Active**, or **Completed**). Last one standing, while active, uses **1 day** or **N days** instead of **Active**. The phase is uppercase and muted, gold when active. Order from the server is active, then waiting, then completed.
+- Each row is a button. The first line is the type and a phase label (**Waiting**, **Active**, or **Completed**). Once started, last one standing adds the start day in parentheses, `Last one standing (Oct 26)`. Best of the month adds the month in parentheses, `Best of the month (October)`. Waiting has neither. Last one standing, while active, uses **1 day** or **N days** instead of **Active**. The phase is uppercase and muted, gold when active. Order from the server is active, then waiting, then completed.
 - Waiting, second line: **1 person** or **N people**.
 - Active last one standing, second line: one dot per accepted player. Green when still in. Yellow when out. Same size. Greens come before yellows, then email. You is not pulled to the front and is not marked. No calorie numbers and no **N in**.
 - Active best of the month, second line, when any accepted player has a today total: those totals only. Each number uses the day-call color. No unit is shown. A null total is left off the line. Yours is first and larger, then the others from highest to lowest.

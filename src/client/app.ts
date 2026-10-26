@@ -112,6 +112,22 @@ function monthDay(key: string): string {
   });
 }
 
+function monthName(key: string): string {
+  return parseDateKey(key).toLocaleDateString(undefined, { month: "long" });
+}
+
+function listTitle(item: CompetitionView): string {
+  const name = kindLabel(item.kind);
+  if (item.kind === "last_one_standing" && item.startDay) {
+    return `${name} (${monthDay(item.startDay)})`;
+  }
+  const monthKey = item.startDay ?? item.monthEnd;
+  if (item.kind === "best_of_month" && monthKey) {
+    return `${name} (${monthName(monthKey)})`;
+  }
+  return name;
+}
+
 function memberName(email: string, you: boolean): string {
   if (you) return "You";
   const local = email.split("@")[0]?.trim();
@@ -2433,11 +2449,11 @@ export class NourishApp extends LitElement {
             <button
               class="competition-row"
               type="button"
-              aria-label=${`${kindLabel(item.kind)}, ${phase}, ${detail}`}
+              aria-label=${`${listTitle(item)}, ${phase}, ${detail}`}
               @click=${() => this.openCompetition(item.id)}
             >
               <span class="row-top">
-                <span class="competition-kind">${kindLabel(item.kind)}</span>
+                <span class="competition-kind">${listTitle(item)}</span>
                 <span class="phase-pill phase-${item.phase}">${phase}</span>
               </span>
               ${
