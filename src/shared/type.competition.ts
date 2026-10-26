@@ -22,6 +22,7 @@ export const MemberView = z.object({
   knockedOutOn: z.string().nullable(),
   today: DayCall.nullable(),
   caloriesToday: z.number().int().nullable(),
+  safeToday: z.number().int().nullable(),
 });
 export type MemberView = z.infer<typeof MemberView>;
 

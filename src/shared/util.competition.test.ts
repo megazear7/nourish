@@ -217,6 +217,10 @@ describe("last one standing", () => {
       sole.players.every((row) => row.caloriesToday === null),
       true,
     );
+    assert.equal(
+      sole.players.every((row) => row.safeToday === null),
+      true,
+    );
 
     const shared = scoreCompetition({
       kind: "last_one_standing",
@@ -260,6 +264,14 @@ describe("last one standing", () => {
     assert.equal(
       board.players.find((row) => row.email === "b@example.com")?.caloriesToday,
       1800,
+    );
+    assert.equal(
+      board.players.find((row) => row.email === "a@example.com")?.safeToday,
+      2000,
+    );
+    assert.equal(
+      board.players.find((row) => row.email === "b@example.com")?.safeToday,
+      2000,
     );
   });
 
@@ -332,6 +344,40 @@ describe("last one standing", () => {
         ?.caloriesToday,
       1200,
     );
+    assert.equal(
+      board.players.find((row) => row.email === "alive@example.com")?.safeToday,
+      2100,
+    );
+    assert.equal(
+      board.players.find((row) => row.email === "also@example.com")?.safeToday,
+      2100,
+    );
+    assert.equal(out?.safeToday, 2000);
+  });
+
+  it("sets the bar against the most calories that stay On track", () => {
+    const yesterday = "2026-10-24T16:00:00.000Z";
+    const board = scoreCompetition({
+      kind: "last_one_standing",
+      startDay: "2026-10-25",
+      monthEnd: null,
+      now: new Date("2026-10-25T18:00:00.000Z"),
+      players: [
+        player("clear@example.com", [
+          timed(goal(GOAL, 1800, early), early),
+          timed(entry(ENTRY, 10000, yesterday), yesterday),
+        ]),
+        player("none@example.com", []),
+      ],
+    });
+    assert.equal(
+      board.players.find((row) => row.email === "clear@example.com")?.safeToday,
+      599,
+    );
+    assert.equal(
+      board.players.find((row) => row.email === "none@example.com")?.safeToday,
+      null,
+    );
   });
 });
 
@@ -386,6 +432,7 @@ describe("best of the month", () => {
     assert.equal(board.players[0]?.points, 0);
     assert.equal(board.players[0]?.today, "miss");
     assert.equal(board.players[0]?.caloriesToday, 0);
+    assert.equal(board.players[0]?.safeToday, null);
   });
 
   it("does not score days before start", () => {

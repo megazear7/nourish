@@ -177,6 +177,20 @@ function shareWidth(members: MemberView[], value: number | null): number {
   return Math.round((value / max) * 100);
 }
 
+function safeWidth(eaten: number | null, safe: number | null): number {
+  if (eaten === null || safe === null) return 0;
+  if (safe <= 0) return 100;
+  if (eaten <= 0) return 0;
+  return Math.min(100, Math.round((eaten / safe) * 100));
+}
+
+function barWidth(item: CompetitionView, member: MemberView): number {
+  if (item.kind === "last_one_standing") {
+    return safeWidth(member.caloriesToday, member.safeToday);
+  }
+  return shareWidth(item.members, member.caloriesToday);
+}
+
 function winnerLine(item: CompetitionView): string {
   const names = item.winners.map((email) => {
     const member = item.members.find((row) => row.email === email);
@@ -2810,7 +2824,7 @@ export class NourishApp extends LitElement {
           ? html`<div class="board-track" aria-hidden="true">
               <span
                 class="board-fill call-fill-${tone}"
-                style="width: ${shareWidth(item.members, member.caloriesToday)}%"
+                style="width: ${barWidth(item, member)}%"
               ></span>
             </div>`
           : ""

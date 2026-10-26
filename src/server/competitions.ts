@@ -155,6 +155,7 @@ async function toView(
       knockedOutOn: row?.knockedOutOn ?? null,
       today: row?.today ?? null,
       caloriesToday: row?.caloriesToday ?? null,
+      safeToday: row?.safeToday ?? null,
     };
   });
   const started = Boolean(record.startedAt);

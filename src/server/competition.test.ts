@@ -141,6 +141,10 @@ describe("competitions api", { concurrency: false }, () => {
       competition.members.every((member) => member.caloriesToday === null),
       true,
     );
+    assert.equal(
+      competition.members.every((member) => member.safeToday === null),
+      true,
+    );
     assert.equal(JSON.stringify(competition).includes("entries"), false);
     const guest = competition.members.find(
       (member) => member.email === "guest@example.com",
@@ -205,6 +209,10 @@ describe("competitions api", { concurrency: false }, () => {
     );
     assert.equal(
       live.members.every((member) => member.caloriesToday === 0),
+      true,
+    );
+    assert.equal(
+      live.members.every((member) => member.safeToday === 2000),
       true,
     );
     assert.equal(JSON.stringify(live).includes("entries"), false);

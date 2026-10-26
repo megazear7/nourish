@@ -26,6 +26,8 @@ export type PlayerStanding = {
   knockedOutOn: string | null;
   today: DayCall | null;
   caloriesToday: number | null;
+  /** Most logged calories that keep today On track. Null outside last one standing. */
+  safeToday: number | null;
   winner: boolean;
 };
 
@@ -205,11 +207,57 @@ function openCalories(
   monthEnd: string | null,
   now: Date,
 ): number | null {
+  const today = openDay(player, startDay, monthEnd, now);
+  if (!today) return null;
+  const state = fold(player.ops.map((row) => row.op));
+  return Math.round(dayTotal(state, today, player.timeZone));
+}
+
+const PRIOR_SCALE = 420;
+
+/** Highest integer log that still scores On track today. The one-third hold
+ * keeps a day green even when earlier days were far over. */
+function safeCalories(
+  state: NutritionState,
+  day: string,
+  timeZone: string,
+): number | null {
+  const goal = goalInZone(state.goals, day, timeZone);
+  if (!goal || !(goal.calories > 0)) return null;
+  let prior = 0;
+  for (let daysAgo = 1; daysAgo <= 6; daysAgo += 1) {
+    const delta =
+      assumed(state, addDays(day, -daysAgo), goal.calories, timeZone) -
+      goal.calories;
+    prior += delta * (PRIOR_SCALE / (daysAgo + 1));
+  }
+  const raw = Math.floor((goal.calories * PRIOR_SCALE - prior) / PRIOR_SCALE);
+  const underThird = Math.floor((goal.calories - 1) / 3);
+  return Math.max(raw, underThird, 0);
+}
+
+function openSafe(
+  player: ScoredPlayer,
+  startDay: string,
+  monthEnd: string | null,
+  now: Date,
+): number | null {
+  const today = openDay(player, startDay, monthEnd, now);
+  if (!today) return null;
+  const state = fold(player.ops.map((row) => row.op));
+  return safeCalories(state, today, player.timeZone);
+}
+
+function openDay(
+  player: ScoredPlayer,
+  startDay: string,
+  monthEnd: string | null,
+  now: Date,
+): string | null {
   const today = dateKeyInZone(now, player.timeZone);
   if (today < startDay) return null;
   if (monthEnd && today > monthEnd) return null;
-  const state = fold(player.ops.map((row) => row.op));
-  return Math.round(dayTotal(state, today, player.timeZone));
+  return today;
 }
 
 export function scoreCompetition(input: {
@@ -252,6 +300,7 @@ function scoreMonth(
       caloriesToday: completed
         ? null
         : openCalories(player, startDay, end, now),
+      safeToday: null,
       winner: false,
     };
     return row;
@@ -314,6 +363,7 @@ function scoreLastStanding(
       caloriesToday: completed
         ? null
         : openCalories(player, startDay, null, now),
+      safeToday: completed ? null : openSafe(player, startDay, null, now),
       winner: winners.includes(player.email),
     })),
   };
