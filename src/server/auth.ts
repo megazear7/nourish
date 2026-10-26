@@ -1,4 +1,4 @@
-import { createRemoteJWKSet, jwtVerify } from "jose";
+import { createRemoteJWKSet, jwtVerify, type JWTPayload } from "jose";
 
 export type Viewer = { userId: string; email: string | null };
 
@@ -9,6 +9,18 @@ function domainHost(raw: string): string {
     .trim()
     .replace(/^https?:\/\//i, "")
     .replace(/\/+$/, "");
+}
+
+export function emailFromClaims(
+  access: JWTPayload,
+  idToken: JWTPayload | null,
+): string | null {
+  if (typeof access.email === "string" && access.email.trim()) {
+    return access.email;
+  }
+  if (!idToken || idToken.sub !== access.sub) return null;
+  if (typeof idToken.email !== "string" || !idToken.email.trim()) return null;
+  return idToken.email;
 }
 
 export function liveAuth(): Authenticator {
@@ -40,12 +52,31 @@ export function liveAuth(): Authenticator {
         audience,
       });
       if (!payload.sub || payload.sub.length > 128) return null;
-      const email = typeof payload.email === "string" ? payload.email : null;
-      return { userId: payload.sub, email };
+      const idToken = await verifiedIdToken(req, jwks, issuers);
+      return { userId: payload.sub, email: emailFromClaims(payload, idToken) };
     } catch {
       return null;
     }
   };
+}
+
+async function verifiedIdToken(
+  req: Request,
+  jwks: ReturnType<typeof createRemoteJWKSet>,
+  issuers: string[],
+): Promise<JWTPayload | null> {
+  const raw = (req.headers.get("x-id-token") ?? "").trim();
+  if (!raw) return null;
+  const clientId = (process.env.AUTH0_CLIENT_ID ?? "").trim();
+  try {
+    const { payload } = await jwtVerify(raw, jwks, {
+      issuer: issuers,
+      ...(clientId ? { audience: clientId } : {}),
+    });
+    return payload;
+  } catch {
+    return null;
+  }
 }
 
 function hostsFrom(raw: string | undefined): string[] {

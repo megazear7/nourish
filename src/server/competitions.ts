@@ -47,7 +47,7 @@ function requireZone(value: string): string {
 function viewerEmail(viewer: Viewer): string {
   const email = viewer.email ? normalizeEmail(viewer.email) : null;
   if (!email) {
-    throw new CompetitionError("Sign in with an email address.", 400);
+    throw new CompetitionError("Your account has no email address.", 400);
   }
   return email;
 }

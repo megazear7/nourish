@@ -14,7 +14,7 @@ Sign-out does not wipe the device. Switching accounts stashes the previous accou
 
 The header icon opens the menu. Signed out, the top offers Log in and Sign up. Signed in, your name stays at the top, with a right arrow that opens Profile. Sign out sits at the bottom of the menu. Profile shows the Auth0 picture and email, and the display name starts as the Auth0 name. Saving a different name overrides it on this device only. The check turns the on-track green and draws itself. If the session has expired, the gold line **Sign in again to sync.** opens Log in, and that bottom button says **Re-authenticate** instead of Sign out.
 
-Auth0 is a bundled SPA (`@auth0/auth0-spa-js`), with refresh tokens in localStorage. The access token is sent as `Authorization`. The ID token is sent only as `X-ID-Token` when saving activity. Login count increments on an interactive login (the redirect callback), not when a silent token refresh opens the app.
+Auth0 is a bundled SPA (`@auth0/auth0-spa-js`), with refresh tokens in localStorage. The access token is sent as `Authorization`. The ID token is sent as `X-ID-Token` when saving activity and on competition requests, because the access token usually has no email. Login count increments on an interactive login (the redirect callback), not when a silent token refresh opens the app.
 
 If `AUTH0_DOMAIN` or `AUTH0_CLIENT_ID` is missing at build time, Log in explains that sign-in is not configured. Today still works. Those two values are copied into the browser bundle when Netlify builds, so a deploy preview built before they were saved has to be rebuilt.
 

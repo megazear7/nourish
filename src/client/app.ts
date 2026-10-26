@@ -1913,6 +1913,12 @@ export class NourishApp extends LitElement {
       this.syncNote = signInAgainNote;
       throw new Error(signInAgainNote);
     }
+    let verifiedId = "";
+    try {
+      verifiedId = (await idToken()) ?? "";
+    } catch {
+      verifiedId = "";
+    }
     let url = path;
     if (method === "GET" || method === "DELETE") {
       const params = new URLSearchParams();
@@ -1926,6 +1932,7 @@ export class NourishApp extends LitElement {
       method,
       headers: {
         authorization: `Bearer ${token}`,
+        ...(verifiedId ? { "x-id-token": verifiedId } : {}),
         ...(method === "GET" || method === "DELETE"
           ? {}
           : { "content-type": "application/json" }),

@@ -581,7 +581,7 @@ Server errors render in an `offline-note` under the form or under the member lis
 
 ### HTTP
 
-Timezone is required on every competitions call. The browser sends `Intl.DateTimeFormat().resolvedOptions().timeZone` as `timezone` in the JSON body, or as a query parameter on GET and DELETE. An unknown zone is 400 **Unknown timezone.** A token with no email is 400 **Sign in with an email address.**
+Timezone is required on every competitions call. The browser sends `Intl.DateTimeFormat().resolvedOptions().timeZone` as `timezone` in the JSON body, or as a query parameter on GET and DELETE. It also sends `X-ID-Token` so the server can read the account email when the access token has no `email` claim. An unknown zone is 400 **Unknown timezone.** A viewer who still has no email is 400 **Your account has no email address.**
 
 | Request | Result |
 | --- | --- |
@@ -645,7 +645,7 @@ If Auth0 says the user is authenticated and `getUser()` has a `sub`, status is `
 
 **Sign out** calls `logout` with `returnTo` set to this origin. Auth0 leaves the page. The food log remains on the device. **Re-authenticate** does not call this.
 
-Access tokens are sent as `Authorization: Bearer`. The raw ID token is sent only as `X-ID-Token` on the identity activity PUT. Access tokens do not include email unless an Auth0 Action adds it. The server stores a null email in that case.
+Access tokens are sent as `Authorization: Bearer`. The raw ID token is sent as `X-ID-Token` on the identity activity PUT and on every competitions request. Access tokens do not include email unless an Auth0 Action adds it. The food-log server stores a null email in that case. Competitions need an email, so they also read `X-ID-Token` when the access token has none.
 
 Server JWT check ([src/server/auth.ts](src/server/auth.ts)):
 
@@ -654,7 +654,8 @@ Server JWT check ([src/server/auth.ts](src/server/auth.ts)):
 - JWKS is fetched from the first of those hosts.
 - Audience defaults to `https://identity.megazear7.com`.
 - `sub` is required and must be at most 128 characters.
-- Any verify failure is 401 `{ "error": "unauthorized" }`.
+- Email is `email` on the access token when that claim is a non-blank string. Otherwise it is `email` on `X-ID-Token`, but only after that token verifies with the same issuer and JWKS, and only when its `sub` matches the access token. When `AUTH0_CLIENT_ID` is set, the ID token audience must be that client id. A different subject, a failed verify, or a blank email leaves the viewer email null. The ID token is not accepted as the bearer credential.
+- Any access-token verify failure is 401 `{ "error": "unauthorized" }`. A competitions call whose viewer still has no email is 400 **Your account has no email address.**
 
 Changing `AUTH0_DOMAIN` or `AUTH0_CLIENT_ID` requires a new client build. A deploy preview built before those variables existed must be rebuilt. The Netlify secrets scanner is told to ignore the auth and test variable names so the public SPA values can sit in the build environment.
 
@@ -927,7 +928,7 @@ Score tests ([src/shared/util.score.test.ts](src/shared/util.score.test.ts)): as
 
 Competition score tests ([src/shared/util.competition.test.ts](src/shared/util.competition.test.ts)): an October day in `America/New_York` ends at 04:00 UTC; spring-forward and fall-back midnights stay on that calendar date. 1800/2000 is On track, 2100 is Drifting, 2400 is Running hot, 2800 is Over the window. No log is a miss. A fast with no log is On track. No goal is a miss. An entry patched after midnight is ignored by the locked fold and present in the live fold. Last one standing names the last player in, shares a win when the last players miss together, does not knock anyone out while the New York day is still open, and does not finish while a Honolulu player has not locked a day Tokyo already has. Best of the month scores from the start day through month end, leaves the open day provisional, and does not score a day before start.
 
-Competition API tests ([src/server/competition.test.ts](src/server/competition.test.ts)), file store, one shared file, not concurrent: anonymous list is 401; create without a goal, with no emails, or with the host’s own email is 400; a created last-one-standing competition is 201, waiting, and its JSON has neither `calories` nor `entries`; a stranger gets 404; the guest sees the invite; accept without a goal is 400; after a goal, accept is 200; the guest cannot start (403); the host can start, every member then has a standing, and the JSON still has no calories; adding an email after start is 400; the host’s suggestions are `guest@example.com`. A second test creates best of the month, the guest declines (204), the host no longer sees that member, and the suggestion remains.
+Competition API tests ([src/server/competition.test.ts](src/server/competition.test.ts)), file store, one shared file, not concurrent: anonymous list is 401; create without a goal, with no emails, or with the host’s own email is 400; a created last-one-standing competition is 201, waiting, and its JSON has neither `calories` nor `entries`; a stranger gets 404; the guest sees the invite; accept without a goal is 400; after a goal, accept is 200; the guest cannot start (403); the host can start, every member then has a standing, and the JSON still has no calories; adding an email after start is 400; the host’s suggestions are `guest@example.com`. A second test creates best of the month, the guest declines (204), the host no longer sees that member, and the suggestion remains. Email claim tests ([src/server/auth.test.ts](src/server/auth.test.ts)): an access-token `email` wins; a matching ID-token `email` is used when the access token has none; a different `sub` is ignored; a blank email is ignored.
 
 There is no browser test and no screenshot test in the repo.
 
