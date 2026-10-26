@@ -1669,68 +1669,12 @@ export const appStyles = css`
     font-size: 1.35rem;
   }
 
-  .life-dot.is-risk {
-    background: rgb(224, 184, 74);
-    box-shadow: 0 0 0 4px rgba(224, 184, 74, 0.16);
-  }
-
-  .streak-row {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.75rem 0.95rem;
-  }
-
-  .streak {
-    display: inline-flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.16rem;
-    max-width: 7.6rem;
-  }
-
-  .streak-bead {
-    width: 0.48rem;
-    height: 0.48rem;
-    flex: 0 0 auto;
-    border-radius: 999px;
-    background: rgb(111, 191, 132);
-    box-shadow: 0 0 0 3px rgba(111, 191, 132, 0.16);
-  }
-
-  .streak-bead.is-risk {
-    background: rgb(224, 184, 74);
-    box-shadow: 0 0 0 3px rgba(224, 184, 74, 0.18);
-  }
-
-  .streak-bead.is-fall {
-    background: transparent;
-    box-shadow: none;
-    border: 1.5px solid rgb(224, 184, 74);
-  }
-
-  .streak-line {
-    display: flex;
-    flex-wrap: nowrap;
-    align-items: center;
-    gap: 0.28rem;
-    width: 100%;
-    max-width: none;
-    margin-top: 0.8rem;
-  }
-
-  .streak-line .streak-bead {
-    width: auto;
-    height: 0.62rem;
-    flex: 1 1 0;
-    min-width: 0.3rem;
-    max-width: 0.95rem;
-    border-radius: 999px;
-  }
-
-  .streak-line .streak-bead:last-child {
-    max-width: 1.15rem;
-    height: 0.8rem;
+  .knocked-line {
+    margin: 0.35rem 0 0;
+    color: rgb(224, 184, 74);
+    font-size: 0.95rem;
+    font-weight: 620;
+    white-space: normal;
   }
 
   .board-page {

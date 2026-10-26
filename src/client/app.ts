@@ -160,41 +160,35 @@ function todayPips(item: CompetitionView): MemberView[] {
     });
 }
 
-function standingMarks(item: CompetitionView): MemberView[] {
-  return item.members
-    .filter((member) => member.standing !== null)
-    .slice()
-    .sort((a, b) => {
-      const streak = (b.streak ?? 0) - (a.streak ?? 0);
-      if (streak) return streak;
-      const fallen =
-        Number(a.standing === "out") - Number(b.standing === "out");
-      if (fallen) return fallen;
-      return a.email.localeCompare(b.email);
-    });
+function competitionDays(item: CompetitionView): number {
+  const live = item.members.filter((member) => member.standing === "in");
+  const pool = live.length ? live : item.members;
+  return pool.reduce((best, member) => Math.max(best, member.streak ?? 0), 0);
 }
 
-function streakLabel(member: MemberView): string {
-  const days = member.streak ?? 0;
-  const unit = days === 1 ? "day" : "days";
-  const name = memberName(member.email, member.you);
-  return member.standing === "out"
-    ? `${name}, ${days} ${unit}, out`
-    : `${name}, ${days} ${unit}`;
+function dayCountLabel(days: number): string {
+  return `${days} ${days === 1 ? "day" : "days"}`;
 }
 
-function streakBeads(member: MemberView): Array<"held" | "risk" | "fall"> {
-  const count = Math.max(0, member.streak ?? 0);
-  const openRisk =
-    member.standing !== "out" &&
-    member.today !== null &&
-    member.today !== "on-track";
-  const beads: Array<"held" | "risk" | "fall"> = [];
-  for (let index = 0; index < count; index += 1) {
-    beads.push(openRisk && index === count - 1 ? "risk" : "held");
+function standingPhase(item: CompetitionView): string {
+  if (item.kind === "last_one_standing" && item.phase === "active") {
+    return dayCountLabel(competitionDays(item));
   }
-  if (member.standing === "out") beads.push("fall");
-  return beads;
+  return phaseLabel(item.phase);
+}
+
+function knockedOutLine(days: number): string {
+  return `Knocked out after ${dayCountLabel(days)}`;
+}
+
+function competitionSpan(item: CompetitionView): string {
+  if (!item.startDay) return "";
+  const days = competitionDays(item);
+  const end = days > 0 ? addDays(item.startDay, days - 1) : item.startDay;
+  const startLabel = monthDay(item.startDay);
+  const endLabel = monthDay(end);
+  if (item.startDay === end) return startLabel;
+  return `${startLabel} - ${endLabel}`;
 }
 
 function placeFor(members: MemberView[], member: MemberView): number {
@@ -2388,65 +2382,44 @@ export class NourishApp extends LitElement {
       }
       <ul class="competition-list">
         ${this.competitions.map((item) => {
-          const marks =
-            item.kind === "last_one_standing" && item.phase === "active"
-              ? standingMarks(item)
-              : [];
           const pips =
             item.kind === "best_of_month" && item.phase === "active"
               ? todayPips(item)
               : [];
-          const detail = marks.length
-            ? marks.map((member) => streakLabel(member)).join(", ")
-            : pips.length
-              ? pips
-                  .map(
-                    (member) =>
-                      `${memberName(member.email, member.you)} ${calorieText(member.caloriesToday ?? 0)} calories`,
-                  )
-                  .join(", ")
-              : listMeta(item);
+          const phase = standingPhase(item);
+          const detail = pips.length
+            ? pips
+                .map(
+                  (member) =>
+                    `${memberName(member.email, member.you)} ${calorieText(member.caloriesToday ?? 0)} calories`,
+                )
+                .join(", ")
+            : listMeta(item);
           return html`<li>
             <button
               class="competition-row"
               type="button"
-              aria-label=${`${kindLabel(item.kind)}, ${phaseLabel(item.phase)}, ${detail}`}
+              aria-label=${`${kindLabel(item.kind)}, ${phase}, ${detail}`}
               @click=${() => this.openCompetition(item.id)}
             >
               <span class="row-top">
                 <span class="competition-kind">${kindLabel(item.kind)}</span>
-                <span class="phase-pill phase-${item.phase}"
-                  >${phaseLabel(item.phase)}</span
-                >
+                <span class="phase-pill phase-${item.phase}">${phase}</span>
               </span>
               ${
-                marks.length
-                  ? html`<span class="streak-row">
-                      ${marks.map(
+                pips.length
+                  ? html`<span class="calorie-pips">
+                      ${pips.map(
                         (member) =>
-                          html`<span class="streak" aria-hidden="true">
-                            ${streakBeads(member).map(
-                              (kind) =>
-                                html`<span
-                                  class="streak-bead is-${kind}"
-                                ></span>`,
-                            )}
-                          </span>`,
+                          html`<span
+                            class="calorie-pip ${member.you ? "is-you" : ""} call-${member.today ?? "miss"}"
+                            >${calorieText(member.caloriesToday ?? 0)}</span
+                          >`,
                       )}
                     </span>`
-                  : pips.length
-                    ? html`<span class="calorie-pips">
-                        ${pips.map(
-                          (member) =>
-                            html`<span
-                              class="calorie-pip ${member.you ? "is-you" : ""} call-${member.today ?? "miss"}"
-                              >${calorieText(member.caloriesToday ?? 0)}</span
-                            >`,
-                        )}
-                      </span>`
-                    : html`<span class="competition-meta"
-                        >${listMeta(item)}</span
-                      >`
+                  : html`<span class="competition-meta"
+                      >${listMeta(item)}</span
+                    >`
               }
             </button>
           </li>`;
@@ -2771,14 +2744,16 @@ export class NourishApp extends LitElement {
     );
     return html`<section class="board-page">
       <p class="competition-meta competition-phase">
-        ${phaseLabel(item.phase)}
+        ${standingPhase(item)}
         ${
-          item.startDay
-            ? html` ·
-              ${monthDay(item.startDay)}${
-                item.monthEnd ? html`–${monthDay(item.monthEnd)}` : ""
-              }`
-            : ""
+          item.kind === "last_one_standing" && item.startDay
+            ? html` · ${competitionSpan(item)}`
+            : item.startDay
+              ? html` ·
+                ${monthDay(item.startDay)}${
+                  item.monthEnd ? html`–${monthDay(item.monthEnd)}` : ""
+                }`
+              : ""
         }
       </p>
       ${
@@ -2877,36 +2852,32 @@ export class NourishApp extends LitElement {
       }"
     >
       <div class="board-top">
-        <p class="board-name">${memberName(member.email, member.you)}</p>
-        ${
-          out
-            ? html`<p class="out-mark">Out</p>`
-            : eaten !== null
-              ? html`<p class="board-fraction">
-                  <span class="eaten call-${tone}">${calorieText(eaten)}</span>
-                  ${
-                    safe !== null
-                      ? html`<span class="allowed"
-                          >/ ${calorieText(safe)}</span
-                        >`
-                      : ""
-                  }
-                  <span class="sr-only">
-                    ${safe !== null ? `of ${calorieText(safe)} ` : ""}calories
-                  </span>
+        <div class="board-copy">
+          <p class="board-name">${memberName(member.email, member.you)}</p>
+          ${
+            out
+              ? html`<p class="knocked-line">
+                  ${knockedOutLine(member.streak ?? 0)}
                 </p>`
               : ""
+          }
+        </div>
+        ${
+          !out && eaten !== null
+            ? html`<p class="board-fraction">
+                <span class="eaten call-${tone}">${calorieText(eaten)}</span>
+                ${
+                  safe !== null
+                    ? html`<span class="allowed">/ ${calorieText(safe)}</span>`
+                    : ""
+                }
+                <span class="sr-only">
+                  ${safe !== null ? `of ${calorieText(safe)} ` : ""}calories
+                </span>
+              </p>`
+            : ""
         }
       </div>
-      ${
-        member.streak !== null
-          ? html`<span class="streak streak-line" aria-hidden="true">
-              ${streakBeads(member).map(
-                (kind) => html`<span class="streak-bead is-${kind}"></span>`,
-              )}
-            </span>`
-          : ""
-      }
       ${
         !out && eaten !== null
           ? html`<div class="board-track" aria-hidden="true">
