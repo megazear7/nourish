@@ -43,7 +43,7 @@ Production is a static site on Netlify (`dist/client`) plus the food JSON endpoi
 
 ## What it does not do
 
-There is no barcode scan, photo estimate, food search, USDA lookup, protein, fat, carb, fiber, water, weight, or fasting clock. There is no household and no shared food log. Competitions share a standing only: the day label, points, and who is still in. They do not share meals or calorie totals. There is no export button, no import, no undo toast, and no confirm dialog before remove. There is no settings screen. Sign-out does not delete the device log. Deleting the Nourish activity document in the Megazear identity console does not delete the food log. The app does not edit a goal in place and does not rewrite log rows when a saved meal later changes.
+There is no barcode scan, photo estimate, food search, USDA lookup, protein, fat, carb, fiber, water, weight, or fasting clock. There is no household and no shared food log. Competitions share a standing and, while a competition is active, each accepted player’s calories for their own local today. They do not share meals, entries, or totals from any other day. There is no export button, no import, no undo toast, and no confirm dialog before remove. There is no settings screen. Sign-out does not delete the device log. Deleting the Nourish activity document in the Megazear identity console does not delete the food log. The app does not edit a goal in place and does not rewrite log rows when a saved meal later changes.
 
 ## Routes
 
@@ -516,7 +516,7 @@ The big number on Today and on a day page uses this color. History list totals u
 
 ## Competitions
 
-Competitions are shared server state. They are not operations and they are not part of `NutritionState`. The food log stays on the user’s own ops. A competition payload never includes calories, meals, or entries.
+Competitions are shared server state. They are not operations and they are not part of `NutritionState`. The food log stays on the user’s own ops. A competition payload never includes meals or entries. While the phase is active, each accepted member includes `caloriesToday`: that player’s logged calories on their own local today, summed from entries that are not removed. It is null while waiting, after the competition is completed, before `startDay`, after `monthEnd`, and for a pending invite. A fast or an empty log is 0. It is not the seven-day weighted total and it is not a goal.
 
 Two types, chosen at create and never changed:
 
@@ -541,7 +541,7 @@ Someone who is not a member gets **That competition is not here.** (404), includ
 
 Each player’s calendar day locks at the next local midnight in that player’s timezone. The fold for a locked day keeps ops whose `receivedAt` is strictly before that instant. An op with no `receivedAt` uses `occurredAt`. An edit that reaches the server after midnight does not change the locked day. A log that never arrives by midnight locks as a miss.
 
-Today stays provisional. It is shown and it does not award points or knock anyone out. The detail line is **Today, not locked ·** plus the label.
+Today stays provisional. It does not award points or knock anyone out. `today` is that open local day’s label for every accepted player in the window, including someone already out. It is null before `startDay`, after `monthEnd`, or once that local day has locked. The board colors today’s calories with that label. It does not print “not locked.”
 
 Last one standing does not apply a day’s eliminations until that calendar day has locked for every player still in. A player in an earlier timezone cannot win a day that a later timezone has not locked yet. Best of the month adds points for a player as soon as that player’s own day locks. It completes only once `monthEnd` has locked for every accepted player.
 
@@ -555,24 +555,39 @@ List, when signed in and online:
 
 - Empty, after a load: **No competitions yet.**
 - While the first load has no rows yet: **Loading competitions…**
-- Each row is a button. First line is the type. Second line is the phase (**Waiting**, **Active**, or **Completed**), a middot, and **1 person** or **N people**. Order from the server is active, then waiting, then completed.
+- Each row is a button. The first line is the type and a phase label (**Waiting**, **Active**, or **Completed**). The phase is uppercase and muted, gold when active. Order from the server is active, then waiting, then completed.
+- Waiting, second line: **1 person** or **N people**.
+- Active, second line, when any accepted player has a today total: those totals only. Yours is first and larger. The others follow from highest to lowest. Each number uses the day-call color. No unit is shown. A null total is left off the line.
+- Active, second line, when every total is null: last one standing shows **N in**. Best of the month shows your point mark (**+N**, **0**, or **-N**).
+- Completed, second line: the same result line as the detail, described below.
 - A fixed gold plus, `3.25rem`, `z-index: 4` (under the menu at 12 and the edit sheet at 20), `aria-label="New competition"`. The list has bottom padding so the last row can clear it.
 
 Create:
 
-- Two type buttons, `aria-pressed`. **Last one standing** — “The first day that is not On track knocks you out.” **Best of the month** — “On track +1, drifting 0, a hot day or no log −1, through the end of the start month.” Default is last one standing.
+- Two type buttons, `aria-pressed`. The labels are **Last one standing** and **Best of the month**, with no description under them. The selected button has a gold border and a gold tint. Default is last one standing.
 - Email field with a datalist of suggestions, and **Add**. A chip list follows. Each chip has **Remove** (`aria-label="Remove {email}"`). At least one other email is required (**Add at least one email.**). Adding yourself says **You are already in this competition.** A duplicate on the form says **That email is already on the list.**
 - The check submits, `aria-label="Create competition"`. Success opens that competition.
 
-Detail:
+Detail, waiting:
+
+- Phase only. **Waiting**.
+- **Copy invite link** copies `{origin}/competitions/{id}`. The label becomes **Copied** for 1.6 seconds. Nothing is printed under the button. The link is not shown after Start. It does not add an email. The address still has to be on the roster. After **Log in** or **Sign up**, Auth0 returns to the site root and the app opens that competition path again, so a pending member lands on **Accept** and **Decline**.
+- One card per member, host first in insertion order. The full email, then **Host**, **You**, and **Pending** when those apply. No standing, points, or calories.
+- A pending viewer gets **Accept** and **Decline**, stacked full width. Decline returns to the list and replaces the history entry.
+- The host sees **Start**, full width, only when `canStart` is true (host, not started, at least two members, every member accepted).
+- While waiting, the host can remove any non-host member and can add another email. The field’s placeholder is **Add an email**. Suggestions are the same datalist.
+
+Detail, active or completed:
 
 - Phase, and once started the start day, and for best of the month an en dash and the month-end day. Example shape: `Active · Oct 25–Oct 31`.
-- While waiting, **Copy invite link** copies `{origin}/competitions/{id}`. The label becomes **Copied** for 1.6 seconds. Under it: **Send this link. They sign in, or create an account, then accept or decline.** The link is not shown after Start. It does not add an email. The address still has to be on the roster. After **Log in** or **Sign up**, Auth0 returns to the site root and the app opens that competition path again, so a pending member lands on **Accept** and **Decline**.
-- When completed, one winner is `{email} won.` or **You won.** More than one is `{emails} share the win.`
-- One card per member, host first in insertion order. The email, then a muted line of **Host**, **You**, **Pending**, **Winner**, **In**, or **Out**. Best of the month adds **N points** / **1 point**. A knockout adds **Out {day label}**. A provisional call uses the tone color: On track `rgb(111, 191, 132)`, Drifting `rgb(168, 188, 103)`, Running hot `rgb(224, 184, 74)`, Over the window `rgb(214, 84, 78)`, No log muted.
-- A pending viewer gets **Accept** and **Decline**. Decline returns to the list and replaces the history entry.
-- The host sees **Start** only when `canStart` is true (host, not started, at least two members, every member accepted).
-- While waiting, the host can remove any non-host member and can add another email. The field’s placeholder is **Add an email**. Suggestions are the same datalist.
+- Completed result, large, no period: one name **{name} won** or **You won**. Two names **{a} and {b} won**. More than two **{a}, {b} and {c} won**. **You** is listed first. A competition with no winner text uses **Completed**.
+- Names on this board are **You**, or the email’s local part (the text before `@`). The full email is not shown.
+- Last one standing, while active: one dot per member, filled green when still in and hollow when out, then **N in**.
+- While active, and when your `caloriesToday` is a number, that number is large under the kicker **Today**, colored with your day call. Best of the month puts your place (gold) on that same kicker row. The place is 1 plus the number of members with a higher point total, so a tie stays on the same number. Under the number: the status line. A bar under it is your total as a share of the highest total today. An empty or fasted day is 0. The bar is empty at 0. You are not repeated in the rows below. When your total is null, there is no large number and you are a row with everyone else.
+- Other members are rows under that. Best of the month shows the place. Last one standing shows the same dot as the rail. Out rows are dimmer. Each row has the name, the status line, today’s calories on the right when `caloriesToday` is a number, and the same share bar. Completed rows omit the calories and the bar.
+- Status line, with no extra sentence: **Pending**, **Winner**, **Out {day label}** (or **Out** when there is no date), otherwise the day-call label (**On track**, **Drifting**, **Running hot**, **Over the window**, **No log**), or **In** when there is no call. Best of the month appends the point mark: ** · +N**, ** · 0**, or ** · -N**.
+- Order: best of the month by points descending, then you, then today’s calories, then email. Last one standing: still in and winners before out, then you, then today’s calories, then email.
+- Day-call colors, used on the numbers and the bars: On track `rgb(111, 191, 132)`, Drifting `rgb(168, 188, 103)`, Running hot `rgb(224, 184, 74)`, Over the window `rgb(214, 84, 78)`, No log muted. A missing call uses the No log color.
 
 Server errors render in an `offline-note` under the form or under the member list. A 401 sets the existing **Sign in again to sync.** line and does not add a second competition note. The list and the open competition reload after a successful food sync, and when the page is opened.
 
@@ -597,7 +612,7 @@ Timezone is required on every competitions call. The browser sends `Intl.DateTim
 
 `kind` must be `last_one_standing` or `best_of_month` or the error is **Pick a competition type.** `emails` must be an array or the error is **Add at least one email.** A non-host who tries a host action gets **Only the host can do that.** (403). Other host-only failures use the sentences above.
 
-Competition JSON (`CompetitionView`): `id`, `kind`, `phase` (`waiting`, `active`, `completed`), `startDay`, `monthEnd`, `host`, `canStart`, `winners` (emails), `members`. Each member: `email`, `host`, `invite` (`accepted` or `pending`), `you`, `standing` (`in`, `out`, `winner`, or null while waiting), `points` (integer, or null for last one standing), `knockedOutOn`, `today` (`on-track`, `drifting`, `running-hot`, `over`, `miss`, or null).
+Competition JSON (`CompetitionView`): `id`, `kind`, `phase` (`waiting`, `active`, `completed`), `startDay`, `monthEnd`, `host`, `canStart`, `winners` (emails), `members`. Each member: `email`, `host`, `invite` (`accepted` or `pending`), `you`, `standing` (`in`, `out`, `winner`, or null while waiting), `points` (integer, or null for last one standing), `knockedOutOn`, `today` (`on-track`, `drifting`, `running-hot`, `over`, `miss`, or null), `caloriesToday` (integer, or null). `caloriesToday` counts only that member’s own local today, and only while the competition is active and that day is inside the competition. It is not present as a meal or an entry.
 
 ### Storage
 
@@ -927,9 +942,9 @@ Queue tests: backfill of an already-removed entry orders create then remove, bot
 
 Score tests ([src/shared/util.score.test.ts](src/shared/util.score.test.ts)): assumed calories for logged, fasted, untracked, and missing-goal days; goal 1800 with today at 2230 and six untracked days is 430, Running hot; a fasted yesterday contributes −900; a logged day uses its real total; a logged day under one third of the goal stays at or under 0; a logged day under two thirds is capped at the yellow threshold. `yellowCalories` is hidden when earlier days sit on the goal, when they were under, when yesterday was fasted, and when yesterday was one calorie over (yellow starts at the goal). Yesterday at 2000 against a goal of 1800 is 1700 after rounding to the nearest 10. Yesterday at 1991 rounds 1705 up to 1710. Yesterday at 1809 rounds onto the goal and stays hidden. Yesterday at 10000 keeps the one-third floor, so it is 600. `dayCalorieTarget` is that rounded line when it exists, and the goal when it does not.
 
-Competition score tests ([src/shared/util.competition.test.ts](src/shared/util.competition.test.ts)): an October day in `America/New_York` ends at 04:00 UTC; spring-forward and fall-back midnights stay on that calendar date. 1800/2000 is On track, 2100 is Drifting, 2400 is Running hot, 2800 is Over the window. No log is a miss. A fast with no log is On track. No goal is a miss. An entry patched after midnight is ignored by the locked fold and present in the live fold. Last one standing names the last player in, shares a win when the last players miss together, does not knock anyone out while the New York day is still open, and does not finish while a Honolulu player has not locked a day Tokyo already has. Best of the month scores from the start day through month end, leaves the open day provisional, and does not score a day before start.
+Competition score tests ([src/shared/util.competition.test.ts](src/shared/util.competition.test.ts)): an October day in `America/New_York` ends at 04:00 UTC; spring-forward and fall-back midnights stay on that calendar date. 1800/2000 is On track, 2100 is Drifting, 2400 is Running hot, 2800 is Over the window. No log is a miss. A fast with no log is On track. No goal is a miss. An entry patched after midnight is ignored by the locked fold and present in the live fold. Last one standing names the last player in, shares a win when the last players miss together, does not knock anyone out while the New York day is still open, and does not finish while a Honolulu player has not locked a day Tokyo already has. While that open day is still in play, today’s logged calories are on the board (1800 and 0 in the open-day case). A player already out still has today’s calories and a provisional label. A finished board clears `caloriesToday`. Best of the month scores from the start day through month end, leaves the open day provisional (and today’s calories at 0 when nothing is logged), does not score a day before start, and does not publish calories from before `startDay`.
 
-Competition API tests ([src/server/competition.test.ts](src/server/competition.test.ts)), file store, one shared file, not concurrent: anonymous list is 401; create without a goal, with no emails, or with the host’s own email is 400; a created last-one-standing competition is 201, waiting, and its JSON has neither `calories` nor `entries`; a stranger gets 404; the guest sees the invite; accept without a goal is 400; after a goal, accept is 200; the guest cannot start (403); the host can start, every member then has a standing, and the JSON still has no calories; adding an email after start is 400; the host’s suggestions are `guest@example.com`. A second test creates best of the month, the guest declines (204), the host no longer sees that member, and the suggestion remains. Email claim tests ([src/server/auth.test.ts](src/server/auth.test.ts)): an access-token `email` wins; a matching ID-token `email` is used when the access token has none; a different `sub` is ignored; a blank email is ignored. Return path ([src/client/util.return-path.test.ts](src/client/util.return-path.test.ts)): a competition path is kept; a scheme, `//`, a backslash, or a space is dropped.
+Competition API tests ([src/server/competition.test.ts](src/server/competition.test.ts)), file store, one shared file, not concurrent: anonymous list is 401; create without a goal, with no emails, or with the host’s own email is 400; a created last-one-standing competition is 201, waiting, every `caloriesToday` is null, and its JSON has no `entries`; a stranger gets 404; the guest sees the invite; accept without a goal is 400; after a goal, accept is 200; the guest cannot start (403); the host can start, every member then has a standing, and with no food logged today every `caloriesToday` is 0; the JSON still has no `entries`; adding an email after start is 400; the host’s suggestions are `guest@example.com`. A second test creates best of the month, the guest declines (204), the host no longer sees that member, and the suggestion remains. Email claim tests ([src/server/auth.test.ts](src/server/auth.test.ts)): an access-token `email` wins; a matching ID-token `email` is used when the access token has none; a different `sub` is ignored; a blank email is ignored. Return path ([src/client/util.return-path.test.ts](src/client/util.return-path.test.ts)): a competition path is kept; a scheme, `//`, a backslash, or a space is dropped.
 
 There is no browser test and no screenshot test in the repo.
 

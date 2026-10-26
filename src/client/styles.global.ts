@@ -1428,6 +1428,10 @@ export const appStyles = css`
   }
 
   button.competition-row {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.45rem;
     cursor: pointer;
   }
 
@@ -1466,11 +1470,14 @@ export const appStyles = css`
   .member-top .entry-calories {
     margin: 0;
     min-width: 0;
+    overflow-wrap: anywhere;
   }
 
   .member-remove {
     margin: 0;
-    padding: 0;
+    padding: 0.35rem 0;
+    min-height: 2.75rem;
+    flex: none;
   }
 
   .kind-choices {
@@ -1480,8 +1487,10 @@ export const appStyles = css`
   }
 
   button.kind-choice {
-    display: block;
+    display: flex;
+    align-items: center;
     width: 100%;
+    min-height: 3.25rem;
     text-align: left;
     background: var(--field);
     color: inherit;
@@ -1494,6 +1503,7 @@ export const appStyles = css`
 
   button.kind-choice.is-on {
     border-color: var(--gold);
+    background: rgba(215, 176, 122, 0.14);
   }
 
   .email-row {
@@ -1520,9 +1530,14 @@ export const appStyles = css`
     display: flex;
     align-items: center;
     gap: 0.35rem;
+    max-width: 100%;
     background: var(--field);
     border-radius: 999px;
     padding: 0.3rem 0.35rem 0.3rem 0.75rem;
+  }
+
+  .email-chip span {
+    overflow-wrap: anywhere;
   }
 
   .chip-remove {
@@ -1538,6 +1553,28 @@ export const appStyles = css`
   .competition-invite,
   .competition-copy {
     margin-top: 1rem;
+  }
+
+  .competition-actions {
+    flex-direction: column;
+  }
+
+  .competition-actions .account-button,
+  .competition-start,
+  .competition-copy {
+    width: 100%;
+    min-height: 2.85rem;
+  }
+
+  .competition-copy {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .email-row .account-button {
+    flex: none;
+    min-height: 2.85rem;
   }
 
   .call-on-track {
@@ -1584,5 +1621,265 @@ export const appStyles = css`
     stroke: currentColor;
     stroke-width: 2.4;
     stroke-linecap: round;
+  }
+
+  .row-top,
+  .hero-kicker,
+  .board-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.7rem;
+    min-width: 0;
+  }
+
+  .row-top .competition-kind {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .phase-pill {
+    flex: none;
+    color: var(--muted);
+    font-size: 0.68rem;
+    font-weight: 650;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .phase-pill.phase-active {
+    color: var(--gold);
+  }
+
+  .calorie-pips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem 0.85rem;
+  }
+
+  .calorie-pip {
+    font-variant-numeric: tabular-nums;
+    font-weight: 620;
+    font-size: 1.05rem;
+  }
+
+  .calorie-pip.is-you {
+    font-size: 1.35rem;
+  }
+
+  .board-page {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .board-result {
+    margin: 0 0 0.85rem;
+    font-size: clamp(1.45rem, 6vw, 1.85rem);
+    font-weight: 620;
+    letter-spacing: -0.03em;
+  }
+
+  .life-rail {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    margin: 0 0 0.85rem;
+  }
+
+  .life-dots {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+
+  .life-dot {
+    width: 0.7rem;
+    height: 0.7rem;
+    border-radius: 999px;
+    background: rgb(111, 191, 132);
+    box-shadow: 0 0 0 4px rgba(111, 191, 132, 0.16);
+  }
+
+  .life-dot.is-out {
+    background: transparent;
+    box-shadow: none;
+    border: 1.5px solid var(--muted);
+  }
+
+  .life-count {
+    color: var(--muted);
+    font-size: 0.85rem;
+    font-weight: 620;
+  }
+
+  .board-hero {
+    min-width: 0;
+    margin-bottom: 0.35rem;
+  }
+
+  .board-hero .calorie-total {
+    font-size: clamp(2.6rem, 14vw, 4.4rem);
+    letter-spacing: -0.04em;
+  }
+
+  .board-hero .board-sub {
+    margin-top: 0.35rem;
+    font-size: 0.95rem;
+  }
+
+  .hero-place {
+    margin: 0;
+    color: var(--gold);
+    font-size: 1.35rem;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .hero-kicker {
+    align-items: baseline;
+  }
+
+  .live-board {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    margin: 0.85rem 0 0;
+    padding: 0;
+    list-style: none;
+    min-width: 0;
+  }
+
+  .board-row {
+    min-width: 0;
+    background: var(--panel);
+    border: 1px solid transparent;
+    border-radius: 1.15rem;
+    padding: 0.85rem 0.95rem 0.8rem;
+  }
+
+  .board-row.is-you {
+    border-color: rgba(215, 176, 122, 0.85);
+    background:
+      linear-gradient(180deg, rgba(215, 176, 122, 0.16), transparent 72%),
+      var(--panel);
+  }
+
+  .board-row.is-out {
+    opacity: 0.72;
+  }
+
+  .board-place,
+  .board-mark {
+    flex: none;
+  }
+
+  .board-place {
+    min-width: 1.35rem;
+    color: var(--gold);
+    font-size: 0.95rem;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+  }
+
+  .board-mark {
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 999px;
+    background: rgb(111, 191, 132);
+    box-shadow: 0 0 0 4px rgba(111, 191, 132, 0.16);
+  }
+
+  .board-mark.is-out {
+    background: transparent;
+    box-shadow: none;
+    border: 1.5px solid var(--muted);
+  }
+
+  .board-copy {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .board-name,
+  .board-sub {
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .board-name {
+    font-size: 1.02rem;
+    font-weight: 620;
+  }
+
+  .board-sub {
+    margin-top: 0.12rem;
+    color: var(--muted);
+    font-size: 0.82rem;
+  }
+
+  .board-calories {
+    margin: 0;
+    flex: none;
+    font-size: clamp(1.35rem, 6vw, 1.7rem);
+    font-weight: 620;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.03em;
+    line-height: 1;
+  }
+
+  .board-track {
+    height: 0.38rem;
+    margin-top: 0.7rem;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .board-hero .board-track {
+    margin-top: 0.9rem;
+  }
+
+  .board-fill {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+  }
+
+  .call-fill-on-track {
+    background: rgb(111, 191, 132);
+  }
+
+  .call-fill-drifting {
+    background: rgb(168, 188, 103);
+  }
+
+  .call-fill-running-hot {
+    background: rgb(224, 184, 74);
+  }
+
+  .call-fill-over {
+    background: rgb(214, 84, 78);
+  }
+
+  .call-fill-miss {
+    background: var(--muted);
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 `;

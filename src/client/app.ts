@@ -58,6 +58,7 @@ import {
   CompetitionList,
   CompetitionView,
   type DayCall,
+  type MemberView,
 } from "../shared/type.competition.js";
 
 type PageName =
@@ -111,9 +112,118 @@ function monthDay(key: string): string {
   });
 }
 
-function pointsLabel(points: number): string {
-  const value = `${points} ${Math.abs(points) === 1 ? "point" : "points"}`;
-  return value;
+function memberName(email: string, you: boolean): string {
+  if (you) return "You";
+  const local = email.split("@")[0]?.trim();
+  return local || email;
+}
+
+function calorieText(value: number): string {
+  return value.toLocaleString();
+}
+
+function pointsMark(points: number): string {
+  return points > 0 ? `+${points}` : String(points);
+}
+
+function boardMembers(item: CompetitionView): MemberView[] {
+  if (item.phase === "waiting") return item.members;
+  const group = (member: MemberView): number => {
+    if (member.standing === "winner" || member.standing === "in") return 0;
+    if (member.standing === "out") return 1;
+    return 2;
+  };
+  return item.members.slice().sort((a, b) => {
+    if (item.kind === "best_of_month") {
+      const points = (b.points ?? 0) - (a.points ?? 0);
+      if (points) return points;
+    } else {
+      const standing = group(a) - group(b);
+      if (standing) return standing;
+    }
+    if (a.you !== b.you) return a.you ? -1 : 1;
+    const calories = (b.caloriesToday ?? -1) - (a.caloriesToday ?? -1);
+    if (calories) return calories;
+    return a.email.localeCompare(b.email);
+  });
+}
+
+function todayPips(item: CompetitionView): MemberView[] {
+  return item.members
+    .filter((member) => member.caloriesToday !== null)
+    .slice()
+    .sort((a, b) => {
+      if (a.you !== b.you) return a.you ? -1 : 1;
+      return (b.caloriesToday ?? 0) - (a.caloriesToday ?? 0);
+    });
+}
+
+function placeFor(members: MemberView[], member: MemberView): number {
+  const points = member.points ?? 0;
+  return members.filter((row) => (row.points ?? 0) > points).length + 1;
+}
+
+function shareWidth(members: MemberView[], value: number | null): number {
+  if (value === null || value <= 0) return 0;
+  const max = members.reduce(
+    (best, member) => Math.max(best, member.caloriesToday ?? 0),
+    0,
+  );
+  if (max <= 0) return 0;
+  return Math.round((value / max) * 100);
+}
+
+function winnerLine(item: CompetitionView): string {
+  const names = item.winners.map((email) => {
+    const member = item.members.find((row) => row.email === email);
+    return memberName(email, member?.you === true);
+  });
+  names.sort((a, b) => {
+    if (a === "You") return -1;
+    if (b === "You") return 1;
+    return a.localeCompare(b);
+  });
+  if (names.length === 0) return "Completed";
+  if (names.length === 1) return `${names[0]} won`;
+  if (names.length === 2) return `${names[0]} and ${names[1]} won`;
+  const last = names[names.length - 1];
+  return `${names.slice(0, -1).join(", ")} and ${last} won`;
+}
+
+function boardStatus(item: CompetitionView, member: MemberView): string {
+  const score =
+    item.kind === "best_of_month" && member.points !== null
+      ? pointsMark(member.points)
+      : "";
+  let state = "";
+  if (member.invite === "pending") state = "Pending";
+  else if (member.standing === "winner") state = "Winner";
+  else if (member.standing === "out") {
+    state = member.knockedOutOn
+      ? `Out ${formatDayLabel(member.knockedOutOn, todayKey())}`
+      : "Out";
+  } else if (member.today) state = callLabel(member.today);
+  else if (member.standing === "in") state = "In";
+  return [state, score].filter(Boolean).join(" · ");
+}
+
+function listMeta(item: CompetitionView): string {
+  if (item.phase === "waiting") {
+    const count = item.members.length;
+    return `${count} ${count === 1 ? "person" : "people"}`;
+  }
+  if (item.phase === "completed") return winnerLine(item);
+  if (item.kind === "last_one_standing") {
+    const alive = item.members.filter(
+      (member) => member.standing === "in",
+    ).length;
+    return `${alive} in`;
+  }
+  const you = item.members.find((member) => member.you);
+  if (you?.points !== null && you?.points !== undefined) {
+    return pointsMark(you.points);
+  }
+  return "";
 }
 
 const QUICK_WINDOW_MS = 60_000;
@@ -2224,22 +2334,48 @@ export class NourishApp extends LitElement {
           : ""
       }
       <ul class="competition-list">
-        ${this.competitions.map(
-          (item) =>
-            html`<li>
-              <button
-                class="competition-row"
-                type="button"
-                @click=${() => this.openCompetition(item.id)}
-              >
+        ${this.competitions.map((item) => {
+          const pips = item.phase === "active" ? todayPips(item) : [];
+          return html`<li>
+            <button
+              class="competition-row"
+              type="button"
+              aria-label=${`${kindLabel(item.kind)}, ${phaseLabel(item.phase)}${
+                pips.length
+                  ? `, ${pips
+                      .map(
+                        (member) =>
+                          `${memberName(member.email, member.you)} ${calorieText(member.caloriesToday ?? 0)} calories`,
+                      )
+                      .join(", ")}`
+                  : `, ${listMeta(item)}`
+              }`}
+              @click=${() => this.openCompetition(item.id)}
+            >
+              <span class="row-top">
                 <span class="competition-kind">${kindLabel(item.kind)}</span>
-                <span class="competition-meta"
-                  >${phaseLabel(item.phase)} · ${item.members.length}
-                  ${item.members.length === 1 ? "person" : "people"}</span
+                <span class="phase-pill phase-${item.phase}"
+                  >${phaseLabel(item.phase)}</span
                 >
-              </button>
-            </li>`,
-        )}
+              </span>
+              ${
+                pips.length
+                  ? html`<span class="calorie-pips">
+                      ${pips.map(
+                        (member) =>
+                          html`<span
+                            class="calorie-pip ${member.you ? "is-you" : ""} call-${member.today ?? "miss"}"
+                            >${calorieText(member.caloriesToday ?? 0)}</span
+                          >`,
+                      )}
+                    </span>`
+                  : html`<span class="competition-meta"
+                      >${listMeta(item)}</span
+                    >`
+              }
+            </button>
+          </li>`;
+        })}
       </ul>
       <button
         class="competition-add"
@@ -2278,13 +2414,6 @@ export class NourishApp extends LitElement {
                 }}
               >
                 <span class="competition-kind">${kindLabel(kind)}</span>
-                <span class="competition-meta">
-                  ${
-                    kind === "last_one_standing"
-                      ? "The first day that is not On track knocks you out."
-                      : "On track +1, drifting 0, a hot day or no log −1, through the end of the start month."
-                  }
-                </span>
               </button>`,
           )}
         </div>
@@ -2400,62 +2529,34 @@ export class NourishApp extends LitElement {
         ${this.competitionNote || "Loading competition…"}
       </p>`;
     }
+    if (item.phase === "waiting") return this.renderWaitingCompetition(item);
+    return this.renderLiveCompetition(item);
+  }
+
+  private renderWaitingCompetition(item: CompetitionView) {
     const you = item.members.find((member) => member.you);
     return html`<section>
       <p class="competition-meta competition-phase">
         ${phaseLabel(item.phase)}
-        ${
-          item.startDay
-            ? html` ·
-              ${monthDay(item.startDay)}${
-                item.monthEnd ? html`–${monthDay(item.monthEnd)}` : ""
-              }`
-            : ""
-        }
       </p>
-      ${
-        item.phase === "waiting"
-          ? html`<button
-                class="account-button account-secondary competition-copy"
-                type="button"
-                @click=${() => void this.copyInviteLink()}
-              >
-                ${this.inviteCopied ? "Copied" : "Copy invite link"}
-              </button>
-              <p class="tone-note">
-                Send this link. They sign in, or create an account, then accept
-                or decline.
-              </p>`
-          : ""
-      }
-      ${
-        item.phase === "completed"
-          ? html`<p class="competition-kind">
-              ${
-                item.winners.length
-                  ? item.winners.length === 1
-                    ? `${item.winners[0] === you?.email ? "You" : item.winners[0]} won.`
-                    : `${item.winners.join(", ")} share the win.`
-                  : "Completed."
-              }
-            </p>`
-          : ""
-      }
+      <button
+        class="account-button account-secondary competition-copy"
+        type="button"
+        @click=${() => void this.copyInviteLink()}
+      >
+        ${this.inviteCopied ? "Copied" : "Copy invite link"}
+      </button>
       <ul class="competition-list">
         ${item.members.map((member) => {
           const bits: string[] = [];
           if (member.host) bits.push("Host");
           if (member.you) bits.push("You");
           if (member.invite === "pending") bits.push("Pending");
-          else if (member.standing === "winner") bits.push("Winner");
-          else if (member.standing === "out" && !member.knockedOutOn)
-            bits.push("Out");
-          else if (member.standing === "in") bits.push("In");
           return html`<li class="member-card">
             <div class="member-top">
               <p class="entry-calories">${member.email}</p>
               ${
-                item.host && item.phase === "waiting" && !member.host
+                item.host && !member.host
                   ? html`<button
                       class="text-button member-remove"
                       type="button"
@@ -2471,24 +2572,9 @@ export class NourishApp extends LitElement {
                   : ""
               }
             </div>
-            <p class="entry-meta">${bits.join(" · ") || "In"}</p>
             ${
-              member.points !== null
-                ? html`<p class="entry-meta">${pointsLabel(member.points)}</p>`
-                : ""
-            }
-            ${
-              member.knockedOutOn
-                ? html`<p class="entry-meta">
-                    Out ${formatDayLabel(member.knockedOutOn, todayKey())}
-                  </p>`
-                : ""
-            }
-            ${
-              member.today
-                ? html`<p class="entry-meta ${`call-${member.today}`}">
-                    Today, not locked · ${callLabel(member.today)}
-                  </p>`
+              bits.length
+                ? html`<p class="entry-meta">${bits.join(" · ")}</p>`
                 : ""
             }
           </li>`;
@@ -2541,7 +2627,7 @@ export class NourishApp extends LitElement {
           : ""
       }
       ${
-        item.host && item.phase === "waiting"
+        item.host
           ? html`<form
                 class="email-row competition-invite"
                 @submit=${(event: Event) => {
@@ -2596,6 +2682,133 @@ export class NourishApp extends LitElement {
           : ""
       }
     </section>`;
+  }
+
+  private renderLiveCompetition(item: CompetitionView) {
+    const you = item.members.find((member) => member.you);
+    const showHero =
+      item.phase === "active" &&
+      you !== undefined &&
+      you.caloriesToday !== null;
+    const rows = boardMembers(item).filter(
+      (member) => !showHero || !member.you,
+    );
+    const alive = item.members.filter((member) => member.standing === "in");
+    const knocked = item.members.filter((member) => member.standing === "out");
+    return html`<section class="board-page">
+      <p class="competition-meta competition-phase">
+        ${phaseLabel(item.phase)}
+        ${
+          item.startDay
+            ? html` ·
+              ${monthDay(item.startDay)}${
+                item.monthEnd ? html`–${monthDay(item.monthEnd)}` : ""
+              }`
+            : ""
+        }
+      </p>
+      ${
+        item.phase === "completed"
+          ? html`<p class="board-result">${winnerLine(item)}</p>`
+          : ""
+      }
+      ${
+        item.kind === "last_one_standing" && item.phase === "active"
+          ? html`<p class="life-rail">
+              <span class="life-dots" aria-hidden="true">
+                ${alive.map(() => html`<span class="life-dot"></span>`)}
+                ${knocked.map(
+                  () => html`<span class="life-dot is-out"></span>`,
+                )}
+              </span>
+              <span class="life-count">${alive.length} in</span>
+            </p>`
+          : ""
+      }
+      ${
+        showHero && you
+          ? html`<article class="board-hero">
+              <div class="hero-kicker">
+                <p class="day-kicker">Today</p>
+                ${
+                  item.kind === "best_of_month"
+                    ? html`<p class="hero-place">
+                        <span class="sr-only">Place </span
+                        >${placeFor(item.members, you)}
+                      </p>`
+                    : ""
+                }
+              </div>
+              <p class="calorie-total call-${you.today ?? "miss"}">
+                ${calorieText(you.caloriesToday ?? 0)}
+                <span class="sr-only"> calories</span>
+              </p>
+              <p class="board-sub">${boardStatus(item, you)}</p>
+              <div class="board-track" aria-hidden="true">
+                <span
+                  class="board-fill call-fill-${you.today ?? "miss"}"
+                  style="width: ${shareWidth(item.members, you.caloriesToday)}%"
+                ></span>
+              </div>
+            </article>`
+          : ""
+      }
+      <ol class="live-board">
+        ${rows.map((member) => this.renderBoardRow(item, member))}
+      </ol>
+      ${
+        this.competitionNote
+          ? html`<p class="offline-note" role="status">
+              ${this.competitionNote}
+            </p>`
+          : ""
+      }
+    </section>`;
+  }
+
+  private renderBoardRow(item: CompetitionView, member: MemberView) {
+    const tone = member.today ?? "miss";
+    const status = boardStatus(item, member);
+    return html`<li
+      class="board-row ${member.you ? "is-you" : ""} ${
+        member.standing === "out" ? "is-out" : ""
+      }"
+    >
+      <div class="board-top">
+        ${
+          item.kind === "best_of_month"
+            ? html`<span class="board-place"
+                >${placeFor(item.members, member)}</span
+              >`
+            : html`<span
+                class="board-mark ${member.standing === "out" ? "is-out" : ""}"
+                aria-hidden="true"
+              ></span>`
+        }
+        <div class="board-copy">
+          <p class="board-name">${memberName(member.email, member.you)}</p>
+          ${status ? html`<p class="board-sub">${status}</p>` : ""}
+        </div>
+        ${
+          member.caloriesToday !== null
+            ? html`<p class="board-calories call-${tone}">
+                ${calorieText(member.caloriesToday)}
+                <span class="sr-only"> calories</span>
+              </p>`
+            : ""
+        }
+      </div>
+      ${
+        member.caloriesToday !== null
+          ? html`<div class="board-track" aria-hidden="true">
+              <span
+                class="board-fill call-fill-${tone}"
+                style="width: ${shareWidth(item.members, member.caloriesToday)}%"
+              ></span>
+            </div>`
+          : ""
+      }
+    </li>`;
   }
 
   private heading(): string {

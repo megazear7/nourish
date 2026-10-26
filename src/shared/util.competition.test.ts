@@ -213,6 +213,10 @@ describe("last one standing", () => {
       sole.players.find((row) => row.email === "b@example.com")?.knockedOutOn,
       "2026-10-25",
     );
+    assert.equal(
+      sole.players.every((row) => row.caloriesToday === null),
+      true,
+    );
 
     const shared = scoreCompetition({
       kind: "last_one_standing",
@@ -249,6 +253,14 @@ describe("last one standing", () => {
       board.players.find((row) => row.email === "a@example.com")?.today,
       "miss",
     );
+    assert.equal(
+      board.players.find((row) => row.email === "a@example.com")?.caloriesToday,
+      0,
+    );
+    assert.equal(
+      board.players.find((row) => row.email === "b@example.com")?.caloriesToday,
+      1800,
+    );
   });
 
   it("waits to declare a winner when a slower timezone has not locked that day", () => {
@@ -274,6 +286,51 @@ describe("last one standing", () => {
     assert.equal(
       board.players.every((row) => row.alive),
       true,
+    );
+  });
+
+  it("counts calories eaten today for everyone still on the board, including someone already out", () => {
+    const day = "2026-10-24T16:00:00.000Z";
+    const today = "2026-10-25T16:00:00.000Z";
+    const eaten = (id: string, calories: number, at: string) =>
+      timed(entry(id, calories, at), at);
+    const board = scoreCompetition({
+      kind: "last_one_standing",
+      startDay: "2026-10-24",
+      monthEnd: null,
+      now: new Date("2026-10-25T18:00:00.000Z"),
+      players: [
+        player("alive@example.com", [
+          timed(goal(GOAL, 2000, early), early),
+          eaten("cccccccc-cccc-4ccc-8ccc-cccccccccccc", 1800, day),
+          eaten("dddddddd-dddd-4ddd-8ddd-dddddddddddd", 640, today),
+        ]),
+        player("also@example.com", [
+          timed(goal(GOAL, 2000, early), early),
+          eaten("eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", 1800, day),
+          eaten("ffffffff-ffff-4fff-8fff-ffffffffffff", 1200, today),
+        ]),
+        player("out@example.com", [
+          timed(goal(GOAL, 2000, early), early),
+          eaten("99999999-9999-4999-8999-999999999999", 2100, today),
+        ]),
+      ],
+    });
+    assert.equal(board.completed, false);
+    const out = board.players.find((row) => row.email === "out@example.com");
+    assert.equal(out?.knockedOutOn, "2026-10-24");
+    assert.equal(out?.alive, false);
+    assert.notEqual(out?.today, null);
+    assert.equal(out?.caloriesToday, 2100);
+    assert.equal(
+      board.players.find((row) => row.email === "alive@example.com")
+        ?.caloriesToday,
+      640,
+    );
+    assert.equal(
+      board.players.find((row) => row.email === "also@example.com")
+        ?.caloriesToday,
+      1200,
     );
   });
 });
@@ -328,6 +385,7 @@ describe("best of the month", () => {
     assert.equal(board.completed, false);
     assert.equal(board.players[0]?.points, 0);
     assert.equal(board.players[0]?.today, "miss");
+    assert.equal(board.players[0]?.caloriesToday, 0);
   });
 
   it("does not score days before start", () => {
@@ -350,5 +408,28 @@ describe("best of the month", () => {
     });
     assert.equal(board.completed, true);
     assert.equal(board.players[0]?.points, -1);
+    assert.equal(board.players[0]?.caloriesToday, null);
+  });
+
+  it("does not publish calories from before the start day", () => {
+    const before = "2026-10-24T16:00:00.000Z";
+    const board = scoreCompetition({
+      kind: "best_of_month",
+      startDay: "2026-10-25",
+      monthEnd: "2026-10-31",
+      now: new Date("2026-10-24T18:00:00.000Z"),
+      players: [
+        {
+          email: "a@example.com",
+          timeZone: ZONE,
+          ops: [
+            timed(goal(GOAL, 2000, early), early),
+            timed(entry(ENTRY, 500, before), before),
+          ],
+        },
+      ],
+    });
+    assert.equal(board.completed, false);
+    assert.equal(board.players[0]?.caloriesToday, null);
   });
 });

@@ -25,6 +25,7 @@ export type PlayerStanding = {
   alive: boolean;
   knockedOutOn: string | null;
   today: DayCall | null;
+  caloriesToday: number | null;
   winner: boolean;
 };
 
@@ -197,6 +198,20 @@ function provisionalToday(
   return dayCall(state, today, player.timeZone);
 }
 
+/** Logged calories on the player's open local day. Not the weighted score. */
+function openCalories(
+  player: ScoredPlayer,
+  startDay: string,
+  monthEnd: string | null,
+  now: Date,
+): number | null {
+  const today = dateKeyInZone(now, player.timeZone);
+  if (today < startDay) return null;
+  if (monthEnd && today > monthEnd) return null;
+  const state = fold(player.ops.map((row) => row.op));
+  return Math.round(dayTotal(state, today, player.timeZone));
+}
+
 export function scoreCompetition(input: {
   kind: "last_one_standing" | "best_of_month";
   startDay: string;
@@ -218,6 +233,9 @@ function scoreMonth(
   now: Date,
 ): StandingBoard {
   const end = monthEnd ?? lastDayOfMonth(startDay);
+  const completed =
+    players.length > 0 &&
+    players.every((player) => dayLocked(end, player.timeZone, now));
   const rows = players.map((player) => {
     let points = 0;
     for (const day of daysThrough(startDay, end)) {
@@ -231,13 +249,13 @@ function scoreMonth(
       alive: true,
       knockedOutOn: null,
       today: provisionalToday(player, startDay, end, now),
+      caloriesToday: completed
+        ? null
+        : openCalories(player, startDay, end, now),
       winner: false,
     };
     return row;
   });
-  const completed =
-    players.length > 0 &&
-    players.every((player) => dayLocked(end, player.timeZone, now));
   let winners: string[] = [];
   if (completed && rows.length) {
     const best = Math.max(...rows.map((row) => row.points ?? 0));
@@ -292,9 +310,10 @@ function scoreLastStanding(
       points: null,
       alive: !knocked.has(player.email),
       knockedOutOn: knocked.get(player.email) ?? null,
-      today: knocked.has(player.email)
+      today: provisionalToday(player, startDay, null, now),
+      caloriesToday: completed
         ? null
-        : provisionalToday(player, startDay, null, now),
+        : openCalories(player, startDay, null, now),
       winner: winners.includes(player.email),
     })),
   };
