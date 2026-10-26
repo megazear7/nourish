@@ -141,7 +141,9 @@ function boardMembers(item: CompetitionView): MemberView[] {
       const standing = group(a) - group(b);
       if (standing) return standing;
     }
-    if (a.you !== b.you) return a.you ? -1 : 1;
+    if (item.kind !== "last_one_standing" && a.you !== b.you) {
+      return a.you ? -1 : 1;
+    }
     const calories = (b.caloriesToday ?? -1) - (a.caloriesToday ?? -1);
     if (calories) return calories;
     return a.email.localeCompare(b.email);
@@ -153,7 +155,9 @@ function todayPips(item: CompetitionView): MemberView[] {
     .filter((member) => member.caloriesToday !== null)
     .slice()
     .sort((a, b) => {
-      if (a.you !== b.you) return a.you ? -1 : 1;
+      if (item.kind !== "last_one_standing" && a.you !== b.you) {
+        return a.you ? -1 : 1;
+      }
       return (b.caloriesToday ?? 0) - (a.caloriesToday ?? 0);
     });
 }
@@ -2360,7 +2364,9 @@ export class NourishApp extends LitElement {
               </span>
               ${
                 pips.length
-                  ? html`<span class="calorie-pips">
+                  ? html`<span
+                      class="calorie-pips ${item.kind === "last_one_standing" ? "is-standing" : ""}"
+                    >
                       ${pips.map(
                         (member) =>
                           html`<span
@@ -2687,6 +2693,7 @@ export class NourishApp extends LitElement {
   private renderLiveCompetition(item: CompetitionView) {
     const you = item.members.find((member) => member.you);
     const showHero =
+      item.kind === "best_of_month" &&
       item.phase === "active" &&
       you !== undefined &&
       you.caloriesToday !== null;
@@ -2771,8 +2778,8 @@ export class NourishApp extends LitElement {
     const status = boardStatus(item, member);
     return html`<li
       class="board-row ${member.you ? "is-you" : ""} ${
-        member.standing === "out" ? "is-out" : ""
-      }"
+        item.kind === "last_one_standing" ? "is-standing" : ""
+      } ${member.standing === "out" ? "is-out" : ""}"
     >
       <div class="board-top">
         ${

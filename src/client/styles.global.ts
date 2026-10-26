@@ -1669,6 +1669,16 @@ export const appStyles = css`
     font-size: 1.35rem;
   }
 
+  .calorie-pips.is-standing .calorie-pip {
+    padding: 0.12rem 0.4rem;
+    border-radius: 0.55rem;
+  }
+
+  .calorie-pips.is-standing .calorie-pip.is-you {
+    font-size: 1.05rem;
+    background: rgba(215, 176, 122, 0.18);
+  }
+
   .board-page {
     display: flex;
     flex-direction: column;
@@ -1765,6 +1775,11 @@ export const appStyles = css`
     background:
       linear-gradient(180deg, rgba(215, 176, 122, 0.16), transparent 72%),
       var(--panel);
+  }
+
+  .board-row.is-standing.is-you {
+    border-color: transparent;
+    background: rgba(215, 176, 122, 0.14);
   }
 
   .board-row.is-out {
