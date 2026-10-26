@@ -1669,14 +1669,14 @@ export const appStyles = css`
     font-size: 1.35rem;
   }
 
-  .calorie-pips.is-standing .calorie-pip {
-    padding: 0.12rem 0.4rem;
-    border-radius: 0.55rem;
+  .life-dot.is-risk {
+    background: rgb(224, 184, 74);
+    box-shadow: 0 0 0 4px rgba(224, 184, 74, 0.16);
   }
 
-  .calorie-pips.is-standing .calorie-pip.is-you {
-    font-size: 1.05rem;
-    background: rgba(215, 176, 122, 0.18);
+  .life-dot.is-you {
+    outline: 2px solid rgba(215, 176, 122, 0.95);
+    outline-offset: 4px;
   }
 
   .board-page {
@@ -1777,6 +1777,11 @@ export const appStyles = css`
       var(--panel);
   }
 
+  .board-row.is-standing .board-name {
+    min-width: 0;
+    flex: 1;
+  }
+
   .board-row.is-standing.is-you {
     border-color: transparent;
     background: rgba(215, 176, 122, 0.14);
@@ -1846,6 +1851,42 @@ export const appStyles = css`
     font-variant-numeric: tabular-nums;
     letter-spacing: -0.03em;
     line-height: 1;
+  }
+
+  .board-fraction {
+    display: flex;
+    align-items: baseline;
+    flex: none;
+    gap: 0.28rem;
+    margin: 0;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .board-fraction .eaten {
+    font-size: clamp(1.35rem, 6vw, 1.7rem);
+    font-weight: 650;
+    letter-spacing: -0.03em;
+  }
+
+  .board-fraction .allowed {
+    color: var(--muted);
+    font-size: 0.95rem;
+    font-weight: 620;
+  }
+
+  .out-mark {
+    flex: none;
+    margin: 0;
+    padding: 0.28rem 0.6rem;
+    border-radius: 999px;
+    background: rgba(224, 184, 74, 0.16);
+    color: rgb(224, 184, 74);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
   }
 
   .board-track {

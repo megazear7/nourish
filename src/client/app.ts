@@ -155,11 +155,31 @@ function todayPips(item: CompetitionView): MemberView[] {
     .filter((member) => member.caloriesToday !== null)
     .slice()
     .sort((a, b) => {
-      if (item.kind !== "last_one_standing" && a.you !== b.you) {
-        return a.you ? -1 : 1;
-      }
+      if (a.you !== b.you) return a.you ? -1 : 1;
       return (b.caloriesToday ?? 0) - (a.caloriesToday ?? 0);
     });
+}
+
+function atRisk(member: MemberView): boolean {
+  if (member.standing === "out") return true;
+  return member.today !== null && member.today !== "on-track";
+}
+
+function standingMarks(item: CompetitionView): MemberView[] {
+  return item.members
+    .filter((member) => member.standing !== null)
+    .slice()
+    .sort((a, b) => {
+      const risk = Number(atRisk(a)) - Number(atRisk(b));
+      if (risk) return risk;
+      return a.email.localeCompare(b.email);
+    });
+}
+
+function markWord(member: MemberView): string {
+  if (member.standing === "out") return "out";
+  if (atRisk(member)) return "at risk";
+  return "in";
 }
 
 function placeFor(members: MemberView[], member: MemberView): number {
@@ -2353,21 +2373,34 @@ export class NourishApp extends LitElement {
       }
       <ul class="competition-list">
         ${this.competitions.map((item) => {
-          const pips = item.phase === "active" ? todayPips(item) : [];
+          const marks =
+            item.kind === "last_one_standing" && item.phase === "active"
+              ? standingMarks(item)
+              : [];
+          const pips =
+            item.kind === "best_of_month" && item.phase === "active"
+              ? todayPips(item)
+              : [];
+          const detail = marks.length
+            ? marks
+                .map(
+                  (member) =>
+                    `${memberName(member.email, member.you)} ${markWord(member)}`,
+                )
+                .join(", ")
+            : pips.length
+              ? pips
+                  .map(
+                    (member) =>
+                      `${memberName(member.email, member.you)} ${calorieText(member.caloriesToday ?? 0)} calories`,
+                  )
+                  .join(", ")
+              : listMeta(item);
           return html`<li>
             <button
               class="competition-row"
               type="button"
-              aria-label=${`${kindLabel(item.kind)}, ${phaseLabel(item.phase)}${
-                pips.length
-                  ? `, ${pips
-                      .map(
-                        (member) =>
-                          `${memberName(member.email, member.you)} ${calorieText(member.caloriesToday ?? 0)} calories`,
-                      )
-                      .join(", ")}`
-                  : `, ${listMeta(item)}`
-              }`}
+              aria-label=${`${kindLabel(item.kind)}, ${phaseLabel(item.phase)}, ${detail}`}
               @click=${() => this.openCompetition(item.id)}
             >
               <span class="row-top">
@@ -2377,21 +2410,30 @@ export class NourishApp extends LitElement {
                 >
               </span>
               ${
-                pips.length
-                  ? html`<span
-                      class="calorie-pips ${item.kind === "last_one_standing" ? "is-standing" : ""}"
-                    >
-                      ${pips.map(
+                marks.length
+                  ? html`<span class="life-dots">
+                      ${marks.map(
                         (member) =>
                           html`<span
-                            class="calorie-pip ${member.you ? "is-you" : ""} call-${member.today ?? "miss"}"
-                            >${calorieText(member.caloriesToday ?? 0)}</span
-                          >`,
+                            class="life-dot ${atRisk(member) ? "is-risk" : ""} ${
+                              member.you ? "is-you" : ""
+                            }"
+                          ></span>`,
                       )}
                     </span>`
-                  : html`<span class="competition-meta"
-                      >${listMeta(item)}</span
-                    >`
+                  : pips.length
+                    ? html`<span class="calorie-pips">
+                        ${pips.map(
+                          (member) =>
+                            html`<span
+                              class="calorie-pip ${member.you ? "is-you" : ""} call-${member.today ?? "miss"}"
+                              >${calorieText(member.caloriesToday ?? 0)}</span
+                            >`,
+                        )}
+                      </span>`
+                    : html`<span class="competition-meta"
+                        >${listMeta(item)}</span
+                      >`
               }
             </button>
           </li>`;
@@ -2714,8 +2756,6 @@ export class NourishApp extends LitElement {
     const rows = boardMembers(item).filter(
       (member) => !showHero || !member.you,
     );
-    const alive = item.members.filter((member) => member.standing === "in");
-    const knocked = item.members.filter((member) => member.standing === "out");
     return html`<section class="board-page">
       <p class="competition-meta competition-phase">
         ${phaseLabel(item.phase)}
@@ -2731,19 +2771,6 @@ export class NourishApp extends LitElement {
       ${
         item.phase === "completed"
           ? html`<p class="board-result">${winnerLine(item)}</p>`
-          : ""
-      }
-      ${
-        item.kind === "last_one_standing" && item.phase === "active"
-          ? html`<p class="life-rail">
-              <span class="life-dots" aria-hidden="true">
-                ${alive.map(() => html`<span class="life-dot"></span>`)}
-                ${knocked.map(
-                  () => html`<span class="life-dot is-out"></span>`,
-                )}
-              </span>
-              <span class="life-count">${alive.length} in</span>
-            </p>`
           : ""
       }
       ${
@@ -2788,24 +2815,18 @@ export class NourishApp extends LitElement {
   }
 
   private renderBoardRow(item: CompetitionView, member: MemberView) {
+    if (item.kind === "last_one_standing") {
+      return this.renderStandingRow(item, member);
+    }
     const tone = member.today ?? "miss";
     const status = boardStatus(item, member);
     return html`<li
       class="board-row ${member.you ? "is-you" : ""} ${
-        item.kind === "last_one_standing" ? "is-standing" : ""
-      } ${member.standing === "out" ? "is-out" : ""}"
+        member.standing === "out" ? "is-out" : ""
+      }"
     >
       <div class="board-top">
-        ${
-          item.kind === "best_of_month"
-            ? html`<span class="board-place"
-                >${placeFor(item.members, member)}</span
-              >`
-            : html`<span
-                class="board-mark ${member.standing === "out" ? "is-out" : ""}"
-                aria-hidden="true"
-              ></span>`
-        }
+        <span class="board-place">${placeFor(item.members, member)}</span>
         <div class="board-copy">
           <p class="board-name">${memberName(member.email, member.you)}</p>
           ${status ? html`<p class="board-sub">${status}</p>` : ""}
@@ -2821,6 +2842,51 @@ export class NourishApp extends LitElement {
       </div>
       ${
         member.caloriesToday !== null
+          ? html`<div class="board-track" aria-hidden="true">
+              <span
+                class="board-fill call-fill-${tone}"
+                style="width: ${barWidth(item, member)}%"
+              ></span>
+            </div>`
+          : ""
+      }
+    </li>`;
+  }
+
+  private renderStandingRow(item: CompetitionView, member: MemberView) {
+    const tone = member.today ?? "miss";
+    const eaten = member.caloriesToday;
+    const safe = member.safeToday;
+    const out = member.standing === "out";
+    return html`<li
+      class="board-row is-standing ${member.you ? "is-you" : ""} ${
+        out ? "is-out" : ""
+      }"
+    >
+      <div class="board-top">
+        <p class="board-name">${memberName(member.email, member.you)}</p>
+        ${
+          out
+            ? html`<p class="out-mark">Out</p>`
+            : eaten !== null
+              ? html`<p class="board-fraction">
+                  <span class="eaten call-${tone}">${calorieText(eaten)}</span>
+                  ${
+                    safe !== null
+                      ? html`<span class="allowed"
+                          >/ ${calorieText(safe)}</span
+                        >`
+                      : ""
+                  }
+                  <span class="sr-only">
+                    ${safe !== null ? `of ${calorieText(safe)} ` : ""}calories
+                  </span>
+                </p>`
+              : ""
+        }
+      </div>
+      ${
+        !out && eaten !== null
           ? html`<div class="board-track" aria-hidden="true">
               <span
                 class="board-fill call-fill-${tone}"
