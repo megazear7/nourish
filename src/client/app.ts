@@ -3136,6 +3136,20 @@ export class NourishApp extends LitElement {
         ${this.page === "profile" ? this.renderProfile() : ""}
       </main>
       ${
+        this.page === "competition" || this.page === "new-competition"
+          ? html`<button
+              class="back-competitions"
+              type="button"
+              @click=${() => this.navigate("competitions")}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M19 12H5M11 6l-6 6 6 6"></path>
+              </svg>
+              Back to competitions
+            </button>`
+          : ""
+      }
+      ${
         this.menuMounted
           ? html`<div
               class="menu-sheet ${this.menuOpen ? "is-open" : ""}"

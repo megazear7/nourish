@@ -1623,6 +1623,39 @@ export const appStyles = css`
     stroke-linecap: round;
   }
 
+  .back-competitions {
+    position: fixed;
+    left: max(1.25rem, calc((100% - var(--content)) / 2 + 1.25rem));
+    bottom: 1.25rem;
+    z-index: 4;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0;
+    padding: 0.35rem 0;
+    border: 0;
+    background: none;
+    color: var(--muted);
+    font: inherit;
+    font-size: 0.95rem;
+    cursor: pointer;
+  }
+
+  .back-competitions:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 3px;
+  }
+
+  .back-competitions svg {
+    width: 1.05rem;
+    height: 1.05rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
   .row-top,
   .hero-kicker,
   .board-top {

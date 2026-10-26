@@ -547,7 +547,7 @@ Last one standing does not apply a day’s eliminations until that calendar day 
 
 ### Pages
 
-Header titles: **Competitions**, **New competition**, and on a competition the type name (**Last one standing** or **Best of the month**). No dock.
+Header titles: **Competitions**, **New competition**, and on a competition the type name (**Last one standing** or **Best of the month**). No dock. On a competition and on new competition, a fixed muted control sits at the bottom left of the content, `bottom: 1.25rem`, `z-index: 4`. The label is **Back to competitions**, with a left arrow before the words. It opens the list. It is not on the list.
 
 Signed out on the list or the create form, including auth not configured: **Sign in from the menu to see competitions.** A competition URL is different: **Sign in to accept or decline. Create an account if you need one. Use the email this invite was sent to.** Then **Log in** and **Sign up**, the same actions as the menu. While the account is still `checking`: **Checking account…** Offline, once signed in: **Competitions need a connection.** Those notes replace the page. Competitions are not stored on the device.
 
