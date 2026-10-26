@@ -28,6 +28,8 @@ export type PlayerStanding = {
   caloriesToday: number | null;
   /** Most logged calories that keep today On track. Null outside last one standing. */
   safeToday: number | null;
+  /** Competition days reached in a row. Null outside last one standing. */
+  streak: number | null;
   winner: boolean;
 };
 
@@ -301,6 +303,7 @@ function scoreMonth(
         ? null
         : openCalories(player, startDay, end, now),
       safeToday: null,
+      streak: null,
       winner: false,
     };
     return row;
@@ -324,6 +327,7 @@ function scoreLastStanding(
   let day = startDay;
   let winners: string[] = [];
   let completed = false;
+  let resolvedDay: string | null = null;
 
   for (let step = 0; step < 400 && alive.length > 1; step += 1) {
     const pending = alive.filter(
@@ -336,6 +340,7 @@ function scoreLastStanding(
     if (out.length === alive.length) {
       winners = alive.map((player) => player.email);
       for (const player of alive) knocked.set(player.email, day);
+      resolvedDay = day;
       completed = true;
       alive = [];
       break;
@@ -345,6 +350,7 @@ function scoreLastStanding(
     if (alive.length === 1) {
       const winner = alive[0];
       if (winner) winners = [winner.email];
+      resolvedDay = day;
       completed = true;
       break;
     }
@@ -354,19 +360,55 @@ function scoreLastStanding(
   return {
     completed,
     winners,
-    players: players.map((player) => ({
-      email: player.email,
-      points: null,
-      alive: !knocked.has(player.email),
-      knockedOutOn: knocked.get(player.email) ?? null,
-      today: provisionalToday(player, startDay, null, now),
-      caloriesToday: completed
-        ? null
-        : openCalories(player, startDay, null, now),
-      safeToday: completed ? null : openSafe(player, startDay, null, now),
-      winner: winners.includes(player.email),
-    })),
+    players: players.map((player) => {
+      const knockedOutOn = knocked.get(player.email) ?? null;
+      const winner = winners.includes(player.email);
+      const stillIn = !knockedOutOn;
+      return {
+        email: player.email,
+        points: null,
+        alive: stillIn,
+        knockedOutOn,
+        today: provisionalToday(player, startDay, null, now),
+        caloriesToday: completed
+          ? null
+          : openCalories(player, startDay, null, now),
+        safeToday: completed ? null : openSafe(player, startDay, null, now),
+        streak: standingStreak(
+          startDay,
+          knockedOutOn,
+          stillIn,
+          winner,
+          completed,
+          resolvedDay,
+          dateKeyInZone(now, player.timeZone),
+        ),
+        winner,
+      };
+    }),
   };
+}
+
+function inclusiveDays(start: string, end: string): number {
+  if (end < start) return 0;
+  return daysThrough(start, end).length;
+}
+
+function standingStreak(
+  startDay: string,
+  knockedOutOn: string | null,
+  alive: boolean,
+  winner: boolean,
+  completed: boolean,
+  resolvedDay: string | null,
+  today: string,
+): number {
+  if (completed && winner && resolvedDay) {
+    return inclusiveDays(startDay, resolvedDay);
+  }
+  if (knockedOutOn) return inclusiveDays(startDay, addDays(knockedOutOn, -1));
+  if (alive) return inclusiveDays(startDay, today);
+  return 0;
 }
 
 export function hasPositiveGoal(

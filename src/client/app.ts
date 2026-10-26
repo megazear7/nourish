@@ -160,26 +160,41 @@ function todayPips(item: CompetitionView): MemberView[] {
     });
 }
 
-function atRisk(member: MemberView): boolean {
-  if (member.standing === "out") return true;
-  return member.today !== null && member.today !== "on-track";
-}
-
 function standingMarks(item: CompetitionView): MemberView[] {
   return item.members
     .filter((member) => member.standing !== null)
     .slice()
     .sort((a, b) => {
-      const risk = Number(atRisk(a)) - Number(atRisk(b));
-      if (risk) return risk;
+      const streak = (b.streak ?? 0) - (a.streak ?? 0);
+      if (streak) return streak;
+      const fallen =
+        Number(a.standing === "out") - Number(b.standing === "out");
+      if (fallen) return fallen;
       return a.email.localeCompare(b.email);
     });
 }
 
-function markWord(member: MemberView): string {
-  if (member.standing === "out") return "out";
-  if (atRisk(member)) return "at risk";
-  return "in";
+function streakLabel(member: MemberView): string {
+  const days = member.streak ?? 0;
+  const unit = days === 1 ? "day" : "days";
+  const name = memberName(member.email, member.you);
+  return member.standing === "out"
+    ? `${name}, ${days} ${unit}, out`
+    : `${name}, ${days} ${unit}`;
+}
+
+function streakBeads(member: MemberView): Array<"held" | "risk" | "fall"> {
+  const count = Math.max(0, member.streak ?? 0);
+  const openRisk =
+    member.standing !== "out" &&
+    member.today !== null &&
+    member.today !== "on-track";
+  const beads: Array<"held" | "risk" | "fall"> = [];
+  for (let index = 0; index < count; index += 1) {
+    beads.push(openRisk && index === count - 1 ? "risk" : "held");
+  }
+  if (member.standing === "out") beads.push("fall");
+  return beads;
 }
 
 function placeFor(members: MemberView[], member: MemberView): number {
@@ -2382,12 +2397,7 @@ export class NourishApp extends LitElement {
               ? todayPips(item)
               : [];
           const detail = marks.length
-            ? marks
-                .map(
-                  (member) =>
-                    `${memberName(member.email, member.you)} ${markWord(member)}`,
-                )
-                .join(", ")
+            ? marks.map((member) => streakLabel(member)).join(", ")
             : pips.length
               ? pips
                   .map(
@@ -2411,14 +2421,17 @@ export class NourishApp extends LitElement {
               </span>
               ${
                 marks.length
-                  ? html`<span class="life-dots">
+                  ? html`<span class="streak-row">
                       ${marks.map(
                         (member) =>
-                          html`<span
-                            class="life-dot ${atRisk(member) ? "is-risk" : ""} ${
-                              member.you ? "is-you" : ""
-                            }"
-                          ></span>`,
+                          html`<span class="streak" aria-hidden="true">
+                            ${streakBeads(member).map(
+                              (kind) =>
+                                html`<span
+                                  class="streak-bead is-${kind}"
+                                ></span>`,
+                            )}
+                          </span>`,
                       )}
                     </span>`
                   : pips.length
@@ -2885,6 +2898,15 @@ export class NourishApp extends LitElement {
               : ""
         }
       </div>
+      ${
+        member.streak !== null
+          ? html`<span class="streak streak-line" aria-hidden="true">
+              ${streakBeads(member).map(
+                (kind) => html`<span class="streak-bead is-${kind}"></span>`,
+              )}
+            </span>`
+          : ""
+      }
       ${
         !out && eaten !== null
           ? html`<div class="board-track" aria-hidden="true">

@@ -23,6 +23,7 @@ export const MemberView = z.object({
   today: DayCall.nullable(),
   caloriesToday: z.number().int().nullable(),
   safeToday: z.number().int().nullable(),
+  streak: z.number().int().nullable(),
 });
 export type MemberView = z.infer<typeof MemberView>;
 

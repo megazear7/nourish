@@ -210,6 +210,14 @@ describe("last one standing", () => {
     assert.equal(sole.completed, true);
     assert.deepEqual(sole.winners, ["a@example.com"]);
     assert.equal(
+      sole.players.find((row) => row.email === "a@example.com")?.streak,
+      1,
+    );
+    assert.equal(
+      sole.players.find((row) => row.email === "b@example.com")?.streak,
+      0,
+    );
+    assert.equal(
       sole.players.find((row) => row.email === "b@example.com")?.knockedOutOn,
       "2026-10-25",
     );
@@ -234,6 +242,10 @@ describe("last one standing", () => {
     });
     assert.equal(shared.completed, true);
     assert.deepEqual(shared.winners, ["a@example.com", "b@example.com"]);
+    assert.equal(
+      shared.players.every((row) => row.streak === 1),
+      true,
+    );
   });
 
   it("does not knock anyone out while a remaining player's day is still open", () => {
@@ -272,6 +284,10 @@ describe("last one standing", () => {
     assert.equal(
       board.players.find((row) => row.email === "b@example.com")?.safeToday,
       2000,
+    );
+    assert.equal(
+      board.players.every((row) => row.streak === 1),
+      true,
     );
   });
 
@@ -353,6 +369,11 @@ describe("last one standing", () => {
       2100,
     );
     assert.equal(out?.safeToday, 2000);
+    assert.equal(out?.streak, 0);
+    assert.equal(
+      board.players.find((row) => row.email === "alive@example.com")?.streak,
+      2,
+    );
   });
 
   it("sets the bar against the most calories that stay On track", () => {
@@ -433,6 +454,7 @@ describe("best of the month", () => {
     assert.equal(board.players[0]?.today, "miss");
     assert.equal(board.players[0]?.caloriesToday, 0);
     assert.equal(board.players[0]?.safeToday, null);
+    assert.equal(board.players[0]?.streak, null);
   });
 
   it("does not score days before start", () => {
