@@ -2899,14 +2899,14 @@ export class NourishApp extends LitElement {
         ${
           !out && eaten !== null
             ? html`<p class="board-fraction">
-                <span class="eaten call-${tone}">${calorieText(eaten)}</span>
+                <span class="eaten call-${tone}">${String(eaten)}</span>
                 ${
                   safe !== null
-                    ? html`<span class="allowed">/ ${calorieText(safe)}</span>`
+                    ? html`<span class="allowed">/ ${String(safe)}</span>`
                     : ""
                 }
                 <span class="sr-only">
-                  ${safe !== null ? `of ${calorieText(safe)} ` : ""}calories
+                  ${safe !== null ? `of ${String(safe)} ` : ""}calories
                 </span>
               </p>`
             : ""
