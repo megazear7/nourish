@@ -32,7 +32,7 @@ The first login for a device backfills creates (and removes, for rows already de
 
 Competitions are a separate shared board. The food log stays private. Other players see the day label, points, and who is out. They do not see meals or calorie totals.
 
-The menu row **Competitions** sits after Goal. The list has a gold plus (**New competition**). A competition needs a type and at least one other email. Types are **Last one standing** and **Best of the month**. The host is in it and already accepted. Invites stay pending until that exact email signs in and accepts. A positive goal is required to create one and to accept one. Pending invites block Start. After Start the roster is frozen.
+The menu row **Competitions** sits after Goal. The list has a gold plus (**New competition**). A competition needs a type and at least one other email. Types are **Last one standing** and **Best of the month**. The host is in it and already accepted. Invites stay pending until that exact email signs in and accepts. While a competition is waiting, **Copy invite link** copies its address. The person opens it, signs in or creates an account with that email, then accepts or declines. A positive goal is required to create one and to accept one. Pending invites block Start. After Start the roster is frozen.
 
 Scoring uses the existing seven-day label, in each player’s own timezone. On track is +1. Drifting is 0. Running hot and Over the window are −1. No log is a miss (−1, and a knockout). A fast with nothing logged is On track, because a day under one third of the goal stays green. A scored day with no goal is a miss. Today stays provisional until that player’s local midnight. A change that arrives after midnight does not rewrite the locked day.
 

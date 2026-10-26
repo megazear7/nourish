@@ -61,7 +61,7 @@ Navigation is `history.pushState` plus a `popstate` listener. There is no router
 | `/goal` and `/goal/…` | `goal` | Goal | Goal form |
 | `/competitions` | `competitions` | Competitions | Competition list, or the signed-out / offline note |
 | `/competitions/new` and `/competitions/new/…` | `new-competition` | New competition | Create form |
-| `/competitions/{uuid}` | `competition` | Last one standing or Best of the month | That competition |
+| `/competitions/{uuid}` | `competition` | Last one standing or Best of the month, or **Competition** before it loads | That competition. Signed out, **Log in** and **Sign up** instead of the list note |
 | `/competitions/{not-a-uuid}` | `competitions` | Competitions | The list. The bad URL is left as-is |
 | `/profile` and `/profile/…` | `profile` | Profile | Profile picture, email, and display name |
 
@@ -549,7 +549,7 @@ Last one standing does not apply a day’s eliminations until that calendar day 
 
 Header titles: **Competitions**, **New competition**, and on a competition the type name (**Last one standing** or **Best of the month**). No dock.
 
-Signed out, including auth not configured: **Sign in from the menu to see competitions.** While the account is still `checking`: **Checking account…** Offline: **Competitions need a connection.** Those three replace the page. Competitions are not stored on the device.
+Signed out on the list or the create form, including auth not configured: **Sign in from the menu to see competitions.** A competition URL is different: **Sign in to accept or decline. Create an account if you need one. Use the email this invite was sent to.** Then **Log in** and **Sign up**, the same actions as the menu. While the account is still `checking`: **Checking account…** Offline, once signed in: **Competitions need a connection.** Those notes replace the page. Competitions are not stored on the device.
 
 List, when signed in and online:
 
@@ -567,6 +567,7 @@ Create:
 Detail:
 
 - Phase, and once started the start day, and for best of the month an en dash and the month-end day. Example shape: `Active · Oct 25–Oct 31`.
+- While waiting, **Copy invite link** copies `{origin}/competitions/{id}`. The label becomes **Copied** for 1.6 seconds. Under it: **Send this link. They sign in, or create an account, then accept or decline.** The link is not shown after Start. It does not add an email. The address still has to be on the roster. After **Log in** or **Sign up**, Auth0 returns to the site root and the app opens that competition path again, so a pending member lands on **Accept** and **Decline**.
 - When completed, one winner is `{email} won.` or **You won.** More than one is `{emails} share the win.`
 - One card per member, host first in insertion order. The email, then a muted line of **Host**, **You**, **Pending**, **Winner**, **In**, or **Out**. Best of the month adds **N points** / **1 point**. A knockout adds **Out {day label}**. A provisional call uses the tone color: On track `rgb(111, 191, 132)`, Drifting `rgb(168, 188, 103)`, Running hot `rgb(224, 184, 74)`, Over the window `rgb(214, 84, 78)`, No log muted.
 - A pending viewer gets **Accept** and **Decline**. Decline returns to the list and replaces the history entry.
@@ -637,7 +638,7 @@ When configured, the client is created with:
 - `authorizationParams.audience` from the table
 - `redirect_uri: window.location.origin`
 
-On load, if the query has both `code` and `state`, `handleRedirectCallback` runs, then `replaceState` leaves only `pathname` + `hash`. That path is the only time `recordLogin` runs. A silent `getTokenSilently` refresh does not increment the login count. If the refresh token is missing, fallback uses the Auth0 session cookie before giving up. `accessToken` returns null only for `login_required`, `missing_refresh_token`, and `invalid_grant`. Any other failure is thrown, and flush records `Sync failed.`
+On load, if the query has both `code` and `state`, `handleRedirectCallback` runs, then `replaceState` leaves only `pathname` + `hash`. **Log in** and **Sign up** store the current path as `appState.returnTo`. After the callback, if that path is a safe in-app path (`/` plus no scheme, no `//`, no backslash, no whitespace, at most 200 characters) and it is not the path Auth0 returned to, another `replaceState` opens it and the route syncs. That is how an invite link comes back to `/competitions/{id}`. `redirect_uri` stays the origin, so the Auth0 callback URL list does not need each competition. That callback is the only time `recordLogin` runs. A silent `getTokenSilently` refresh does not increment the login count. If the refresh token is missing, fallback uses the Auth0 session cookie before giving up. `accessToken` returns null only for `login_required`, `missing_refresh_token`, and `invalid_grant`. Any other failure is thrown, and flush records `Sync failed.`
 
 If Auth0 says the user is authenticated and `getUser()` has a `sub`, status is `signed-in` with `sub`, `email`, `picture`, and `name` (missing strings become empty). `name` here is the Auth0 display name from the rule in the side menu, not a local override and not the raw Auth0 `name` when that raw value is only the email. The menu and the header initials prefer `nourish-display-name` for this `sub` when it has an entry. Otherwise signed out.
 
@@ -928,7 +929,7 @@ Score tests ([src/shared/util.score.test.ts](src/shared/util.score.test.ts)): as
 
 Competition score tests ([src/shared/util.competition.test.ts](src/shared/util.competition.test.ts)): an October day in `America/New_York` ends at 04:00 UTC; spring-forward and fall-back midnights stay on that calendar date. 1800/2000 is On track, 2100 is Drifting, 2400 is Running hot, 2800 is Over the window. No log is a miss. A fast with no log is On track. No goal is a miss. An entry patched after midnight is ignored by the locked fold and present in the live fold. Last one standing names the last player in, shares a win when the last players miss together, does not knock anyone out while the New York day is still open, and does not finish while a Honolulu player has not locked a day Tokyo already has. Best of the month scores from the start day through month end, leaves the open day provisional, and does not score a day before start.
 
-Competition API tests ([src/server/competition.test.ts](src/server/competition.test.ts)), file store, one shared file, not concurrent: anonymous list is 401; create without a goal, with no emails, or with the host’s own email is 400; a created last-one-standing competition is 201, waiting, and its JSON has neither `calories` nor `entries`; a stranger gets 404; the guest sees the invite; accept without a goal is 400; after a goal, accept is 200; the guest cannot start (403); the host can start, every member then has a standing, and the JSON still has no calories; adding an email after start is 400; the host’s suggestions are `guest@example.com`. A second test creates best of the month, the guest declines (204), the host no longer sees that member, and the suggestion remains. Email claim tests ([src/server/auth.test.ts](src/server/auth.test.ts)): an access-token `email` wins; a matching ID-token `email` is used when the access token has none; a different `sub` is ignored; a blank email is ignored.
+Competition API tests ([src/server/competition.test.ts](src/server/competition.test.ts)), file store, one shared file, not concurrent: anonymous list is 401; create without a goal, with no emails, or with the host’s own email is 400; a created last-one-standing competition is 201, waiting, and its JSON has neither `calories` nor `entries`; a stranger gets 404; the guest sees the invite; accept without a goal is 400; after a goal, accept is 200; the guest cannot start (403); the host can start, every member then has a standing, and the JSON still has no calories; adding an email after start is 400; the host’s suggestions are `guest@example.com`. A second test creates best of the month, the guest declines (204), the host no longer sees that member, and the suggestion remains. Email claim tests ([src/server/auth.test.ts](src/server/auth.test.ts)): an access-token `email` wins; a matching ID-token `email` is used when the access token has none; a different `sub` is ignored; a blank email is ignored. Return path ([src/client/util.return-path.test.ts](src/client/util.return-path.test.ts)): a competition path is kept; a scheme, `//`, a backslash, or a space is dropped.
 
 There is no browser test and no screenshot test in the repo.
 

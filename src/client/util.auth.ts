@@ -91,8 +91,25 @@ function accountFromUser(user: {
   };
 }
 
-export async function initAuth(onLogin: () => void): Promise<Account> {
-  if (!authConfigured()) return { ...signedOut(), status: "unconfigured" };
+export function safeReturnPath(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  if (!value.startsWith("/") || value.startsWith("//")) return null;
+  if (value.includes("\\") || value.includes("://") || /\s/.test(value)) {
+    return null;
+  }
+  if (value.length > 200) return null;
+  return value;
+}
+
+export async function initAuth(
+  onLogin: () => void,
+): Promise<{ account: Account; returnTo: string | null }> {
+  if (!authConfigured()) {
+    return {
+      account: { ...signedOut(), status: "unconfigured" },
+      returnTo: null,
+    };
+  }
   client = await createAuth0Client({
     domain: authConfig().domain,
     clientId: authConfig().clientId,
@@ -105,20 +122,31 @@ export async function initAuth(onLogin: () => void): Promise<Account> {
     },
   });
   const params = new URLSearchParams(window.location.search);
+  let returnTo: string | null = null;
   if (params.has("code") && params.has("state")) {
-    await client.handleRedirectCallback();
+    const result = await client.handleRedirectCallback<{
+      returnTo?: unknown;
+    }>();
+    returnTo = safeReturnPath(result?.appState?.returnTo);
     const clean = `${window.location.pathname}${window.location.hash}`;
     window.history.replaceState({}, "", clean);
     onLogin();
   }
-  if (!(await client.isAuthenticated())) return signedOut();
+  if (!(await client.isAuthenticated())) {
+    return { account: signedOut(), returnTo };
+  }
   const user = await client.getUser();
-  return user?.sub ? accountFromUser(user) : signedOut();
+  return {
+    account: user?.sub ? accountFromUser(user) : signedOut(),
+    returnTo,
+  };
 }
 
 export async function login(signup: boolean): Promise<void> {
   if (!client) return;
+  const returnTo = safeReturnPath(window.location.pathname);
   await client.loginWithRedirect({
+    appState: returnTo ? { returnTo } : undefined,
     authorizationParams: {
       audience: authConfig().audience,
       redirect_uri: window.location.origin,

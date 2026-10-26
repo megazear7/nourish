@@ -249,6 +249,8 @@ export class NourishApp extends LitElement {
   @state() private syncNote = "";
   @state() private shareCopied = false;
   private shareTimer = 0;
+  @state() private inviteCopied = false;
+  private inviteTimer = 0;
   @state() private historyMode: "list" | "calendar" = "calendar";
   @state() private calendarMonth = monthKey(todayKey());
   @state() private editKey = "";
@@ -296,6 +298,7 @@ export class NourishApp extends LitElement {
   override disconnectedCallback(): void {
     window.clearTimeout(this.menuTimer);
     window.clearTimeout(this.shareTimer);
+    window.clearTimeout(this.inviteTimer);
     window.clearTimeout(this.profileSavedTimer);
     this.endMealPointer();
     window.removeEventListener("popstate", this.syncRoute);
@@ -457,7 +460,8 @@ export class NourishApp extends LitElement {
 
   private async startSession(): Promise<void> {
     try {
-      const account = await initAuth(() => recordLogin());
+      const started = await initAuth(() => recordLogin());
+      const account = started.account;
       this.account = account;
       this.nameOverride =
         account.status === "signed-in"
@@ -466,6 +470,10 @@ export class NourishApp extends LitElement {
       if (!this.profileDirty)
         this.profileDraft = this.nameOverride || account.name;
       if (account.status === "signed-in") this.bindAccount(account.sub);
+      if (started.returnTo && started.returnTo !== window.location.pathname) {
+        window.history.replaceState({}, "", started.returnTo);
+        this.syncRoute();
+      }
       await this.flush();
     } catch {
       this.account = authConfigured()
@@ -621,6 +629,28 @@ export class NourishApp extends LitElement {
     window.clearTimeout(this.shareTimer);
     this.shareTimer = window.setTimeout(() => {
       this.shareCopied = false;
+    }, 1600);
+  }
+
+  private async copyInviteLink(): Promise<void> {
+    const url = `${window.location.origin}/competitions/${this.competitionId}`;
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      const input = document.createElement("textarea");
+      input.value = url;
+      input.setAttribute("readonly", "");
+      input.style.position = "fixed";
+      input.style.left = "-9999px";
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand("copy");
+      input.remove();
+    }
+    this.inviteCopied = true;
+    window.clearTimeout(this.inviteTimer);
+    this.inviteTimer = window.setTimeout(() => {
+      this.inviteCopied = false;
     }, 1600);
   }
 
@@ -2331,9 +2361,39 @@ export class NourishApp extends LitElement {
     </section>`;
   }
 
+  private renderInviteSignIn() {
+    return html`<section>
+      <p class="tone-note">
+        Sign in to accept or decline. Create an account if you need one. Use the
+        email this invite was sent to.
+      </p>
+      <div class="account-actions competition-actions">
+        <button
+          class="account-button"
+          type="button"
+          @click=${() => void this.signIn(false)}
+        >
+          Log in
+        </button>
+        <button
+          class="account-button account-secondary"
+          type="button"
+          @click=${() => void this.signIn(true)}
+        >
+          Sign up
+        </button>
+      </div>
+    </section>`;
+  }
+
   private renderCompetition() {
-    const gate = this.renderCompetitionGate();
-    if (gate) return gate;
+    if (this.account.status === "checking") {
+      return html`<p class="empty-note">Checking account…</p>`;
+    }
+    if (this.account.status !== "signed-in") return this.renderInviteSignIn();
+    if (this.offline) {
+      return html`<p class="empty-note">Competitions need a connection.</p>`;
+    }
     const item = this.competitionDetail;
     if (!item || item.id !== this.competitionId) {
       return html`<p class="empty-note">
@@ -2353,6 +2413,21 @@ export class NourishApp extends LitElement {
             : ""
         }
       </p>
+      ${
+        item.phase === "waiting"
+          ? html`<button
+                class="account-button account-secondary competition-copy"
+                type="button"
+                @click=${() => void this.copyInviteLink()}
+              >
+                ${this.inviteCopied ? "Copied" : "Copy invite link"}
+              </button>
+              <p class="tone-note">
+                Send this link. They sign in, or create an account, then accept
+                or decline.
+              </p>`
+          : ""
+      }
       ${
         item.phase === "completed"
           ? html`<p class="competition-kind">

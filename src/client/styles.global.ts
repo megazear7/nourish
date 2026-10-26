@@ -1535,7 +1535,8 @@ export const appStyles = css`
 
   .competition-actions,
   .competition-start,
-  .competition-invite {
+  .competition-invite,
+  .competition-copy {
     margin-top: 1rem;
   }
 
