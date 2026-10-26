@@ -160,6 +160,18 @@ function todayPips(item: CompetitionView): MemberView[] {
     });
 }
 
+function standingDots(item: CompetitionView): MemberView[] {
+  return item.members
+    .filter((member) => member.standing !== null)
+    .slice()
+    .sort((a, b) => {
+      const fallen =
+        Number(a.standing === "out") - Number(b.standing === "out");
+      if (fallen) return fallen;
+      return a.email.localeCompare(b.email);
+    });
+}
+
 function competitionDays(item: CompetitionView): number {
   const live = item.members.filter((member) => member.standing === "in");
   const pool = live.length ? live : item.members;
@@ -2382,19 +2394,32 @@ export class NourishApp extends LitElement {
       }
       <ul class="competition-list">
         ${this.competitions.map((item) => {
+          const dots =
+            item.kind === "last_one_standing" && item.phase === "active"
+              ? standingDots(item)
+              : [];
           const pips =
             item.kind === "best_of_month" && item.phase === "active"
               ? todayPips(item)
               : [];
           const phase = standingPhase(item);
-          const detail = pips.length
-            ? pips
+          const detail = dots.length
+            ? dots
                 .map(
                   (member) =>
-                    `${memberName(member.email, member.you)} ${calorieText(member.caloriesToday ?? 0)} calories`,
+                    `${memberName(member.email, member.you)} ${
+                      member.standing === "out" ? "out" : "in"
+                    }`,
                 )
                 .join(", ")
-            : listMeta(item);
+            : pips.length
+              ? pips
+                  .map(
+                    (member) =>
+                      `${memberName(member.email, member.you)} ${calorieText(member.caloriesToday ?? 0)} calories`,
+                  )
+                  .join(", ")
+              : listMeta(item);
           return html`<li>
             <button
               class="competition-row"
@@ -2407,19 +2432,28 @@ export class NourishApp extends LitElement {
                 <span class="phase-pill phase-${item.phase}">${phase}</span>
               </span>
               ${
-                pips.length
-                  ? html`<span class="calorie-pips">
-                      ${pips.map(
+                dots.length
+                  ? html`<span class="life-dots">
+                      ${dots.map(
                         (member) =>
                           html`<span
-                            class="calorie-pip ${member.you ? "is-you" : ""} call-${member.today ?? "miss"}"
-                            >${calorieText(member.caloriesToday ?? 0)}</span
-                          >`,
+                            class="life-dot ${member.standing === "out" ? "is-out" : ""}"
+                          ></span>`,
                       )}
                     </span>`
-                  : html`<span class="competition-meta"
-                      >${listMeta(item)}</span
-                    >`
+                  : pips.length
+                    ? html`<span class="calorie-pips">
+                        ${pips.map(
+                          (member) =>
+                            html`<span
+                              class="calorie-pip ${member.you ? "is-you" : ""} call-${member.today ?? "miss"}"
+                              >${calorieText(member.caloriesToday ?? 0)}</span
+                            >`,
+                        )}
+                      </span>`
+                    : html`<span class="competition-meta"
+                        >${listMeta(item)}</span
+                      >`
               }
             </button>
           </li>`;

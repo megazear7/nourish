@@ -1745,9 +1745,9 @@ export const appStyles = css`
   }
 
   .life-dot.is-out {
-    background: transparent;
-    box-shadow: none;
-    border: 1.5px solid var(--muted);
+    background: rgb(224, 184, 74);
+    box-shadow: 0 0 0 4px rgba(224, 184, 74, 0.16);
+    border: 0;
   }
 
   .life-count {
