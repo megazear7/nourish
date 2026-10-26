@@ -6,6 +6,7 @@ import {
   CompetitionError,
   createCompetition,
   declineCompetition,
+  deleteCompetition,
   listCompetitions,
   readCompetition,
   removeCompetitionEmail,
@@ -169,6 +170,10 @@ async function handleCompetition(
       await readCompetition(store, viewer, route.id, timezone),
       { headers: JSON_HEADERS },
     );
+  }
+  if (route.name === "one" && req.method === "DELETE") {
+    await deleteCompetition(store, viewer, route.id, timezone);
+    return new Response(null, { status: 204 });
   }
   if (route.name === "emails" && req.method === "POST") {
     if (typeof body.email !== "string") {

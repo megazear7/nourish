@@ -1456,12 +1456,44 @@ export const appStyles = css`
     margin: 0.2rem 0 0;
   }
 
-  .competition-phase {
+  .competition-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
     margin: 0 0 0.85rem;
   }
 
-  .competition-phase:has(+ .days-remaining) {
+  .competition-head:has(+ .days-remaining) {
     margin-bottom: 0.2rem;
+  }
+
+  .competition-head .competition-phase {
+    margin: 0;
+    min-width: 0;
+  }
+
+  .competition-delete {
+    flex: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: #e7a29a;
+    font: inherit;
+    font-size: 0.95rem;
+    cursor: pointer;
+  }
+
+  .competition-delete:focus-visible,
+  button.delete-confirm:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 3px;
+  }
+
+  button.delete-confirm {
+    background: #e7a29a;
+    color: #1b140c;
   }
 
   .days-remaining {
@@ -1899,21 +1931,8 @@ export const appStyles = css`
     opacity: 0.72;
   }
 
-  .board-place,
   .board-mark {
     flex: none;
-  }
-
-  .board-place {
-    min-width: 1.35rem;
-    color: var(--gold);
-    font-size: 0.95rem;
-    font-weight: 650;
-    font-variant-numeric: tabular-nums;
-    text-align: center;
-  }
-
-  .board-mark {
     width: 0.55rem;
     height: 0.55rem;
     border-radius: 999px;

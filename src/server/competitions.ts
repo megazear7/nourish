@@ -467,6 +467,23 @@ export async function declineCompetition(
   });
 }
 
+export async function deleteCompetition(
+  db: CompetitionDb,
+  viewer: Viewer,
+  id: string,
+  timeZone: string,
+): Promise<null> {
+  requireZone(timeZone);
+  const email = viewerEmail(viewer);
+  return db.transaction(async (tx) => {
+    await tx.upsertUser(viewer.userId, viewer.email);
+    const record = await requireRecord(tx, id, viewer, email);
+    hostMember(record, viewer);
+    await tx.remove(record.id);
+    return null;
+  });
+}
+
 export async function startCompetition(
   db: CompetitionDb,
   viewer: Viewer,

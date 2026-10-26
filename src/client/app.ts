@@ -212,11 +212,6 @@ function competitionSpan(item: CompetitionView): string {
   return `${startLabel} - ${endLabel}`;
 }
 
-function placeFor(members: MemberView[], member: MemberView): number {
-  const points = member.points ?? 0;
-  return members.filter((row) => (row.points ?? 0) > points).length + 1;
-}
-
 function shareWidth(members: MemberView[], value: number | null): number {
   if (value === null || value <= 0) return 0;
   const max = members.reduce(
@@ -431,6 +426,7 @@ export class NourishApp extends LitElement {
   @state() private competitionNote = "";
   @state() private competitionLoading = false;
   @state() private competitionBusy = false;
+  @state() private deleteConfirm = false;
   private listTicket = 0;
   private detailTicket = 0;
   private profileDirty = false;
@@ -509,6 +505,7 @@ export class NourishApp extends LitElement {
 
   private syncRoute = (): void => {
     this.closeEdit();
+    this.deleteConfirm = false;
     const path = window.location.pathname;
     const meal = path.match(/^\/meal\/([^/]+)\/?$/);
     if (meal) {
@@ -2231,6 +2228,7 @@ export class NourishApp extends LitElement {
     this.page = "competition";
     this.competitionId = id;
     this.competitionNote = "";
+    this.deleteConfirm = false;
     this.competitionDetail =
       this.competitions.find((item) => item.id === id) ??
       this.competitionDetail;
@@ -2321,6 +2319,7 @@ export class NourishApp extends LitElement {
       const response = await this.competitionRequest(path, method, body);
       if (response.status === 401) return;
       if (response.status === 204) {
+        this.deleteConfirm = false;
         window.history.replaceState({}, "", "/competitions");
         this.page = "competitions";
         this.closeMenu();
@@ -2566,12 +2565,82 @@ export class NourishApp extends LitElement {
     return this.renderLiveCompetition(item);
   }
 
+  private renderDeleteControl(item: CompetitionView) {
+    if (!item.host) return "";
+    return html`<button
+      class="competition-delete"
+      type="button"
+      @click=${() => {
+        this.competitionNote = "";
+        this.deleteConfirm = true;
+      }}
+    >
+      Delete
+    </button>`;
+  }
+
+  private renderDeleteConfirm(item: CompetitionView) {
+    if (!this.deleteConfirm) return "";
+    return html`<div
+      class="edit-sheet"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="delete-competition-title"
+      @click=${() => {
+        this.deleteConfirm = false;
+      }}
+    >
+      <div
+        class="edit-modal"
+        @click=${(event: Event) => event.stopPropagation()}
+      >
+        <h2 class="edit-heading" id="delete-competition-title">
+          Delete this competition?
+        </h2>
+        <div class="account-actions competition-actions">
+          <button
+            class="account-button delete-confirm"
+            type="button"
+            ?disabled=${this.competitionBusy}
+            @click=${() =>
+              void this.mutateCompetition(
+                `/api/competitions/${item.id}`,
+                "DELETE",
+              )}
+          >
+            Delete
+          </button>
+          <button
+            class="account-button account-secondary"
+            type="button"
+            @click=${() => {
+              this.deleteConfirm = false;
+            }}
+          >
+            Cancel
+          </button>
+        </div>
+        ${
+          this.competitionNote
+            ? html`<p class="offline-note" role="status">
+                ${this.competitionNote}
+              </p>`
+            : ""
+        }
+      </div>
+    </div>`;
+  }
+
   private renderWaitingCompetition(item: CompetitionView) {
     const you = item.members.find((member) => member.you);
     return html`<section>
-      <p class="competition-meta competition-phase">
-        ${phaseLabel(item.phase)}
-      </p>
+      <div class="competition-head">
+        <p class="competition-meta competition-phase">
+          ${phaseLabel(item.phase)}
+        </p>
+        ${this.renderDeleteControl(item)}
+      </div>
+      ${this.renderDeleteConfirm(item)}
       <button
         class="account-button account-secondary competition-copy"
         type="button"
@@ -2804,19 +2873,23 @@ export class NourishApp extends LitElement {
     const rows = boardMembers(item);
     const remaining = daysRemaining(item);
     return html`<section class="board-page">
-      <p class="competition-meta competition-phase">
-        ${standingPhase(item)}
-        ${
-          item.kind === "last_one_standing" && item.startDay
-            ? html` · ${competitionSpan(item)}`
-            : item.startDay
-              ? html` ·
-                ${monthDay(item.startDay)}${
-                  item.monthEnd ? html`–${monthDay(item.monthEnd)}` : ""
-                }`
-              : ""
-        }
-      </p>
+      <div class="competition-head">
+        <p class="competition-meta competition-phase">
+          ${standingPhase(item)}
+          ${
+            item.kind === "last_one_standing" && item.startDay
+              ? html` · ${competitionSpan(item)}`
+              : item.startDay
+                ? html` ·
+                  ${monthDay(item.startDay)}${
+                    item.monthEnd ? html`–${monthDay(item.monthEnd)}` : ""
+                  }`
+                : ""
+          }
+        </p>
+        ${this.renderDeleteControl(item)}
+      </div>
+      ${this.renderDeleteConfirm(item)}
       ${
         remaining !== null
           ? html`<p class="days-remaining">
@@ -2853,7 +2926,6 @@ export class NourishApp extends LitElement {
       }"
     >
       <div class="board-top">
-        <span class="board-place">${placeFor(item.members, member)}</span>
         <div class="board-copy">
           <p class="board-name">${memberName(member.email, member.you)}</p>
           ${status ? html`<p class="board-sub">${status}</p>` : ""}

@@ -283,6 +283,57 @@ describe("competitions api", { concurrency: false }, () => {
     assert.deepEqual(hostList.suggestions, ["guest@example.com"]);
   });
 
+  it("lets the host delete a competition and keeps suggestions", async () => {
+    const created = await call(
+      "POST",
+      "/api/competitions",
+      {
+        kind: "best_of_month",
+        emails: ["guest@example.com"],
+        timezone: ZONE,
+      },
+      "host",
+    );
+    const competition = (await created.json()) as CompetitionView;
+    const guest = await call(
+      "DELETE",
+      `/api/competitions/${competition.id}`,
+      undefined,
+      "guest",
+    );
+    assert.equal(guest.status, 403);
+    const deleted = await call(
+      "DELETE",
+      `/api/competitions/${competition.id}`,
+      undefined,
+      "host",
+    );
+    assert.equal(deleted.status, 204);
+    assert.equal(await deleted.text(), "");
+    const missing = await call(
+      "GET",
+      `/api/competitions/${competition.id}`,
+      undefined,
+      "host",
+    );
+    assert.equal(missing.status, 404);
+    const suggestions = await call(
+      "GET",
+      "/api/competitions",
+      undefined,
+      "host",
+    );
+    const hostList = (await suggestions.json()) as {
+      suggestions: string[];
+      competitions: { id: string }[];
+    };
+    assert.equal(
+      hostList.competitions.some((item) => item.id === competition.id),
+      false,
+    );
+    assert.deepEqual(hostList.suggestions, ["guest@example.com"]);
+  });
+
   it("keeps an accepted seat bound to the account that accepted it", async () => {
     const created = await call(
       "POST",

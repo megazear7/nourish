@@ -572,6 +572,7 @@ Detail, waiting:
 - One card per member, host first in insertion order. The full email on its own line, then **Host**, **You**, and **Pending** when those apply. No standing, points, or calories. **Remove** is on that second line, next to those words, not beside the email.
 - A pending viewer gets **Accept** and **Decline**, stacked full width. Decline returns to the list and replaces the history entry.
 - The host sees **Start**, full width, only when `canStart` is true (host, not started, at least two members, every member accepted).
+- The host sees **Delete** at the top right on a waiting, active, or completed competition. It opens a dialog, **Delete this competition?**, with **Delete** and **Cancel**. Confirming sends `DELETE /api/competitions/{id}` and returns to the list, replacing the history entry. A player who is not the host does not see **Delete**. Their request is 403 **Only the host can do that.** Suggestions are kept.
 - While waiting, the host can remove any non-host member and can add another email. The field’s placeholder is **Add an email**. Tapping the field or its arrow opens a menu of emails this viewer has added before, excluding anyone already on this roster. Typed text narrows that menu. Choosing one fills the field. It is not a datalist.
 
 Detail, active or completed:
@@ -580,7 +581,7 @@ Detail, active or completed:
 - Completed result, large, no period: one name **{name} won** or **You won**. Two names **{a} and {b} won**. More than two **{a}, {b} and {c} won**. **You** is listed first. A competition with no winner text uses **Completed**.
 - Names on this board are **You**, or the email’s local part (the text before `@`). The full email is not shown.
 - Best of the month, while active, adds a line under the phase: **1 day remaining** or **N days remaining**. That count includes today through `monthEnd`. Completed does not show it.
-- While active or completed, best of the month rows are the same for you and everyone else. The only difference is a slight gold background on your card, and no gold border. Each row shows the place, the status line, and the point total on the right as **1 point** or **N points**. A negative total keeps its sign. Today’s calories are not shown, and there is no bar. The place is 1 plus the number of members with a higher point total, so a tie stays on the same number.
+- While active or completed, best of the month rows are the same for you and everyone else. The only difference is a slight gold background on your card, and no gold border. Each row shows the name, the status line, and the point total on the right as **1 point** or **N points**. A negative total keeps its sign. There is no place number. Today’s calories are not shown, and there is no bar. Rows are ordered by points, highest first.
 - Last one standing rows are the name and nothing else on the left. You are a row like every other member. The only difference is a slight gold background on your card, and no gold border. Someone still in shows today’s calories, a slash, and `safeToday`, as `640 / 2100`. No thousands separator. The eaten number uses the day-call color. The allowance is muted. A bar under the row is that same fraction. It is empty at 0 and full at the allowance or over it. When `safeToday` is null, only the eaten number is shown. Someone out does not show calories or a bar. Under the name: **Knocked out after 1 day** or **Knocked out after N days**, using that player’s `streak`. The card is dimmer.
 - Status line, best of the month only, with no extra sentence and no point total: **Pending**, **Winner**, **Out {day label}** (or **Out** when there is no date), otherwise the day-call label (**On track**, **Drifting**, **Running hot**, **Over the window**, **No log**), or **In** when there is no call. Last one standing does not use this line.
 - Order: best of the month by points descending, then today’s calories, then email. Last one standing: still in and winners before out, then today’s calories, then email. You is not pulled to the front.
@@ -601,6 +602,7 @@ Timezone is required on every competitions call. The browser sends `Intl.DateTim
 | `GET /api/competitions?timezone=` | 200 `{ suggestions, competitions }` |
 | `POST /api/competitions` `{ kind, emails, timezone }` | 201 the new competition |
 | `GET /api/competitions/{id}?timezone=` | 200 the competition, or 404 |
+| `DELETE /api/competitions/{id}?timezone=` | 204 empty. Host only, any phase |
 | `POST /api/competitions/{id}/emails` `{ email, timezone }` | 200 the competition |
 | `DELETE /api/competitions/{id}/emails?email=&timezone=` | 200 the competition |
 | `POST /api/competitions/{id}/accept` `{ timezone }` | 200 the competition |

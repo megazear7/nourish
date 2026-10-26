@@ -113,6 +113,11 @@ function txFor(data: Persisted): CompetitionTx {
       if (index >= 0) all[index] = record;
       else all.push(record);
     },
+    async remove(id: string) {
+      const all = competitions();
+      const index = all.findIndex((item) => item.id === id);
+      if (index >= 0) all.splice(index, 1);
+    },
     async rememberEmails(hostUserId, emails) {
       if (!data.suggestions) data.suggestions = [];
       for (const email of emails) {

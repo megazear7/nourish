@@ -8,6 +8,7 @@ export interface CompetitionTx {
   loadAll(): Promise<CompetitionRecord[]>;
   insert(record: CompetitionRecord): Promise<void>;
   replace(record: CompetitionRecord): Promise<void>;
+  remove(id: string): Promise<void>;
   rememberEmails(hostUserId: string, emails: string[]): Promise<void>;
   suggestionEmails(hostUserId: string): Promise<string[]>;
 }

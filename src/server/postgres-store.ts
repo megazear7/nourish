@@ -343,6 +343,9 @@ function postgresTx(query: Query): CompetitionTx {
     async replace(record) {
       await writeCompetition(query, record, true);
     },
+    async remove(id) {
+      await query(`DELETE FROM competitions WHERE id = $1::uuid`, [id]);
+    },
     async rememberEmails(hostUserId, emails) {
       for (const email of emails) {
         await query(
