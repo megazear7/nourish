@@ -138,8 +138,30 @@ function calorieText(value: number): string {
   return value.toLocaleString();
 }
 
-function pointsMark(points: number): string {
-  return points > 0 ? `+${points}` : String(points);
+function pointsLabel(points: number): string {
+  const noun = Math.abs(points) === 1 ? "point" : "points";
+  return `${points} ${noun}`;
+}
+
+function daysRemaining(item: CompetitionView): number | null {
+  if (
+    item.kind !== "best_of_month" ||
+    item.phase !== "active" ||
+    !item.monthEnd
+  ) {
+    return null;
+  }
+  const today = todayKey();
+  const start = item.startDay && item.startDay > today ? item.startDay : today;
+  if (start > item.monthEnd) return 0;
+  const [startYear, startMonth, startDay] = start.split("-").map(Number);
+  const [endYear, endMonth, endDay] = item.monthEnd.split("-").map(Number);
+  const span = Math.round(
+    (Date.UTC(endYear ?? 1970, (endMonth ?? 1) - 1, endDay ?? 1) -
+      Date.UTC(startYear ?? 1970, (startMonth ?? 1) - 1, startDay ?? 1)) /
+      86_400_000,
+  );
+  return span + 1;
 }
 
 function boardMembers(item: CompetitionView): MemberView[] {
@@ -262,21 +284,17 @@ function winnerLine(item: CompetitionView): string {
   return `${names.slice(0, -1).join(", ")} and ${last} won`;
 }
 
-function boardStatus(item: CompetitionView, member: MemberView): string {
-  const score =
-    item.kind === "best_of_month" && member.points !== null
-      ? pointsMark(member.points)
-      : "";
-  let state = "";
-  if (member.invite === "pending") state = "Pending";
-  else if (member.standing === "winner") state = "Winner";
-  else if (member.standing === "out") {
-    state = member.knockedOutOn
+function boardStatus(member: MemberView): string {
+  if (member.invite === "pending") return "Pending";
+  if (member.standing === "winner") return "Winner";
+  if (member.standing === "out") {
+    return member.knockedOutOn
       ? `Out ${formatDayLabel(member.knockedOutOn, todayKey())}`
       : "Out";
-  } else if (member.today) state = callLabel(member.today);
-  else if (member.standing === "in") state = "In";
-  return [state, score].filter(Boolean).join(" · ");
+  }
+  if (member.today) return callLabel(member.today);
+  if (member.standing === "in") return "In";
+  return "";
 }
 
 function listMeta(item: CompetitionView): string {
@@ -293,7 +311,7 @@ function listMeta(item: CompetitionView): string {
   }
   const you = item.members.find((member) => member.you);
   if (you?.points !== null && you?.points !== undefined) {
-    return pointsMark(you.points);
+    return pointsLabel(you.points);
   }
   return "";
 }
@@ -2873,6 +2891,7 @@ export class NourishApp extends LitElement {
 
   private renderLiveCompetition(item: CompetitionView) {
     const rows = boardMembers(item);
+    const remaining = daysRemaining(item);
     return html`<section class="board-page">
       <p class="competition-meta competition-phase">
         ${standingPhase(item)}
@@ -2887,6 +2906,13 @@ export class NourishApp extends LitElement {
               : ""
         }
       </p>
+      ${
+        remaining !== null
+          ? html`<p class="days-remaining">
+              ${remaining} ${remaining === 1 ? "day" : "days"} remaining
+            </p>`
+          : ""
+      }
       ${
         item.phase === "completed"
           ? html`<p class="board-result">${winnerLine(item)}</p>`
@@ -2909,7 +2935,7 @@ export class NourishApp extends LitElement {
     if (item.kind === "last_one_standing") {
       return this.renderStandingRow(item, member);
     }
-    const status = boardStatus(item, member);
+    const status = boardStatus(member);
     return html`<li
       class="board-row ${member.you ? "is-you" : ""} ${
         member.standing === "out" ? "is-out" : ""
@@ -2921,7 +2947,11 @@ export class NourishApp extends LitElement {
           <p class="board-name">${memberName(member.email, member.you)}</p>
           ${status ? html`<p class="board-sub">${status}</p>` : ""}
         </div>
-        <span class="life-dot" aria-hidden="true"></span>
+        ${
+          member.points !== null
+            ? html`<p class="board-points">${pointsLabel(member.points)}</p>`
+            : ""
+        }
       </div>
     </li>`;
   }

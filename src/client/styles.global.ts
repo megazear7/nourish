@@ -1460,6 +1460,17 @@ export const appStyles = css`
     margin: 0 0 0.85rem;
   }
 
+  .competition-phase:has(+ .days-remaining) {
+    margin-bottom: 0.2rem;
+  }
+
+  .days-remaining {
+    margin: 0 0 0.85rem;
+    color: var(--ink);
+    font-size: 1.15rem;
+    font-weight: 620;
+  }
+
   .member-top {
     display: flex;
     align-items: flex-start;
@@ -1940,14 +1951,13 @@ export const appStyles = css`
     font-size: 0.82rem;
   }
 
-  .board-calories {
+  .board-points {
     margin: 0;
     flex: none;
-    font-size: clamp(1.35rem, 6vw, 1.7rem);
-    font-weight: 620;
+    font-size: 0.95rem;
+    font-weight: 650;
     font-variant-numeric: tabular-nums;
-    letter-spacing: -0.03em;
-    line-height: 1;
+    white-space: nowrap;
   }
 
   .board-fraction {
