@@ -157,9 +157,6 @@ function boardMembers(item: CompetitionView): MemberView[] {
       const standing = group(a) - group(b);
       if (standing) return standing;
     }
-    if (item.kind !== "last_one_standing" && a.you !== b.you) {
-      return a.you ? -1 : 1;
-    }
     const calories = (b.caloriesToday ?? -1) - (a.caloriesToday ?? -1);
     if (calories) return calories;
     return a.email.localeCompare(b.email);
@@ -2875,15 +2872,7 @@ export class NourishApp extends LitElement {
   }
 
   private renderLiveCompetition(item: CompetitionView) {
-    const you = item.members.find((member) => member.you);
-    const showHero =
-      item.kind === "best_of_month" &&
-      item.phase === "active" &&
-      you !== undefined &&
-      you.caloriesToday !== null;
-    const rows = boardMembers(item).filter(
-      (member) => !showHero || !member.you,
-    );
+    const rows = boardMembers(item);
     return html`<section class="board-page">
       <p class="competition-meta competition-phase">
         ${standingPhase(item)}
@@ -2901,34 +2890,6 @@ export class NourishApp extends LitElement {
       ${
         item.phase === "completed"
           ? html`<p class="board-result">${winnerLine(item)}</p>`
-          : ""
-      }
-      ${
-        showHero && you
-          ? html`<article class="board-hero">
-              <div class="hero-kicker">
-                <p class="day-kicker">Today</p>
-                ${
-                  item.kind === "best_of_month"
-                    ? html`<p class="hero-place">
-                        <span class="sr-only">Place </span
-                        >${placeFor(item.members, you)}
-                      </p>`
-                    : ""
-                }
-              </div>
-              <p class="calorie-total call-${you.today ?? "miss"}">
-                ${calorieText(you.caloriesToday ?? 0)}
-                <span class="sr-only"> calories</span>
-              </p>
-              <p class="board-sub">${boardStatus(item, you)}</p>
-              <div class="board-track" aria-hidden="true">
-                <span
-                  class="board-fill call-fill-${you.today ?? "miss"}"
-                  style="width: ${shareWidth(item.members, you.caloriesToday)}%"
-                ></span>
-              </div>
-            </article>`
           : ""
       }
       <ol class="live-board">

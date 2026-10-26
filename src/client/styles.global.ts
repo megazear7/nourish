@@ -1757,7 +1757,6 @@ export const appStyles = css`
   }
 
   .row-top,
-  .hero-kicker,
   .board-top {
     display: flex;
     align-items: center;
@@ -1856,33 +1855,6 @@ export const appStyles = css`
     font-weight: 620;
   }
 
-  .board-hero {
-    min-width: 0;
-    margin-bottom: 0.35rem;
-  }
-
-  .board-hero .calorie-total {
-    font-size: clamp(2.6rem, 14vw, 4.4rem);
-    letter-spacing: -0.04em;
-  }
-
-  .board-hero .board-sub {
-    margin-top: 0.35rem;
-    font-size: 0.95rem;
-  }
-
-  .hero-place {
-    margin: 0;
-    color: var(--gold);
-    font-size: 1.35rem;
-    font-weight: 650;
-    font-variant-numeric: tabular-nums;
-  }
-
-  .hero-kicker {
-    align-items: baseline;
-  }
-
   .live-board {
     display: flex;
     flex-direction: column;
@@ -1902,20 +1874,13 @@ export const appStyles = css`
   }
 
   .board-row.is-you {
-    border-color: rgba(215, 176, 122, 0.85);
-    background:
-      linear-gradient(180deg, rgba(215, 176, 122, 0.16), transparent 72%),
-      var(--panel);
+    border-color: transparent;
+    background: rgba(215, 176, 122, 0.14);
   }
 
   .board-row.is-standing .board-name {
     min-width: 0;
     flex: 1;
-  }
-
-  .board-row.is-standing.is-you {
-    border-color: transparent;
-    background: rgba(215, 176, 122, 0.14);
   }
 
   .board-row.is-out {
@@ -2026,10 +1991,6 @@ export const appStyles = css`
     overflow: hidden;
     border-radius: 999px;
     background: rgba(255, 255, 255, 0.06);
-  }
-
-  .board-hero .board-track {
-    margin-top: 0.9rem;
   }
 
   .board-fill {
