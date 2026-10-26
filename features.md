@@ -556,11 +556,7 @@ List, when signed in and online:
 - Empty, after a load: **No competitions yet.**
 - While the first load has no rows yet: **Loading competitions…**
 - Each row is a button. The first line is the type and a phase label (**Waiting**, **Active**, or **Completed**). Once started, last one standing adds the start day in parentheses, `Last one standing (Oct 26)`. Best of the month adds the month in parentheses, `Best of the month (October)`. Waiting has neither. Last one standing, while active, uses **1 day** or **N days** instead of **Active**. The phase is uppercase and muted, gold when active. Order from the server is active, then waiting, then completed.
-- Waiting, second line: **1 person** or **N people**.
-- Active last one standing, second line: one dot per accepted player. Green when still in. Yellow when out. Same size. Greens come before yellows, then email. You is not pulled to the front and is not marked. No calorie numbers and no **N in**.
-- Active best of the month, second line, when any accepted player has a today total: those totals only. Each number uses the day-call color. No unit is shown. A null total is left off the line. Yours is first and larger, then the others from highest to lowest.
-- Active best of the month, second line, when every total is null: your point total, **1 point** or **N points**. A negative total keeps its sign.
-- Completed, second line: the same result line as the detail, described below.
+- Second line, every card: one green circle per member, waiting or started, either type. Same size. Knocked-out players stay green. You are not marked. No calorie numbers, point totals, or **N people** text.
 - A fixed gold plus, `3.25rem`, `z-index: 4` (under the menu at 12 and the edit sheet at 20), `aria-label="New competition"`. The list has bottom padding so the last row can clear it.
 
 Create:

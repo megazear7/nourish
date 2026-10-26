@@ -134,10 +134,6 @@ function memberName(email: string, you: boolean): string {
   return local || email;
 }
 
-function calorieText(value: number): string {
-  return value.toLocaleString();
-}
-
 function pointsLabel(points: number): string {
   const noun = Math.abs(points) === 1 ? "point" : "points";
   return `${points} ${noun}`;
@@ -183,28 +179,6 @@ function boardMembers(item: CompetitionView): MemberView[] {
     if (calories) return calories;
     return a.email.localeCompare(b.email);
   });
-}
-
-function todayPips(item: CompetitionView): MemberView[] {
-  return item.members
-    .filter((member) => member.caloriesToday !== null)
-    .slice()
-    .sort((a, b) => {
-      if (a.you !== b.you) return a.you ? -1 : 1;
-      return (b.caloriesToday ?? 0) - (a.caloriesToday ?? 0);
-    });
-}
-
-function standingDots(item: CompetitionView): MemberView[] {
-  return item.members
-    .filter((member) => member.standing !== null)
-    .slice()
-    .sort((a, b) => {
-      const fallen =
-        Number(a.standing === "out") - Number(b.standing === "out");
-      if (fallen) return fallen;
-      return a.email.localeCompare(b.email);
-    });
 }
 
 function competitionDays(item: CompetitionView): number {
@@ -294,25 +268,6 @@ function boardStatus(member: MemberView): string {
   }
   if (member.today) return callLabel(member.today);
   if (member.standing === "in") return "In";
-  return "";
-}
-
-function listMeta(item: CompetitionView): string {
-  if (item.phase === "waiting") {
-    const count = item.members.length;
-    return `${count} ${count === 1 ? "person" : "people"}`;
-  }
-  if (item.phase === "completed") return winnerLine(item);
-  if (item.kind === "last_one_standing") {
-    const alive = item.members.filter(
-      (member) => member.standing === "in",
-    ).length;
-    return `${alive} in`;
-  }
-  const you = item.members.find((member) => member.you);
-  if (you?.points !== null && you?.points !== undefined) {
-    return pointsLabel(you.points);
-  }
   return "";
 }
 
@@ -2434,67 +2389,23 @@ export class NourishApp extends LitElement {
       }
       <ul class="competition-list">
         ${this.competitions.map((item) => {
-          const dots =
-            item.kind === "last_one_standing" && item.phase === "active"
-              ? standingDots(item)
-              : [];
-          const pips =
-            item.kind === "best_of_month" && item.phase === "active"
-              ? todayPips(item)
-              : [];
           const phase = standingPhase(item);
-          const detail = dots.length
-            ? dots
-                .map(
-                  (member) =>
-                    `${memberName(member.email, member.you)} ${
-                      member.standing === "out" ? "out" : "in"
-                    }`,
-                )
-                .join(", ")
-            : pips.length
-              ? pips
-                  .map(
-                    (member) =>
-                      `${memberName(member.email, member.you)} ${calorieText(member.caloriesToday ?? 0)} calories`,
-                  )
-                  .join(", ")
-              : listMeta(item);
+          const count = item.members.length;
+          const people = `${count} ${count === 1 ? "person" : "people"}`;
           return html`<li>
             <button
               class="competition-row"
               type="button"
-              aria-label=${`${listTitle(item)}, ${phase}, ${detail}`}
+              aria-label=${`${listTitle(item)}, ${phase}, ${people}`}
               @click=${() => this.openCompetition(item.id)}
             >
               <span class="row-top">
                 <span class="competition-kind">${listTitle(item)}</span>
                 <span class="phase-pill phase-${item.phase}">${phase}</span>
               </span>
-              ${
-                dots.length
-                  ? html`<span class="life-dots">
-                      ${dots.map(
-                        (member) =>
-                          html`<span
-                            class="life-dot ${member.standing === "out" ? "is-out" : ""}"
-                          ></span>`,
-                      )}
-                    </span>`
-                  : pips.length
-                    ? html`<span class="calorie-pips">
-                        ${pips.map(
-                          (member) =>
-                            html`<span
-                              class="calorie-pip ${member.you ? "is-you" : ""} call-${member.today ?? "miss"}"
-                              >${calorieText(member.caloriesToday ?? 0)}</span
-                            >`,
-                        )}
-                      </span>`
-                    : html`<span class="competition-meta"
-                        >${listMeta(item)}</span
-                      >`
-              }
+              <span class="life-dots">
+                ${item.members.map(() => html`<span class="life-dot"></span>`)}
+              </span>
             </button>
           </li>`;
         })}
