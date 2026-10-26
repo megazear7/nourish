@@ -441,6 +441,7 @@ export class NourishApp extends LitElement {
   @state() private competitionKind: CompetitionKind = "last_one_standing";
   @state() private competitionEmails: string[] = [];
   @state() private competitionEmailDraft = "";
+  @state() private competitionSuggestOpen = false;
   @state() private competitionNote = "";
   @state() private competitionLoading = false;
   @state() private competitionBusy = false;
@@ -2313,6 +2314,14 @@ export class NourishApp extends LitElement {
     }
   }
 
+  private inviteSuggestions(item: CompetitionView): string[] {
+    const query = this.competitionEmailDraft.trim().toLowerCase();
+    return this.competitionSuggestions.filter((email) => {
+      if (item.members.some((member) => member.email === email)) return false;
+      return query === "" || email.includes(query);
+    });
+  }
+
   private async mutateCompetition(
     path: string,
     method: "POST" | "DELETE",
@@ -2635,28 +2644,32 @@ export class NourishApp extends LitElement {
           if (member.you) bits.push("You");
           if (member.invite === "pending") bits.push("Pending");
           return html`<li class="member-card">
-            <div class="member-top">
-              <p class="entry-calories">${member.email}</p>
-              ${
-                item.host && !member.host
-                  ? html`<button
-                      class="text-button member-remove"
-                      type="button"
-                      @click=${() =>
-                        void this.mutateCompetition(
-                          `/api/competitions/${item.id}/emails`,
-                          "DELETE",
-                          { email: member.email },
-                        )}
-                    >
-                      Remove
-                    </button>`
-                  : ""
-              }
-            </div>
+            <p class="entry-calories">${member.email}</p>
             ${
-              bits.length
-                ? html`<p class="entry-meta">${bits.join(" · ")}</p>`
+              bits.length || (item.host && !member.host)
+                ? html`<div class="member-status">
+                    ${
+                      bits.length
+                        ? html`<p class="entry-meta">${bits.join(" · ")}</p>`
+                        : ""
+                    }
+                    ${
+                      item.host && !member.host
+                        ? html`<button
+                            class="text-button member-remove"
+                            type="button"
+                            @click=${() =>
+                              void this.mutateCompetition(
+                                `/api/competitions/${item.id}/emails`,
+                                "DELETE",
+                                { email: member.email },
+                              )}
+                          >
+                            Remove
+                          </button>`
+                        : ""
+                    }
+                  </div>`
                 : ""
             }
           </li>`;
@@ -2711,49 +2724,128 @@ export class NourishApp extends LitElement {
       ${
         item.host
           ? html`<form
-                class="email-row competition-invite"
-                @submit=${(event: Event) => {
-                  event.preventDefault();
-                  const email = this.competitionEmailDraft.trim().toLowerCase();
-                  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-                    this.competitionNote = "Enter an email address.";
-                    return;
+              class="email-row competition-invite"
+              @submit=${(event: Event) => {
+                event.preventDefault();
+                const email = this.competitionEmailDraft.trim().toLowerCase();
+                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                  this.competitionNote = "Enter an email address.";
+                  return;
+                }
+                void this.mutateCompetition(
+                  `/api/competitions/${item.id}/emails`,
+                  "POST",
+                  { email },
+                ).then(() => {
+                  if (!this.competitionNote) {
+                    this.competitionEmailDraft = "";
+                    this.competitionSuggestOpen = false;
                   }
-                  void this.mutateCompetition(
-                    `/api/competitions/${item.id}/emails`,
-                    "POST",
-                    { email },
-                  ).then(() => {
-                    if (!this.competitionNote) this.competitionEmailDraft = "";
-                  });
+                });
+              }}
+            >
+              <div
+                class="suggest"
+                @focusout=${(event: FocusEvent) => {
+                  const next = event.relatedTarget;
+                  if (
+                    !(next instanceof Node) ||
+                    !(event.currentTarget as HTMLElement).contains(next)
+                  ) {
+                    this.competitionSuggestOpen = false;
+                  }
                 }}
               >
-                <input
-                  class="text-input"
-                  id="invite-email"
-                  name="email"
-                  type="email"
-                  aria-label="Email"
-                  autocomplete="off"
-                  list="competition-suggestions"
-                  placeholder="Add an email"
-                  .value=${live(this.competitionEmailDraft)}
-                  @input=${(event: Event) => {
-                    this.competitionEmailDraft = (
-                      event.currentTarget as HTMLInputElement
-                    ).value;
-                  }}
-                />
-                <button class="account-button" type="submit">Add</button>
-              </form>
-              <datalist id="competition-suggestions">
-                ${this.competitionSuggestions
-                  .filter(
-                    (email) =>
-                      !item.members.some((member) => member.email === email),
-                  )
-                  .map((email) => html`<option value=${email}></option>`)}
-              </datalist>`
+                ${
+                  this.competitionSuggestOpen &&
+                  this.inviteSuggestions(item).length
+                    ? html`<button
+                        class="suggest-backdrop"
+                        type="button"
+                        tabindex="-1"
+                        aria-label="Close"
+                        @click=${() => {
+                          this.competitionSuggestOpen = false;
+                        }}
+                      ></button>`
+                    : ""
+                }
+                <div class="suggest-field">
+                  <input
+                    class="text-input"
+                    id="invite-email"
+                    name="email"
+                    type="text"
+                    inputmode="email"
+                    autocapitalize="off"
+                    autocomplete="off"
+                    spellcheck="false"
+                    aria-label="Email"
+                    aria-expanded=${
+                      this.competitionSuggestOpen ? "true" : "false"
+                    }
+                    aria-controls="invite-suggestions"
+                    placeholder="Add an email"
+                    .value=${live(this.competitionEmailDraft)}
+                    @focus=${() => {
+                      this.competitionSuggestOpen = true;
+                    }}
+                    @input=${(event: Event) => {
+                      this.competitionEmailDraft = (
+                        event.currentTarget as HTMLInputElement
+                      ).value;
+                      this.competitionSuggestOpen = true;
+                    }}
+                  />
+                  <button
+                    class="suggest-toggle"
+                    type="button"
+                    aria-label="Emails"
+                    aria-expanded=${
+                      this.competitionSuggestOpen ? "true" : "false"
+                    }
+                    @mousedown=${(event: Event) => event.preventDefault()}
+                    @click=${() => {
+                      this.competitionSuggestOpen =
+                        !this.competitionSuggestOpen;
+                    }}
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M6 9l6 6 6-6"></path>
+                    </svg>
+                  </button>
+                </div>
+                ${
+                  this.competitionSuggestOpen &&
+                  this.inviteSuggestions(item).length
+                    ? html`<ul
+                        class="suggest-menu"
+                        id="invite-suggestions"
+                        role="listbox"
+                      >
+                        ${this.inviteSuggestions(item).map(
+                          (email) =>
+                            html`<li>
+                              <button
+                                type="button"
+                                role="option"
+                                @mousedown=${(event: Event) =>
+                                  event.preventDefault()}
+                                @click=${() => {
+                                  this.competitionEmailDraft = email;
+                                  this.competitionSuggestOpen = false;
+                                }}
+                              >
+                                ${email}
+                              </button>
+                            </li>`,
+                        )}
+                      </ul>`
+                    : ""
+                }
+              </div>
+              <button class="account-button" type="submit">Add</button>
+            </form>`
           : ""
       }
       ${

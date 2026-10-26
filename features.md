@@ -573,10 +573,10 @@ Detail, waiting:
 
 - Phase only. **Waiting**.
 - **Copy invite link** copies `{origin}/competitions/{id}`. The label becomes **Copied** for 1.6 seconds. Nothing is printed under the button. The link is not shown after Start. It does not add an email. The address still has to be on the roster. After **Log in** or **Sign up**, Auth0 returns to the site root and the app opens that competition path again, so a pending member lands on **Accept** and **Decline**.
-- One card per member, host first in insertion order. The full email, then **Host**, **You**, and **Pending** when those apply. No standing, points, or calories.
+- One card per member, host first in insertion order. The full email on its own line, then **Host**, **You**, and **Pending** when those apply. No standing, points, or calories. **Remove** is on that second line, next to those words, not beside the email.
 - A pending viewer gets **Accept** and **Decline**, stacked full width. Decline returns to the list and replaces the history entry.
 - The host sees **Start**, full width, only when `canStart` is true (host, not started, at least two members, every member accepted).
-- While waiting, the host can remove any non-host member and can add another email. The field’s placeholder is **Add an email**. Suggestions are the same datalist.
+- While waiting, the host can remove any non-host member and can add another email. The field’s placeholder is **Add an email**. Tapping the field or its arrow opens a menu of emails this viewer has added before, excluding anyone already on this roster. Typed text narrows that menu. Choosing one fills the field. It is not a datalist.
 
 Detail, active or completed:
 

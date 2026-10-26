@@ -1475,9 +1475,109 @@ export const appStyles = css`
 
   .member-remove {
     margin: 0;
-    padding: 0.35rem 0;
-    min-height: 2.75rem;
+    padding: 0.15rem 0;
+    min-height: 0;
     flex: none;
+  }
+
+  .member-status {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.85rem;
+    margin-top: 0.45rem;
+  }
+
+  .member-status .entry-meta {
+    margin: 0;
+  }
+
+  .suggest {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .suggest-field {
+    position: relative;
+  }
+
+  .suggest-field .text-input {
+    padding-right: 2.6rem;
+  }
+
+  .suggest-toggle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.6rem;
+    height: 100%;
+    border: 0;
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+  }
+
+  .suggest-toggle svg {
+    width: 1.1rem;
+    height: 1.1rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .suggest-toggle[aria-expanded="true"] svg {
+    transform: rotate(180deg);
+  }
+
+  .suggest-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 5;
+    border: 0;
+    padding: 0;
+    background: transparent;
+  }
+
+  .suggest-menu {
+    position: absolute;
+    z-index: 6;
+    top: calc(100% + 0.35rem);
+    left: 0;
+    right: 0;
+    max-height: 14rem;
+    margin: 0;
+    padding: 0.3rem;
+    overflow: auto;
+    list-style: none;
+    background: var(--panel);
+    border-radius: 0.9rem;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.38);
+  }
+
+  .suggest-menu button {
+    display: block;
+    width: 100%;
+    border: 0;
+    border-radius: 0.65rem;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    padding: 0.7rem 0.75rem;
+    overflow-wrap: anywhere;
+    cursor: pointer;
+  }
+
+  .suggest-menu button:focus-visible,
+  .suggest-toggle:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
   }
 
   .kind-choices {
